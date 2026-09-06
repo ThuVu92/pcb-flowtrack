@@ -77,6 +77,8 @@ create policy "profiles_insert_self" on profiles for insert
   with check (id = auth.uid());
 create policy "profiles_update_admin" on profiles for update
   using (my_role() = 'admin');
+create policy "profiles_delete_admin" on profiles for delete
+  using (my_role() = 'admin');
 
 -- ---------- Seed data ----------
 -- Seed the initial departments matching the current app's default DEPTS.

@@ -428,8 +428,8 @@ tr.row-click:hover td{background:var(--surface-2);}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
 <script>
   window.supabase = supabase.createClient(
-    'REPLACE_WITH_SUPABASE_PROJECT_URL',
-    'REPLACE_WITH_SUPABASE_ANON_KEY'
+    'https://afmfzdpkwisifqexjdwu.supabase.co',
+    'sb_publishable_3O7jg47kbOgYuR0928Erow_xVmdqM1z'
   );
 </script>
 
@@ -606,7 +606,7 @@ let ASSIGNS = [];
 let TIMELOGS = [];
 
 /* ---------------- Supabase data layer ---------------- */
-const AUTH_EMAIL_DOMAIN = '@pcbflowtrack.local';
+const AUTH_EMAIL_DOMAIN = '@users.pcbflowtrack.com';
 let DEPT_NAME_BY_ID = {};
 let DEPT_ID_BY_NAME = {};
 
@@ -719,12 +719,17 @@ let SESSION=null;
 let ACTIVE_VIEW='home';
 let RUNNING_TICK=null;
 
-function showPane(name){
+async function showPane(name){
   ['login','forgot','register'].forEach(p=>{
     document.getElementById('pane-'+p).classList.toggle('hidden', p!==name);
   });
   if(name==='register'){
-    document.getElementById('rg-dept').innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    const sel=document.getElementById('rg-dept');
+    sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    if(!DEPTS.length){
+      await loadDeptsPublic();
+      sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    }
   }
 }
 /** Nạp danh sách bộ phận trước khi đăng nhập (màn hình đăng ký cần nó). */
