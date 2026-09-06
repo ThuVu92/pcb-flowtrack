@@ -622,7 +622,7 @@ function multiComboFilter(id){
   } else if(q && st.allowCreate){
     const sug=findFuzzySuggestion(q, avail);
     const sugHtml = sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="multiComboAdd('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ Có phải ý bạn là "${sug.label}"?</div>`:'';
-    list.innerHTML = sugHtml + `<div class="combo-item" onmousedown="multiComboAdd('${id}', ${JSON.stringify(q)})">➕ Thêm "${q}"</div>`;
+    list.innerHTML = sugHtml + `<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(q).replace(/'/g,"\\'")}')">➕ Thêm "${q}"</div>`;
   } else {
     list.innerHTML=`<div class="combo-item muted">Không có gợi ý khớp</div>`;
   }
@@ -2019,7 +2019,7 @@ async function submitAddTaskInner(){
     if(job && !ORDERS.some(o=>o.code===job)){
       const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job, needs_review:true}).select().single();
       if(jobErr){ toast('Lỗi tạo Job mới: '+jobErr.message,'err'); return; }
-      ORDERS.push({code:newJob.code, name_vi:newJob.name_vi, name_en:'', name_ja:'', planDate:'', priority:'medium', memo:'', needsReview:true});
+      upsertById(ORDERS, {code:newJob.code, name_vi:newJob.name_vi, name_en:'', name_ja:'', planDate:'', priority:'medium', memo:'', needsReview:true}, 'code');
       toast('Đã tự tạo Job mới: '+job,'ok');
     }
     if(drawInput && !DRAWINGS.some(d=>d.code===drawInput)){
@@ -2027,7 +2027,7 @@ async function submitAddTaskInner(){
       if(drawErr){ toast('Lỗi tạo bản vẽ mới: '+drawErr.message,'err'); return; }
       const todayStr=new Date().toISOString().slice(0,10);
       await supabase.from('drawing_versions').insert({drawing_code:drawInput, version:'A', issue_date:todayStr});
-      DRAWINGS.push({code:drawInput, name:drawInput, job:job||'', needsReview:true, versions:[{version:'A', issueDate:todayStr}]});
+      upsertById(DRAWINGS, {code:drawInput, name:drawInput, job:job||'', needsReview:true, versions:[{version:'A', issueDate:todayStr}]}, 'code');
       toast('Đã tự tạo bản vẽ mới: '+drawInput,'ok');
     }
     codes=drawInput?[drawInput]:[];
@@ -2085,7 +2085,7 @@ async function createTimelogNow(codes, job, stages, name){
   const {error:tsErr}=await supabase.from('timelog_stages').insert(stages.map(stg=>({timelog_id:lRow.id, stage:stg})));
   if(tsErr) console.error(tsErr);
   const log={id:lRow.id, user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stages, start, pausedMs:0, end:null, status:'running'};
-  TIMELOGS.push(log);
+  upsertById(TIMELOGS, log); // Realtime có thể đã tự thêm dòng này trước khi đến đây (do 2 lượt insert phụ ở trên) — dùng upsert để tránh hiện trùng 2 dòng
   closeModal(); renderShift();
   toast(codes.length>1?`Đã bắt đầu tác vụ gộp ${codes.length} bản vẽ.`:'Đã bắt đầu tác vụ.','ok');
 }
