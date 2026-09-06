@@ -1434,14 +1434,16 @@ async function toggleQrCamera(){
       // Safari có lúc không bao giờ báo đúng HAVE_ENOUGH_DATA dù hình đã hiển thị,
       // khiến vòng lặp quét không bao giờ thực sự chạy dù camera vẫn thấy hình.
       if(video.videoWidth>0 && video.videoHeight>0){
-        // Chỉ xử lý vùng vuông ở giữa (khớp khung ngắm hiển thị) thay vì toàn bộ khung hình:
-        // giữ nguyên độ phân giải gốc trong vùng đó (quét xa vẫn tốt) nhưng ít điểm ảnh hơn hẳn
-        // nên xử lý nhanh hơn nhiều — bù lại tốc độ chậm của bộ giải mã QR thuần JS.
+        // Chỉ xử lý vùng vuông ở giữa (khớp khung ngắm hiển thị) thay vì toàn bộ khung hình,
+        // rồi thu nhỏ vùng đó lại còn tối đa 480px trước khi phân tích: nguồn vẫn lấy từ
+        // camera độ phân giải gốc (quét xa/nhỏ vẫn tốt) nhưng bộ giải mã QR thuần JS phải xử
+        // lý ít điểm ảnh hơn hẳn nên nhanh hơn rõ rệt — gần với tốc độ "lướt qua là nhận".
         const side=Math.round(Math.min(video.videoWidth, video.videoHeight)*0.7);
         const sx=Math.round((video.videoWidth-side)/2), sy=Math.round((video.videoHeight-side)/2);
-        canvas.width=side; canvas.height=side;
-        ctx.drawImage(video, sx, sy, side, side, 0, 0, side, side);
-        const imgData=ctx.getImageData(0,0,side,side);
+        const decodeSize=Math.min(side,480);
+        canvas.width=decodeSize; canvas.height=decodeSize;
+        ctx.drawImage(video, sx, sy, side, side, 0, 0, decodeSize, decodeSize);
+        const imgData=ctx.getImageData(0,0,decodeSize,decodeSize);
         const result=jsQR(imgData.data, imgData.width, imgData.height, {inversionAttempts:'dontInvert'});
         qrFrameCount++;
         if(result && result.data) onQrDetected(result.data);
