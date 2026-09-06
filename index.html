@@ -304,6 +304,15 @@ tr.row-click:hover td{background:var(--surface-2);}
   .login-visual{display:none;}
   .g4,.g3{grid-template-columns:repeat(2,1fr);}
 }
+#printQrSheet{display:none;}
+@media print{
+  body.printing-qr-sheet > *:not(#printQrSheet){display:none !important;}
+  body.printing-qr-sheet #printQrSheet{display:block !important; position:static; background:#fff; color:#111;}
+  #printQrSheet .qr-print-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  #printQrSheet .qr-print-cell{border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center; page-break-inside:avoid;}
+  #printQrSheet .qr-print-cell .qr-print-code{font-weight:bold; font-family:monospace; margin-top:4px; font-size:13px; color:#111;}
+  #printQrSheet .qr-print-cell .qr-print-name{font-size:11px; color:#444; margin-top:2px;}
+}
 </style>
 </head>
 <body>
@@ -521,6 +530,12 @@ const I18N = {
     purchasing_title:'Mua hàng', purchasing_sub:'Theo dõi yêu cầu mua hàng, khớp mã, PO và tình hình hàng về.',
     master_title:'Quản lý Master', master_sub:'Bản vẽ, Job, công đoạn chuẩn, người dùng & phân quyền — chỉ Admin chỉnh sửa.',
     lang_label:'Ngôn ngữ',
+    th_drawing:'Bản vẽ', th_drawing_code:'Mã BV', th_drawing_name:'Tên bản vẽ', th_name:'Tên',
+    th_worked_time:'Thời gian đã làm', th_content:'Nội dung', th_assigned_to:'Giao cho',
+    th_job_drawing:'Job/BV', th_job:'Job', th_stage:'Công đoạn', th_time:'Thời gian',
+    th_dept:'Bộ phận', th_employee:'Nhân viên', th_role:'Vai trò', th_emp_code:'Mã NV',
+    th_current_version:'Phiên bản hiện tại', th_issue_date:'Ngày phát hành', th_version:'Phiên bản',
+    th_job_code:'Mã Job', th_due_date:'Ngày cần giao',
   },
   en:{
     app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
@@ -541,6 +556,12 @@ const I18N = {
     purchasing_title:'Purchasing', purchasing_sub:'Track purchase requests, code matching, POs and incoming shipments.',
     master_title:'Master data', master_sub:'Drawings, Jobs, standard stages, users & permissions — Admin only.',
     lang_label:'Language',
+    th_drawing:'Drawing', th_drawing_code:'Drawing code', th_drawing_name:'Drawing name', th_name:'Name',
+    th_worked_time:'Time worked', th_content:'Content', th_assigned_to:'Assigned to',
+    th_job_drawing:'Job/Drawing', th_job:'Job', th_stage:'Stage', th_time:'Time',
+    th_dept:'Department', th_employee:'Employee', th_role:'Role', th_emp_code:'Employee code',
+    th_current_version:'Current version', th_issue_date:'Issue date', th_version:'Version',
+    th_job_code:'Job code', th_due_date:'Due date',
   },
   ja:{
     app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
@@ -561,6 +582,12 @@ const I18N = {
     purchasing_title:'購買', purchasing_sub:'購買依頼、コード照合、PO、入荷状況を管理。',
     master_title:'マスター管理', master_sub:'図面・受注・標準工程・ユーザー権限 — Admin専用。',
     lang_label:'言語',
+    th_drawing:'図面', th_drawing_code:'図面番号', th_drawing_name:'図面名', th_name:'名前',
+    th_worked_time:'作業時間', th_content:'内容', th_assigned_to:'担当者',
+    th_job_drawing:'受注/図面', th_job:'受注', th_stage:'工程', th_time:'時間',
+    th_dept:'部門', th_employee:'従業員', th_role:'役割', th_emp_code:'社員番号',
+    th_current_version:'現行版', th_issue_date:'発行日', th_version:'バージョン',
+    th_job_code:'受注番号', th_due_date:'納期',
   }
 };
 function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
@@ -989,7 +1016,7 @@ function openOrderDetail(code){
   openModal(`Chi tiết đơn hàng ${o.code}`, `
     ${editFields}
     ${genericNote}
-    <table style="margin-top:10px"><thead><tr><th>Bản vẽ</th><th>Tên</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
+    <table style="margin-top:10px"><thead><tr><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
   `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:async ()=>{
       const name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
       const name_en=document.getElementById('ordNameEnEdit').value.trim();
@@ -1094,7 +1121,7 @@ function renderAssignManageTable(){
     if(fSearch && !matchesSearch(a.content, fSearch)) return false;
     return true;
   });
-  wrap.innerHTML=`<table><thead><tr><th>Nội dung</th><th>Giao cho</th><th>Job/BV</th><th>Trạng thái</th><th></th></tr></thead>
+  wrap.innerHTML=`<table><thead><tr><th>${t('th_content')}</th><th>${t('th_assigned_to')}</th><th>${t('th_job_drawing')}</th><th>${t('col_status')}</th><th></th></tr></thead>
     <tbody>${list.map(a=>assignRowManage(a)).join('')||`<tr><td colspan="5" style="color:var(--text-mute)">Không có nhiệm vụ phù hợp bộ lọc.</td></tr>`}</tbody></table>`;
 }
 function statusBadge(s){
@@ -1297,19 +1324,19 @@ function renderShift(){
     ${unfinished.length?`
     <div class="card">
       <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Việc dở từ trước — bấm Resume để tiếp tục</h3>
-      <table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead>
+      <table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead>
       <tbody>${unfinished.map(rowHtml).join('')}</tbody></table>
     </div>`:''}
 
     <div class="card">
       <h3 style="margin-top:0;font-size:14px;color:var(--copper-hi)">Đang thực hiện</h3>
-      ${running.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
+      ${running.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
       : `<div class="empty-state">${icon('clock',30)}<p>Chưa có tác vụ nào đang chạy. Bấm "Thêm tác vụ" để bắt đầu.</p></div>`}
     </div>
 
     <div class="card">
       <h3 style="margin-top:0;font-size:14px">Đã hoàn thành hôm nay</h3>
-      ${doneToday.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
+      ${doneToday.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
       : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
     </div>`;
 }
@@ -1363,16 +1390,26 @@ function openAddTask(){
       </div>
       <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} Quét mã này</button>
       <div id="scanList" style="margin:10px 0;font-size:12.5px;color:var(--text-dim)"></div>
-      <div class="field"><label>Công đoạn cho lô vừa quét</label><select id="qrStage">${stageOpts}</select></div>
+      <div class="field"><label>Công đoạn cho lô vừa quét</label>
+        <input id="qrStage" list="qrStageList" placeholder="vd: Vẽ mạch, Mạ đồng…" autocomplete="off">
+        <datalist id="qrStageList">${stageOpts}</datalist>
+      </div>
       <p style="font-size:11.5px;color:var(--text-mute)">Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được <b>chia đều</b> cho các bản vẽ trong dòng.</p>
     </div>
     <div id="addTab-manual" class="hidden">
-      <div class="field"><label>Job</label><select id="mnJob"><option value="">— không —</option>${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</select></div>
-      <div class="field"><label>Tìm bản vẽ (gõ có dấu hoặc không dấu đều được)</label>
-        <input id="mnSearch" placeholder="vd: mach nguon" oninput="filterManualDrawings()">
-        <select id="mnDrawing" size="4" style="margin-top:6px">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}<option value="">— để trống —</option></select>
+      <p style="font-size:11.5px;color:var(--text-mute);margin-top:0">Chọn từ danh sách có sẵn, hoặc gõ nội dung mới nếu không làm trên bản vẽ/Job cụ thể (vd: việc khác, họp, bảo trì…) — Job/bản vẽ gõ mới sẽ tự thêm vào Master.</p>
+      <div class="field"><label>Job</label>
+        <input id="mnJob" list="mnJobList" placeholder="— để trống nếu không có Job — gõ để tìm hoặc thêm mới" autocomplete="off">
+        <datalist id="mnJobList">${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</datalist>
       </div>
-      <div class="field"><label>Công đoạn</label><select id="mnStage">${stageOpts}</select></div>
+      <div class="field"><label>Bản vẽ</label>
+        <input id="mnDrawing" list="mnDrawingList" placeholder="— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới" autocomplete="off">
+        <datalist id="mnDrawingList">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</datalist>
+      </div>
+      <div class="field"><label>Công đoạn / công việc</label>
+        <input id="mnStage" list="mnStageList" placeholder="vd: Vẽ mạch, Họp nhóm, Bảo trì máy…" autocomplete="off">
+        <datalist id="mnStageList">${stageOpts}</datalist>
+      </div>
     </div>
   `, [{label:'Bắt đầu (Start)', primary:true, onClick:submitAddTask}]);
 }
@@ -1392,7 +1429,12 @@ function addScannedCode(code){
   if(!scanBuffer.includes(code)) scanBuffer.push(code);
   const el=document.getElementById('scanList');
   if(el) el.innerHTML='Đã quét: '+scanBuffer.map(c=>`<span class="code-chip">${c}</span>`).join(' ');
-  toast('Đã quét '+code,'ok');
+  const active=findActiveTimelogFor(code);
+  if(active){
+    toast(`⚠ Bạn đang có phiên làm dở chưa hoàn thành với bản vẽ ${code} (công đoạn "${active.stage}"${active.status==='paused'?' · tạm dừng':''}).`, 'err');
+  } else {
+    toast('Đã quét '+code,'ok');
+  }
 }
 
 /* ---------------- Quét QR bằng camera thật ---------------- */
@@ -1469,11 +1511,12 @@ function onQrDetected(text){
   if(!DRAWINGS.some(d=>d.code===text)){ toast('Mã QR không khớp bản vẽ nào trong hệ thống: '+text,'err'); return; }
   addScannedCode(text);
 }
-function filterManualDrawings(){
-  const q=document.getElementById('mnSearch').value;
-  const sel=document.getElementById('mnDrawing');
-  sel.innerHTML=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q))
-    .map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')+`<option value="">— để trống —</option>`;
+/** Tìm phiên chấm công CHƯA XONG (đang làm/tạm dừng) của CHÍNH người đang
+    thao tác trên 1 mã bản vẽ — dùng để cảnh báo tự quét/bắt đầu trùng việc
+    đang dở của chính mình. Người khác vẫn làm chung bản vẽ đó bình thường,
+    không cảnh báo (2 người có thể cùng làm 1 bản vẽ cùng lúc). */
+function findActiveTimelogFor(code){
+  return TIMELOGS.find(l=>l.drawingCodes.includes(code) && l.user===SESSION.id && (l.status==='running'||l.status==='paused'));
 }
 async function submitAddTask(){
   const isQr = !document.getElementById('addTab-qr').classList.contains('hidden');
@@ -1481,18 +1524,54 @@ async function submitAddTask(){
   if(isQr){
     if(!scanBuffer.length){ toast('Chưa quét mã bản vẽ nào.','err'); return; }
     codes=scanBuffer.slice();
-    stage=document.getElementById('qrStage').value;
+    stage=document.getElementById('qrStage').value.trim();
+    if(!stage){ toast('Nhập công đoạn cho lô vừa quét.','err'); return; }
     const first=DRAWINGS.find(d=>d.code===codes[0]);
     job=first?first.job:'';
     name=codes.map(c=>{const d=DRAWINGS.find(x=>x.code===c); return d?d.name:c;}).join(', ');
   } else {
-    job=document.getElementById('mnJob').value;
-    const dc=document.getElementById('mnDrawing').value;
-    stage=document.getElementById('mnStage').value;
-    codes=dc?[dc]:[];
-    const d=DRAWINGS.find(x=>x.code===dc);
-    name=d?d.name:'(không chọn bản vẽ)';
+    const jobInput=document.getElementById('mnJob').value.trim();
+    const drawInput=document.getElementById('mnDrawing').value.trim();
+    stage=document.getElementById('mnStage').value.trim();
+    if(!stage){ toast('Nhập công đoạn / công việc.','err'); return; }
+    job=jobInput;
+    if(job && !ORDERS.some(o=>o.code===job)){
+      const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job}).select().single();
+      if(jobErr){ toast('Lỗi tạo Job mới: '+jobErr.message,'err'); return; }
+      ORDERS.push({code:newJob.code, name_vi:newJob.name_vi, name_en:'', name_ja:'', planDate:'', priority:'medium', memo:''});
+      toast('Đã tự tạo Job mới: '+job,'ok');
+    }
+    if(drawInput && !DRAWINGS.some(d=>d.code===drawInput)){
+      const {error:drawErr}=await supabase.from('drawings').insert({code:drawInput, name:drawInput, job_code:job||null});
+      if(drawErr){ toast('Lỗi tạo bản vẽ mới: '+drawErr.message,'err'); return; }
+      const todayStr=new Date().toISOString().slice(0,10);
+      await supabase.from('drawing_versions').insert({drawing_code:drawInput, version:'A', issue_date:todayStr});
+      DRAWINGS.push({code:drawInput, name:drawInput, job:job||'', versions:[{version:'A', issueDate:todayStr}]});
+      toast('Đã tự tạo bản vẽ mới: '+drawInput,'ok');
+    }
+    codes=drawInput?[drawInput]:[];
+    const d=DRAWINGS.find(x=>x.code===drawInput);
+    name=d?d.name:(drawInput||'(không chọn bản vẽ)');
   }
+
+  const conflicts=codes.map(code=>({code, log:findActiveTimelogFor(code)})).filter(x=>x.log);
+  if(conflicts.length){
+    const lines=conflicts.map(({code,log})=>
+      `<li><b>${code}</b>: bạn đang làm dở công đoạn "${log.stage}"${log.status==='paused'?' (đang tạm dừng)':''} chưa hoàn thành</li>`
+    ).join('');
+    openModal('⚠ Cảnh báo: bạn đang làm dở bản vẽ này', `
+      <p style="font-size:13px">Bạn đã có phiên chấm công chưa hoàn thành trên các bản vẽ sau:</p>
+      <ul style="font-size:12.5px;color:var(--text-dim);padding-left:18px;margin:8px 0">${lines}</ul>
+      <p style="font-size:12.5px;color:var(--text-mute)">Bạn vẫn có thể tiếp tục nếu đây là chủ ý (vd: bắt đầu thêm 1 công đoạn khác song song).</p>
+    `, [
+      {label:'Huỷ', onClick:closeModal},
+      {label:'Vẫn bắt đầu', primary:true, danger:true, onClick:()=>createTimelogNow(codes, job, stage, name)}
+    ]);
+    return;
+  }
+  await createTimelogNow(codes, job, stage, name);
+}
+async function createTimelogNow(codes, job, stage, name){
   const start=Date.now();
   const {data:lRow, error:lErr}=await supabase.from('timelogs').insert({
     user_id:SESSION.id, job_code:job||null, drawing_name:name, dept_id:DEPT_ID_BY_NAME[SESSION.dept]||null,
@@ -1518,10 +1597,14 @@ function renderDashboard(){
       <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
     </div>
     <div class="filter-bar">
-      <select id="fJob" onchange="renderDashBody()"><option value="">Tất cả Job</option>${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</select>
-      <select id="fUser" onchange="renderDashBody()"><option value="">Tất cả nhân viên</option>${USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</select>
-      <select id="fDept" onchange="renderDashBody()"><option value="">Tất cả bộ phận</option>${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
-      <select id="fDrawing" onchange="renderDashBody()"><option value="">Tất cả bản vẽ</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
+      <input id="fJob" list="fJobList" placeholder="Tất cả Job — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
+      <datalist id="fJobList">${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</datalist>
+      <input id="fUser" list="fUserList" placeholder="Tất cả nhân viên — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
+      <datalist id="fUserList">${USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</datalist>
+      <input id="fDept" list="fDeptList" placeholder="Tất cả bộ phận — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
+      <datalist id="fDeptList">${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</datalist>
+      <input id="fDrawing" list="fDrawingList" placeholder="Tất cả bản vẽ — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
+      <datalist id="fDrawingList">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</datalist>
       <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
       <select id="fPeriod" onchange="renderDashBody()">
         <option value="">Toàn bộ thời gian</option>
@@ -1645,7 +1728,7 @@ function renderDashBody(){
           </select>
         </div>
       </div>
-      <table style="margin-top:10px"><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead>
+      <table style="margin-top:10px"><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead>
       <tbody>${rowsJd||`<tr><td colspan="5" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
         <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">‹ Trước</button>
@@ -1678,7 +1761,7 @@ function renderDashBody(){
     </div>
     <div class="card scroll-x">
       <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3></div>
-      <table style="margin-top:10px"><thead><tr><th>Job</th><th>Nhân viên</th><th>Bộ phận</th><th>Bản vẽ</th><th>Công đoạn</th><th>Trạng thái</th><th>Thời gian</th></tr></thead>
+      <table style="margin-top:10px"><thead><tr><th>${t('th_job')}</th><th>${t('th_employee')}</th><th>${t('th_dept')}</th><th>${t('th_drawing')}</th><th>${t('th_stage')}</th><th>${t('col_status')}</th><th>${t('th_time')}</th></tr></thead>
       <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Không có dữ liệu.</td></tr>`}</tbody></table>
     </div>`;
 }
@@ -2174,6 +2257,7 @@ function renderMasterBody(){
           <input id="dwSearch" placeholder="Tìm bản vẽ (có/không dấu)…" oninput="renderDrawingTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <button class="btn btn-sm btn-ghost" onclick="downloadDrawingTemplate()">⬇ Tải template</button>
           <label class="btn btn-sm">⬆ Nhập Excel (nhiều sheet)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this)"></label>
+          <button class="btn btn-sm btn-ghost" onclick="printAllDrawingQrs()">${icon('qr',14)} In phiếu QR</button>
           <button class="btn btn-sm btn-primary" onclick="openDrawingForm()">${icon('plus',14)} Thêm bản vẽ</button>
         </div>
         <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px">Nguyên tắc nhập: dữ liệu mới sẽ ghi đè theo mã bản vẽ, nhưng bản vẽ đã phát sinh thời gian làm việc sẽ không bị xoá. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.</p>
@@ -2234,7 +2318,7 @@ function renderMasterBody(){
           <h3 style="margin:0;font-size:14px">Danh sách người dùng</h3>
           <button class="btn btn-sm btn-primary" onclick="openAddUser()">${icon('plus',14)} Thêm người dùng</button>
         </div>
-        <table><thead><tr><th>Tên</th><th>Mã NV</th><th>Bộ phận</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+        <table><thead><tr><th>${t('th_name')}</th><th>${t('th_emp_code')}</th><th>${t('th_dept')}</th><th>${t('th_role')}</th><th>${t('col_status')}</th><th></th></tr></thead>
         <tbody>${USERS.filter(u=>u.status!=='pending').map(u=>`<tr>
           <td>${u.name}</td><td class="mono">${u.code}</td><td>${u.dept}</td>
           <td><span class="badge badge-info">${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]}</span></td>
@@ -2262,12 +2346,12 @@ function renderDrawingTable(){
       <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
     </td></tr>`;
   }).join('');
-  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Phiên bản hiện tại</th><th>Ngày phát hành</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
 }
 function openVersionHistory(code){
   const d=DRAWINGS.find(x=>x.code===code);
   openModal('Lịch sử phiên bản — '+code, `
-    <table><thead><tr><th>Phiên bản</th><th>Ngày phát hành</th></tr></thead>
+    <table><thead><tr><th>${t('th_version')}</th><th>${t('th_issue_date')}</th></tr></thead>
     <tbody>${d.versions.map(v=>`<tr><td class="mono">${v.version}</td><td class="mono">${v.issueDate||'—'}</td></tr>`).join('')}</tbody></table>
   `, [{label:t('close'), onClick:closeModal}]);
 }
@@ -2428,6 +2512,49 @@ function openQrFor(code){
     </div>`, [{label:t('close'), onClick:closeModal}]);
   setTimeout(()=>renderRealQR(code, document.getElementById('qrBox')),10);
 }
+/** Vẽ QR cho 1 mã, trả về data URL ảnh PNG (dùng để ghép vào phiếu in hàng loạt). */
+function getQrDataUrl(text){
+  return new Promise(resolve=>{
+    const tmp=document.createElement('div');
+    tmp.style.position='fixed'; tmp.style.left='-9999px'; tmp.style.top='-9999px';
+    document.body.appendChild(tmp);
+    new QRCode(tmp, {text, width:140, height:140, correctLevel:QRCode.CorrectLevel.M});
+    setTimeout(()=>{
+      const img=tmp.querySelector('img');
+      const canvasEl=tmp.querySelector('canvas');
+      const dataUrl = img && img.src ? img.src : (canvasEl ? canvasEl.toDataURL() : '');
+      document.body.removeChild(tmp);
+      resolve(dataUrl);
+    },30);
+  });
+}
+/** Tạo 1 trang in gồm mã QR thật của toàn bộ bản vẽ (hoặc đang lọc theo ô tìm kiếm)
+    để in ra và cắt dán lên bản vẽ/phiếu — dùng "In / Lưu PDF" của trình duyệt. */
+async function printAllDrawingQrs(){
+  const q=document.getElementById('dwSearch')?document.getElementById('dwSearch').value:'';
+  const list=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q));
+  if(!list.length){ toast('Không có bản vẽ nào để in.','err'); return; }
+  toast(`Đang tạo phiếu QR cho ${list.length} bản vẽ…`,'ok');
+  const items=[];
+  for(const d of list){
+    const dataUrl=await getQrDataUrl(d.code);
+    items.push({code:d.code, name:d.name, dataUrl});
+  }
+  const cells=items.map(it=>`
+    <div class="qr-print-cell">
+      <img src="${it.dataUrl}" width="120" height="120">
+      <div class="qr-print-code">${it.code}</div>
+      <div class="qr-print-name">${(it.name||'').replace(/</g,'&lt;')}</div>
+    </div>`).join('');
+  let sheet=document.getElementById('printQrSheet');
+  if(!sheet){ sheet=document.createElement('div'); sheet.id='printQrSheet'; document.body.appendChild(sheet); }
+  sheet.innerHTML=`<h2>Phiếu mã QR bản vẽ (${items.length} bản vẽ)</h2><div class="qr-print-grid">${cells}</div>`;
+  // In ngay trên tab hiện tại (ẩn phần còn lại của app khi in) thay vì mở cửa sổ mới —
+  // window.open() sau 1 chuỗi await dễ bị trình duyệt chặn vì hết hiệu lực thao tác người dùng.
+  document.body.classList.add('printing-qr-sheet');
+  window.print();
+  setTimeout(()=>document.body.classList.remove('printing-qr-sheet'), 500);
+}
 
 /* ---- Master: Job ---- */
 function renderJobTable(){
@@ -2437,7 +2564,7 @@ function renderJobTable(){
     <td style="max-width:180px;font-size:12px;color:var(--text-mute)">${o.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openJobForm('${o.code}')">${t('edit')}</button>
     <button class="btn btn-ghost btn-sm" onclick="deleteJobConfirm('${o.code}')">${t('delete')}</button></td></tr>`).join('');
-  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>Mã Job</th><th>Tên</th><th>Ngày cần giao</th><th>Ưu tiên</th><th>Memo</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
 }
 function openJobForm(code){
   const existing = code? ORDERS.find(o=>o.code===code) : null;
