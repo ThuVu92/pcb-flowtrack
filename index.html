@@ -501,6 +501,48 @@ function matchesSearch(target, query){
   if(!query) return true;
   return stripDiacritics(target).includes(stripDiacritics(query));
 }
+function levenshtein(a,b){
+  const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  const dp=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){
+    let prev=dp[0]; dp[0]=i;
+    for(let j=1;j<=n;j++){
+      const tmp=dp[j];
+      dp[j]= a[i-1]===b[j-1] ? prev : 1+Math.min(prev,dp[j],dp[j-1]);
+      prev=tmp;
+    }
+  }
+  return dp[n];
+}
+/** Tìm 1 mục có sẵn rất giống với nội dung vừa gõ (khác dấu/hoa-thường,
+    hoặc gõ nhầm/thiếu 1 ký tự) để gợi ý CHỌN LẠI thay vì tạo bản ghi mới
+    trùng ý nhưng khác chữ (vd gõ "Han" trong khi đã có "Hàn") — nguyên
+    nhân chính khiến báo cáo bị phân mảnh do lỗi chính tả khi nhập tự do. */
+function findFuzzySuggestion(q, options){
+  const nq=stripDiacritics(q).replace(/\s+/g,' ').trim();
+  if(!nq) return null;
+  const norm=(s)=>stripDiacritics(String(s)).replace(/\s+/g,' ').trim();
+  // So khớp với cả value (mã thật, vd "SEV26001W") lẫn label hiển thị (có
+  // thể dài hơn nhiều, vd "SEV26001W — Sekisui") — người dùng có thể gõ
+  // nhầm 1 trong 2 dạng đó tuỳ trường (Job/bản vẽ dùng mã, công đoạn dùng
+  // đúng tên hiển thị).
+  const exact=options.find(o=>
+    [o.value,o.label].some(c=>{ const nv=norm(c); return nv===nq && String(c)!==q; })
+  );
+  if(exact) return exact;
+  if(nq.length<4) return null;
+  let best=null, bestD=2;
+  options.forEach(o=>{
+    [o.value,o.label].forEach(c=>{
+      const nv=norm(c);
+      if(Math.abs(nv.length-nq.length)>1) return;
+      const d=levenshtein(nv,nq);
+      if(d<bestD){ bestD=d; best=o; }
+    });
+  });
+  return best;
+}
 
 /* ---------------- "Combo" — ô gõ để tìm + gợi ý, tự viết ----------------
    Thay cho <input list=...><datalist>: datalist không hiện gợi ý đáng tin
@@ -526,9 +568,15 @@ function comboFilter(id){
   const filtered = q? opts.filter(o=>matchesSearch(o.label,q)||matchesSearch(o.value,q)) : opts;
   const list=document.getElementById(id+'-list'); if(!list) return;
   comboCloseAll(id);
-  list.innerHTML = filtered.length
-    ? filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="comboPick('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('')
-    : `<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+  if(filtered.length){
+    list.innerHTML=filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="comboPick('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('');
+  } else if(q){
+    const sug=findFuzzySuggestion(q, opts);
+    list.innerHTML = (sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="comboPick('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ Có phải ý bạn là "${sug.label}"?</div>`:'')
+      + `<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+  } else {
+    list.innerHTML=`<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+  }
   list.classList.remove('hidden');
 }
 function comboPick(id, value){
@@ -569,9 +617,15 @@ function multiComboFilter(id){
   const filtered=q? avail.filter(o=>matchesSearch(o.label,q)||matchesSearch(o.value,q)) : avail;
   const list=document.getElementById(id+'-input-list');
   comboCloseAll();
-  const addNewItem = (q && st.allowCreate)? `<div class="combo-item" onmousedown="multiComboAdd('${id}', ${JSON.stringify(q)})">➕ Thêm "${q}"</div>` : '';
-  list.innerHTML = (filtered.length? filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('') : '')
-    || addNewItem || `<div class="combo-item muted">Không có gợi ý khớp</div>`;
+  if(filtered.length){
+    list.innerHTML=filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('');
+  } else if(q && st.allowCreate){
+    const sug=findFuzzySuggestion(q, avail);
+    const sugHtml = sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="multiComboAdd('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ Có phải ý bạn là "${sug.label}"?</div>`:'';
+    list.innerHTML = sugHtml + `<div class="combo-item" onmousedown="multiComboAdd('${id}', ${JSON.stringify(q)})">➕ Thêm "${q}"</div>`;
+  } else {
+    list.innerHTML=`<div class="combo-item muted">Không có gợi ý khớp</div>`;
+  }
   list.classList.remove('hidden');
 }
 function multiComboAdd(id, value){
@@ -767,10 +821,10 @@ function mapProfile(p){
   return {id:p.id, name:p.name, code:p.code, username:p.username, dept:DEPT_NAME_BY_ID[p.dept_id]||'', role:p.role, status:p.status};
 }
 function mapJob(j){
-  return {code:j.code, name_vi:j.name_vi, name_en:j.name_en, name_ja:j.name_ja, planDate:j.plan_date, priority:j.priority, memo:j.memo||''};
+  return {code:j.code, name_vi:j.name_vi, name_en:j.name_en, name_ja:j.name_ja, planDate:j.plan_date, priority:j.priority, memo:j.memo||'', needsReview:!!j.needs_review};
 }
 function mapDrawing(d, versions){
-  return {code:d.code, name:d.name, job:d.job_code,
+  return {code:d.code, name:d.name, job:d.job_code, needsReview:!!d.needs_review,
     versions:(versions&&versions.length)? versions.map(v=>({version:v.version, issueDate:v.issue_date})) : [{version:'-',issueDate:'-'}]};
 }
 /** Chuẩn hoá 1 ô ngày tháng đọc từ Excel thành chuỗi 'YYYY-MM-DD'.
@@ -1847,17 +1901,17 @@ async function submitAddTaskInner(){
     if(!stages.length){ toast('Chọn ít nhất 1 công đoạn / công việc.','err'); return; }
     job=jobInput;
     if(job && !ORDERS.some(o=>o.code===job)){
-      const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job}).select().single();
+      const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job, needs_review:true}).select().single();
       if(jobErr){ toast('Lỗi tạo Job mới: '+jobErr.message,'err'); return; }
-      ORDERS.push({code:newJob.code, name_vi:newJob.name_vi, name_en:'', name_ja:'', planDate:'', priority:'medium', memo:''});
+      ORDERS.push({code:newJob.code, name_vi:newJob.name_vi, name_en:'', name_ja:'', planDate:'', priority:'medium', memo:'', needsReview:true});
       toast('Đã tự tạo Job mới: '+job,'ok');
     }
     if(drawInput && !DRAWINGS.some(d=>d.code===drawInput)){
-      const {error:drawErr}=await supabase.from('drawings').insert({code:drawInput, name:drawInput, job_code:job||null});
+      const {error:drawErr}=await supabase.from('drawings').insert({code:drawInput, name:drawInput, job_code:job||null, needs_review:true});
       if(drawErr){ toast('Lỗi tạo bản vẽ mới: '+drawErr.message,'err'); return; }
       const todayStr=new Date().toISOString().slice(0,10);
       await supabase.from('drawing_versions').insert({drawing_code:drawInput, version:'A', issue_date:todayStr});
-      DRAWINGS.push({code:drawInput, name:drawInput, job:job||'', versions:[{version:'A', issueDate:todayStr}]});
+      DRAWINGS.push({code:drawInput, name:drawInput, job:job||'', needsReview:true, versions:[{version:'A', issueDate:todayStr}]});
       toast('Đã tự tạo bản vẽ mới: '+drawInput,'ok');
     }
     codes=drawInput?[drawInput]:[];
@@ -2796,7 +2850,20 @@ function renderMasterBody(){
       </div>`;
     renderJobTable();
   } else if(masterTab==='stages'){
-    body.innerHTML=`
+    const orphans=orphanStageNames();
+    const orphanCard = orphans.length ? `
+    <div class="card" style="border-color:var(--amber)">
+      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">⚠ Công đoạn ngoài danh sách (${orphans.length})</h3>
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">Nhân viên đã gõ tự do những tên công đoạn này khi chấm công (chưa từng thêm chính thức ở dưới) — có thể là trùng ý nhưng khác chữ với 1 công đoạn đã có (lỗi chính tả), hoặc là công đoạn mới thật sự cần thêm.</p>
+      ${orphans.map((o,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px">
+        <span>${o.name} <span style="color:var(--text-mute);font-size:11.5px">(${o.count} lần)</span></span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="orphanDept-${i}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
+          <button class="btn btn-sm" onclick="addOrphanStageToMaster('${String(o.name).replace(/'/g,"\\'")}','orphanDept-${i}')">+ Thêm vào Master</button>
+        </div>
+      </div>`).join('')}
+    </div>` : '';
+    body.innerHTML=`${orphanCard}
     <div class="card">
       <h3 style="margin-top:0;font-size:14px">Thêm bộ phận mới</h3>
       <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">Tạo thêm bộ phận để tuỳ chỉnh quản lý (vd: QC, Kho, Bảo trì…). Bộ phận mới sẽ xuất hiện ở đăng ký, phân quyền, phân công nhiệm vụ và dashboard.</p>
@@ -2857,15 +2924,18 @@ function renderDrawingTable(){
   const q=document.getElementById('dwSearch')?document.getElementById('dwSearch').value:'';
   const rows=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q)).map(d=>{
     const lv=latestVersion(d);
-    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
+    return `<tr><td class="mono">${d.code}${d.needsReview?` <span class="badge badge-progress" title="Được tự tạo khi nhân viên gõ tự do trong Thêm tác vụ — chưa ai kiểm tra lại tên/chính tả">⚠ Cần rà soát</span>`:''}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
     <td class="mono">${lv.version}</td><td class="mono">${lv.issueDate}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-ghost btn-sm" onclick="openVersionHistory('${d.code}')">🕘 Lịch sử</button>
       <button class="btn btn-ghost btn-sm" onclick="openDrawingForm('${d.code}')">${t('edit')}</button>
       <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
+      ${d.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('drawing','${d.code}')">Đã xem xét</button>`:''}
     </td></tr>`;
   }).join('');
-  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+  const reviewCount=DRAWINGS.filter(d=>d.needsReview).length;
+  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">⚠ ${reviewCount} bản vẽ được tự tạo khi nhân viên gõ tự do, chưa được rà soát</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">Kiểm tra xem có bị trùng ý/lỗi chính tả với bản vẽ đã có không, sửa lại tên nếu cần rồi bấm "Đã xem xét".</p></div>` : '';
+  document.getElementById('drawingTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
 }
 function openVersionHistory(code){
   const d=DRAWINGS.find(x=>x.code===code);
@@ -3110,11 +3180,23 @@ async function printAllDrawingQrs(){
 function renderJobTable(){
   const q=document.getElementById('jbSearch')?document.getElementById('jbSearch').value:'';
   const rows=ORDERS.filter(o=>matchesSearch(getJobName(o),q)||matchesSearch(o.code,q)).map(o=>`
-    <tr><td class="mono">${o.code}</td><td>${getJobName(o)}</td><td class="mono">${o.planDate}</td><td>${priorityBadge(o.priority)}</td>
+    <tr><td class="mono">${o.code}${o.needsReview?` <span class="badge badge-progress" title="Được tự tạo khi nhân viên gõ tự do trong Thêm tác vụ — chưa ai kiểm tra lại tên/chính tả">⚠ Cần rà soát</span>`:''}</td><td>${getJobName(o)}</td><td class="mono">${o.planDate}</td><td>${priorityBadge(o.priority)}</td>
     <td style="max-width:180px;font-size:12px;color:var(--text-mute)">${o.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openJobForm('${o.code}')">${t('edit')}</button>
+    ${o.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('job','${o.code}')">Đã xem xét</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="deleteJobConfirm('${o.code}')">${t('delete')}</button></td></tr>`).join('');
-  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+  const reviewCount=ORDERS.filter(o=>o.needsReview).length;
+  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">⚠ ${reviewCount} Job được tự tạo khi nhân viên gõ tự do, chưa được rà soát</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">Kiểm tra xem có bị trùng ý/lỗi chính tả với Job đã có không, sửa lại tên nếu cần rồi bấm "Đã xem xét".</p></div>` : '';
+  document.getElementById('jobTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+}
+async function markReviewed(type, code){
+  const table = type==='job' ? 'jobs' : 'drawings';
+  const {error}=await supabase.from(table).update({needs_review:false}).eq('code', code);
+  if(error){ toast('Lỗi: '+error.message,'err'); return; }
+  const arr = type==='job' ? ORDERS : DRAWINGS;
+  const item=arr.find(x=>x.code===code); if(item) item.needsReview=false;
+  renderMasterBody();
+  toast('Đã đánh dấu đã xem xét.','ok');
 }
 function openJobForm(code){
   const existing = code? ORDERS.find(o=>o.code===code) : null;
@@ -3253,6 +3335,27 @@ async function addStage(dept){
   const {error}=await supabase.from('stages').insert({dept_id:DEPT_ID_BY_NAME[dept], name:v, sort_order:(STAGE_MASTER[dept]||[]).length});
   if(error){ toast('Lỗi thêm công đoạn: '+error.message,'err'); return; }
   STAGE_MASTER[dept].push(v); renderMasterBody(); toast('Đã thêm công đoạn.','ok');
+}
+/** Tên công đoạn nhân viên đã gõ tự do khi chấm công (lưu thẳng trong
+    timelog_stages, không bắt buộc phải có sẵn trong Master) nhưng chưa
+    từng được thêm chính thức vào danh sách công đoạn chuẩn của bộ phận
+    nào — cần admin rà soát xem là công đoạn mới thật hay lỗi chính tả. */
+function orphanStageNames(){
+  const known=new Set(Object.values(STAGE_MASTER).flat());
+  const counts={};
+  TIMELOGS.forEach(l=>{
+    (l.stages||[]).forEach(s=>{ if(s && s!=='—' && !known.has(s)) counts[s]=(counts[s]||0)+1; });
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,count])=>({name,count}));
+}
+async function addOrphanStageToMaster(name, selectId){
+  const dept=document.getElementById(selectId).value;
+  if((STAGE_MASTER[dept]||[]).includes(name)){ toast('Công đoạn này đã có trong bộ phận đó rồi.','err'); return; }
+  const {error}=await supabase.from('stages').insert({dept_id:DEPT_ID_BY_NAME[dept], name, sort_order:(STAGE_MASTER[dept]||[]).length});
+  if(error){ toast('Lỗi thêm công đoạn: '+error.message,'err'); return; }
+  STAGE_MASTER[dept]=STAGE_MASTER[dept]||[]; STAGE_MASTER[dept].push(name);
+  renderMasterBody();
+  toast('Đã thêm "'+name+'" vào Master → '+dept+'.','ok');
 }
 async function removeStage(dept,i){
   const name=STAGE_MASTER[dept][i];
