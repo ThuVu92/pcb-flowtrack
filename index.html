@@ -1416,13 +1416,18 @@ async function toggleQrCamera(){
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
   const tick=()=>{
     if(!qrCamStream) return;
-    if(video.readyState===video.HAVE_ENOUGH_DATA){
-      canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
-      const result=jsQR(imgData.data, imgData.width, imgData.height);
-      if(result && result.data) onQrDetected(result.data);
-    }
+    try{
+      // Dùng videoWidth/videoHeight thay vì so sánh readyState===HAVE_ENOUGH_DATA:
+      // Safari có lúc không bao giờ báo đúng HAVE_ENOUGH_DATA dù hình đã hiển thị,
+      // khiến vòng lặp quét không bao giờ thực sự chạy dù camera vẫn thấy hình.
+      if(video.videoWidth>0 && video.videoHeight>0){
+        canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const result=jsQR(imgData.data, imgData.width, imgData.height);
+        if(result && result.data) onQrDetected(result.data);
+      }
+    }catch(err){ console.error('QR scan frame error:', err); }
     qrCamRAF=requestAnimationFrame(tick);
   };
   qrCamRAF=requestAnimationFrame(tick);
