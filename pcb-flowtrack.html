@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>PCB FlowTrack — Quản lý công đoạn sản xuất</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0F1418; --bg-2:#141B21;
+  --surface:#1A232B; --surface-2:#212C36; --surface-3:#283542;
+  --border:#2C3944; --border-soft:#232E38;
+  --text:#E7EDF2; --text-dim:#A8B6C1; --text-mute:#71828F;
+  --copper:#C4823F; --copper-hi:#E0A05C; --copper-dim:#5B4326;
+  --solder:#3E9C6E; --solder-dim:#1D3F30; --solder-bg:#16261E;
+  --amber:#DDA53E; --amber-bg:#2B2415;
+  --danger:#D0665A; --danger-bg:#2C1B1A;
+  --info:#5B9BD5; --info-bg:#182531;
+  --radius:8px; --radius-sm:5px;
+  --font-sans:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--font-sans);
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+button,input,select,textarea{font-family:inherit; font-size:inherit; color:inherit;}
+button{cursor:pointer;}
+a{color:var(--copper-hi);}
+::selection{background:var(--copper-dim);}
+
+.hidden{display:none !important;}
+.scroll-x{overflow-x:auto;}
+
+/* ---------- circuit trace decoration ---------- */
+.trace-line{
+  background-image:
+    linear-gradient(90deg, transparent 0 6px, var(--border) 6px 7px, transparent 7px 100%);
+  background-size:26px 1px; background-repeat:repeat-x; background-position:left center;
+  height:1px; width:100%;
+}
+.trace-corner{ opacity:.5; }
+
+/* ---------- Login screen ---------- */
+#login-screen{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(196,130,63,.08), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(62,156,110,.08), transparent 40%),
+    var(--bg);
+  padding:24px;
+}
+.login-card{
+  width:100%; max-width:920px; display:grid; grid-template-columns:1.1fr 1fr;
+  background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.login-visual{
+  background:linear-gradient(160deg,#152029,#0E1519 70%);
+  padding:40px 36px; position:relative; display:flex; flex-direction:column; justify-content:space-between;
+  border-right:1px solid var(--border);
+}
+.login-visual svg{position:absolute; inset:0; width:100%; height:100%; opacity:.35;}
+.brand-mark{position:relative; z-index:1;}
+.brand-mark .dot{color:var(--copper-hi);}
+.brand-title{font-size:22px; font-weight:700; letter-spacing:.2px;}
+.brand-sub{color:var(--text-dim); font-size:13px; margin-top:6px; max-width:280px;}
+.login-visual .foot{position:relative; z-index:1; color:var(--text-mute); font-size:12px; font-family:var(--font-mono);}
+.login-form{padding:40px 36px;}
+.login-form h2{margin:0 0 4px; font-size:19px;}
+.login-form p.sub{color:var(--text-mute); margin:0 0 22px; font-size:13px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:12.5px; color:var(--text-dim); margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:10px 12px; color:var(--text); outline:none;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--copper);}
+.btn{
+  border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+  padding:10px 16px; border-radius:var(--radius-sm); font-weight:500; transition:.12s border-color;
+  display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+.btn:hover{border-color:var(--text-mute);}
+.btn-primary{background:var(--copper); border-color:var(--copper); color:#1A1006; font-weight:600;}
+.btn-primary:hover{background:var(--copper-hi); border-color:var(--copper-hi);}
+.btn-solder{background:var(--solder); border-color:var(--solder); color:#08150F; font-weight:600;}
+.btn-danger{background:transparent; border-color:var(--danger); color:var(--danger);}
+.btn-danger:hover{background:var(--danger-bg);}
+.btn-ghost{background:transparent; border-color:transparent;}
+.btn-ghost:hover{background:var(--surface-2); border-color:var(--border);}
+.btn-block{width:100%; justify-content:center;}
+.btn-sm{padding:6px 11px; font-size:12.5px;}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+.login-links{display:flex; justify-content:space-between; margin-top:14px; font-size:12.5px;}
+.login-links a{cursor:pointer; text-decoration:none;}
+.login-links a:hover{text-decoration:underline;}
+.demo-accts{margin-top:20px; border-top:1px dashed var(--border); padding-top:16px;}
+.demo-accts p{font-size:11.5px; color:var(--text-mute); margin:0 0 8px; text-transform:uppercase; letter-spacing:.4px;}
+.demo-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.demo-chip{
+  border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; text-align:left;
+  background:var(--surface-2); font-size:12px;
+}
+.demo-chip b{display:block; font-size:12.5px; color:var(--text);}
+.demo-chip span{color:var(--text-mute); font-family:var(--font-mono); font-size:11px;}
+.demo-chip:hover{border-color:var(--copper);}
+.err-msg{color:var(--danger); font-size:12.5px; margin-top:8px; min-height:16px;}
+.lang-btn{background:var(--surface-2); border:1px solid var(--border); color:var(--text-mute); padding:5px 10px; border-radius:20px; font-size:11.5px; font-weight:600;}
+.lang-btn.active{background:var(--copper); border-color:var(--copper); color:#1A1006;}
+.lang-switch-top{display:flex; gap:5px;}
+
+/* ---------- App shell ---------- */
+#app{display:none; min-height:100vh; grid-template-columns:224px 1fr;}
+#app.active{display:grid;}
+.sidebar{
+  background:var(--bg-2); border-right:1px solid var(--border-soft);
+  display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.side-brand{padding:18px 18px 14px; display:flex; align-items:center; gap:9px; border-bottom:1px solid var(--border-soft);}
+.side-brand .logo{
+  width:30px; height:30px; border-radius:7px; background:linear-gradient(145deg,var(--copper),#8a5a26);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; color:#1a1006; font-size:13px; flex:none;
+}
+.side-brand b{font-size:14.5px;}
+.side-brand small{display:block; color:var(--text-mute); font-size:10.5px; letter-spacing:.5px;}
+.nav-group{padding:10px 10px;}
+.nav-label{font-size:10.5px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.6px; padding:10px 10px 4px;}
+.nav-item{
+  display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--radius-sm);
+  color:var(--text-dim); font-size:13.5px; margin-bottom:2px; position:relative;
+}
+.nav-item svg{flex:none; opacity:.85;}
+.nav-item:hover{background:var(--surface-2); color:var(--text);}
+.nav-item.active{background:var(--surface-2); color:var(--text); box-shadow:inset 2px 0 0 var(--copper);}
+.nav-badge{
+  margin-left:auto; background:var(--danger); color:#fff; font-size:10.5px; font-weight:700;
+  border-radius:20px; padding:1px 6px; font-family:var(--font-mono);
+}
+.side-foot{margin-top:auto; padding:12px; border-top:1px solid var(--border-soft);}
+.user-chip{display:flex; align-items:center; gap:9px; padding:8px; border-radius:var(--radius-sm);}
+.avatar{
+  width:32px; height:32px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center;
+  justify-content:center; font-weight:700; font-size:12.5px; color:var(--copper-hi); flex:none; border:1px solid var(--border);
+}
+.user-chip .who b{display:block; font-size:12.5px; line-height:1.3;}
+.user-chip .who span{color:var(--text-mute); font-size:11px; font-family:var(--font-mono);}
+
+.main{min-width:0;}
+.topbar{
+  display:flex; align-items:center; gap:14px; padding:14px 24px; border-bottom:1px solid var(--border-soft);
+  position:sticky; top:0; background:rgba(15,20,24,.85); backdrop-filter:blur(6px); z-index:20;
+}
+.topbar h1{font-size:17px; margin:0; flex:none;}
+.topbar .path{color:var(--text-mute); font-size:12.5px;}
+.topbar-spacer{flex:1;}
+.icon-btn{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); width:34px; height:34px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.icon-btn:hover{border-color:var(--text-mute);}
+.mobile-toggle{display:none;}
+.view{padding:22px 24px 60px; max-width:1280px;}
+.view-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+.view-head h2{margin:0 0 3px; font-size:20px;}
+.view-head p{margin:0; color:var(--text-mute); font-size:13px;}
+
+/* ---------- shared components ---------- */
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px;}
+.card + .card{margin-top:14px;}
+.grid-cols{display:grid; gap:14px;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr);} .g3{grid-template-columns:repeat(2,1fr);} .g2{grid-template-columns:1fr;}}
+
+.stat-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:15px;}
+.stat-card .num{font-family:var(--font-mono); font-size:24px; font-weight:600;}
+.stat-card .lbl{color:var(--text-mute); font-size:12px; margin-top:2px;}
+.stat-card.accent-copper .num{color:var(--copper-hi);}
+.stat-card.accent-solder .num{color:var(--solder);}
+.stat-card.accent-amber .num{color:var(--amber);}
+.stat-card.accent-danger .num{color:var(--danger);}
+
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{
+  text-align:left; color:var(--text-mute); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.4px; padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap;
+}
+td{padding:10px; border-bottom:1px solid var(--border-soft); vertical-align:middle;}
+tr.row-click{cursor:pointer;}
+tr.row-click:hover td{background:var(--surface-2);}
+.mono{font-family:var(--font-mono);}
+.code-chip{
+  font-family:var(--font-mono); font-size:12px; background:var(--surface-2); border:1px solid var(--border);
+  padding:2px 7px; border-radius:4px;
+}
+
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:3px 9px; border-radius:20px; font-weight:600; white-space:nowrap;}
+.badge::before{content:''; width:6px; height:6px; border-radius:50%; background:currentColor;}
+.badge-done{background:var(--solder-bg); color:var(--solder);}
+.badge-progress{background:var(--amber-bg); color:var(--amber);}
+.badge-idle{background:var(--surface-2); color:var(--text-mute);}
+.badge-danger{background:var(--danger-bg); color:var(--danger);}
+.badge-info{background:var(--info-bg); color:var(--info);}
+
+.progress{height:7px; border-radius:20px; background:var(--surface-2); overflow:hidden; border:1px solid var(--border);}
+.progress > div{height:100%; background:linear-gradient(90deg,var(--solder-dim),var(--solder));}
+
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; overflow-x:auto;}
+.tab-btn{padding:9px 14px; border-radius:6px 6px 0 0; color:var(--text-mute); font-size:13px; font-weight:500; background:transparent; white-space:nowrap;}
+.tab-btn.active{color:var(--text); background:var(--surface); border:1px solid var(--border); border-bottom-color:var(--surface); position:relative; top:1px;}
+
+.empty-state{text-align:center; padding:46px 20px; color:var(--text-mute);}
+.empty-state svg{opacity:.35; margin-bottom:10px;}
+.empty-state p{margin:4px 0 0; font-size:13px;}
+
+.toast-wrap{position:fixed; top:16px; right:16px; z-index:200; display:flex; flex-direction:column; gap:8px;}
+.toast{
+  background:var(--surface-3); border:1px solid var(--border); border-left:3px solid var(--copper);
+  padding:11px 16px; border-radius:6px; font-size:13px; box-shadow:var(--shadow); min-width:230px;
+  animation:toastIn .18s ease-out;
+}
+.toast.ok{border-left-color:var(--solder);}
+.toast.err{border-left-color:var(--danger);}
+@keyframes toastIn{from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;}}
+
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(6,9,11,.6); display:flex; align-items:center; justify-content:center;
+  z-index:150; padding:20px; backdrop-filter:blur(2px);
+}
+.modal{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; width:100%; max-width:520px;
+  max-height:88vh; overflow-y:auto; box-shadow:var(--shadow);
+}
+.modal.wide{max-width:760px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--border);}
+.modal-head h3{margin:0; font-size:16px;}
+.modal-body{padding:18px;}
+.modal-foot{display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--border);}
+
+.timer{font-family:var(--font-mono); font-weight:600; font-size:14px; color:var(--copper-hi);}
+.qr-box{
+  width:64px; height:64px; border-radius:6px; border:1px solid var(--border); overflow:hidden; flex:none; background:#fff;
+}
+.qr-box canvas{width:100%; height:100%; display:block;}
+
+.notif-panel{
+  position:absolute; right:24px; top:56px; width:320px; background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; box-shadow:var(--shadow); z-index:60; max-height:400px; overflow-y:auto;
+}
+.notif-item{padding:11px 14px; border-bottom:1px solid var(--border-soft); font-size:12.5px;}
+.notif-item.unread{background:var(--surface-2);}
+.notif-item .t{color:var(--text-mute); font-size:11px; margin-top:3px;}
+
+.chat-box{border:1px solid var(--border); border-radius:8px; background:var(--surface-2); padding:10px; max-height:180px; overflow-y:auto; margin-bottom:8px;}
+.chat-msg{font-size:12.5px; margin-bottom:8px;}
+.chat-msg b{color:var(--copper-hi);}
+.chat-msg .t{color:var(--text-mute); font-size:10.5px; margin-left:6px;}
+
+.filter-bar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+.filter-bar select,.filter-bar input{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px;
+}
+
+.upload-drop{
+  border:1.5px dashed var(--border); border-radius:10px; padding:22px; text-align:center; color:var(--text-mute);
+  font-size:12.5px; cursor:pointer; background:var(--surface-2);
+}
+.upload-drop:hover{border-color:var(--copper);}
+.upload-drop input{display:none;}
+
+.diff-added{color:var(--solder);}
+.diff-removed{color:var(--danger); text-decoration:line-through; opacity:.7;}
+.diff-changed{color:var(--amber);}
+
+.bar-chart{display:flex; align-items:flex-end; gap:10px; height:150px; padding-top:10px;}
+.bar-chart .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+.bar-chart .bar{width:100%; max-width:38px; background:linear-gradient(180deg,var(--copper-hi),var(--copper-dim)); border-radius:4px 4px 0 0;}
+.bar-chart .bar-val{font-family:var(--font-mono); font-size:11px; color:var(--text-dim);}
+.bar-chart .bar-lbl{font-size:10.5px; color:var(--text-mute); text-align:center;}
+
+@media(max-width:860px){
+  #app.active{display:block;}
+  .sidebar{
+    position:fixed; bottom:0; left:0; right:0; top:auto; height:auto; width:100%; flex-direction:row;
+    border-top:1px solid var(--border-soft); border-right:none; z-index:100; justify-content:space-around; padding:2px 0;
+  }
+  .side-brand,.side-foot,.nav-label{display:none;}
+  .nav-group{display:flex; padding:4px; flex:1; justify-content:space-around;}
+  .nav-item{flex-direction:column; font-size:10px; gap:3px; padding:6px 4px; flex:1; text-align:center; box-shadow:none !important;}
+  .nav-item.active{background:transparent; color:var(--copper-hi);}
+  .nav-item span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px;}
+  .view{padding:16px 14px 90px;}
+  .login-card{grid-template-columns:1fr;}
+  .login-visual{display:none;}
+  .g4,.g3{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-visual">
+      <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+        <g stroke="#C4823F" stroke-width="1.2" fill="none">
+          <path d="M0 60 H120 V140 H260" /><path d="M0 180 H70 V260 H220 V340" />
+          <path d="M400 90 H300 V180 H180" /><path d="M400 260 H330 V400 H150 V460" />
+          <path d="M40 420 H180 V500" /><path d="M260 460 H400" />
+        </g>
+        <g fill="#3E9C6E">
+          <circle cx="120" cy="60" r="4"/><circle cx="260" cy="140" r="4"/><circle cx="70" cy="180" r="4"/>
+          <circle cx="220" cy="260" r="4"/><circle cx="300" cy="90" r="4"/><circle cx="180" cy="180" r="4"/>
+          <circle cx="330" cy="260" r="4"/><circle cx="150" cy="400" r="4"/><circle cx="180" cy="420" r="4"/>
+        </g>
+      </svg>
+      <div class="brand-mark">
+        <div class="brand-title">PCB <span class="dot">Flow</span>Track</div>
+        <div class="brand-sub" id="loginTagline">Hệ thống quản lý công đoạn &amp; đo thời gian thực hiện cho dây chuyền mạ PCB — Thiết kế · Mua hàng · Sản xuất.</div>
+      </div>
+      <div class="foot">V1.0 DEMO · BẢN VẼ · TIẾN ĐỘ · THỜI GIAN THỰC</div>
+    </div>
+    <div class="login-form">
+      <div class="lang-switch" style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:14px">
+        <button class="lang-btn active" data-lang="vi" onclick="setLang('vi')">VI</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" data-lang="ja" onclick="setLang('ja')">日本語</button>
+      </div>
+      <div id="pane-login">
+        <h2 id="loginTitleTxt">Đăng nhập</h2>
+        <p class="sub" id="loginSubTxt">Nhập tài khoản nhân viên để truy cập hệ thống.</p>
+        <div class="field"><label id="lblUser">Tên đăng nhập</label><input id="li-user" placeholder="vd: thao.nv"></div>
+        <div class="field"><label id="lblPass">Mật khẩu</label><input id="li-pass" type="password" placeholder="••••••••"></div>
+        <button class="btn btn-primary btn-block" onclick="doLogin()"><span id="loginBtnTxt">Đăng nhập</span></button>
+        <div class="err-msg" id="loginErr"></div>
+        <div class="login-links">
+          <a onclick="showPane('forgot')" id="forgotLinkTxt">Quên mật khẩu?</a>
+          <a onclick="showPane('register')" id="registerLinkTxt">Đăng ký tài khoản mới</a>
+        </div>
+        <div class="demo-accts">
+          <p id="demoAccTxt">Tài khoản demo — bấm để đăng nhập nhanh</p>
+          <div class="demo-grid" id="demoGrid"></div>
+        </div>
+      </div>
+
+      <div id="pane-forgot" class="hidden">
+        <h2>Quên mật khẩu</h2>
+        <p class="sub">Chọn 1 trong 2 hình thức khôi phục.</p>
+        <div class="field"><label>Tên đăng nhập</label><input id="fp-user" placeholder="vd: thao.nv"></div>
+        <div class="grid-cols g2">
+          <button class="btn btn-block" onclick="forgotFlow('admin')">Yêu cầu Admin cấp lại</button>
+          <button class="btn btn-block" onclick="forgotFlow('email')">Gửi email khôi phục</button>
+        </div>
+        <div class="err-msg" id="forgotMsg"></div>
+        <div class="login-links"><a onclick="showPane('login')">← Quay lại đăng nhập</a><span></span></div>
+      </div>
+
+      <div id="pane-register" class="hidden">
+        <h2>Đăng ký tài khoản</h2>
+        <p class="sub">Tài khoản sẽ chờ Admin duyệt trước khi dùng được.</p>
+        <div class="field"><label>Họ tên</label><input id="rg-name" placeholder="Nguyễn Văn A"></div>
+        <div class="grid-cols g2">
+          <div class="field"><label>Mã nhân viên</label><input id="rg-code" placeholder="NV0xx"></div>
+          <div class="field"><label>Bộ phận</label>
+            <select id="rg-dept"></select>
+          </div>
+        </div>
+        <div class="field"><label>Tên đăng nhập</label><input id="rg-user" placeholder="vd: an.nv"></div>
+        <div class="field"><label>Mật khẩu</label><input id="rg-pass" type="password"></div>
+        <button class="btn btn-primary btn-block" onclick="doRegister()">Gửi đăng ký</button>
+        <div class="err-msg" id="regMsg"></div>
+        <div class="login-links"><a onclick="showPane('login')">← Quay lại đăng nhập</a><span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <div class="logo">PF</div>
+      <div><b>FlowTrack</b><small>PCB PLATING LINE</small></div>
+    </div>
+    <div class="nav-group" id="navGroup"></div>
+    <div class="side-foot">
+      <div class="user-chip">
+        <div class="avatar" id="uAvatar">–</div>
+        <div class="who"><b id="uName">–</b><span id="uMeta">–</span></div>
+      </div>
+      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px;justify-content:flex-start" onclick="logout()">↩ Đăng xuất</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="topTitle">Trang chủ</h1>
+      <span class="path" id="topPath"></span>
+      <div class="topbar-spacer"></div>
+      <div class="lang-switch-top">
+        <button class="lang-btn active" data-lang="vi" onclick="setLang('vi')">VI</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" data-lang="ja" onclick="setLang('ja')">日</button>
+      </div>
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleNotif()">
+          🔔<span class="nav-badge" id="notifCount" style="position:absolute;top:-6px;right:-6px;"></span>
+        </button>
+        <div class="notif-panel hidden" id="notifPanel"></div>
+      </div>
+    </div>
+    <div class="view" id="viewRoot"></div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* =========================================================================
+   PCB FLOWTRACK — DEMO (dữ liệu mẫu trong bộ nhớ, KHÔNG lưu vĩnh viễn)
+   ========================================================================= */
+
+/* ---------------- Helpers ---------------- */
+function uid(p){return p+'-'+Math.random().toString(36).slice(2,8);}
+function nowStr(){return new Date().toLocaleString('vi-VN');}
+function fmtDur(ms){
+  if(ms<0) ms=0;
+  let s=Math.floor(ms/1000), h=Math.floor(s/3600); s%=3600;
+  let m=Math.floor(s/60); s%=60;
+  return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
+}
+function stripDiacritics(str){
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();
+}
+function matchesSearch(target, query){
+  if(!query) return true;
+  return stripDiacritics(target).includes(stripDiacritics(query));
+}
+function toast(msg, type){
+  const wrap=document.getElementById('toastWrap');
+  const el=document.createElement('div');
+  el.className='toast '+(type||'');
+  el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+function icon(name,size){
+  size=size||18;
+  const I={
+    home:'M4 11 12 4l8 7M6 10v9h5v-6h2v6h5v-9',
+    list:'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+    clock:'M12 8v4l3 2M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0z',
+    chart:'M4 20V10M12 20V4M20 20v-7',
+    db:'M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+    cart:'M3 4h2l2.4 12h11.2L21 8H6M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+    bell:'M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6M9.5 19a2.5 2.5 0 0 0 5 0',
+    plus:'M12 5v14M5 12h14',
+    check:'M5 13l4 4L19 7',
+    x:'M6 6l12 12M18 6 6 18',
+    chat:'M4 5h16v11H8l-4 4V5z',
+    qr:'M4 4h5v5H4V4zm0 11h5v5H4v-5zM15 4h5v5h-5V4zM15 15h2v2h-2v-2zm3 3h2v2h-2v-2zm-3 0h1v2h-1v-2zm3-3h2v3h-2v-3z',
+    logout:'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9'
+  };
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${(I[name]||'').split('M').filter(Boolean).map(d=>'<path d="M'+d+'"/>').join('')}</svg>`;
+}
+function pseudoQR(text, canvas){
+  const ctx=canvas.getContext('2d');
+  const n=17; canvas.width=canvas.height=170;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,170,170);
+  ctx.fillStyle='#111';
+  let seed=0; for(let i=0;i<text.length;i++) seed=(seed*31+text.charCodeAt(i))>>>0;
+  function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967295; }
+  const cell=170/n;
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const inCorner=(x<4&&y<4)||(x>n-5&&y<4)||(x<4&&y>n-5);
+    if(inCorner) continue;
+    if(rnd()>0.55) ctx.fillRect(x*cell,y*cell,cell-1,cell-1);
+  }
+  [[0,0],[n-4,0],[0,n-4]].forEach(([cx,cy])=>{
+    ctx.fillStyle='#111'; ctx.fillRect(cx*cell,cy*cell,4*cell-2,4*cell-2);
+    ctx.fillStyle='#fff'; ctx.fillRect((cx+0.6)*cell,(cy+0.6)*cell,2.8*cell,2.8*cell);
+    ctx.fillStyle='#111'; ctx.fillRect((cx+1.2)*cell,(cy+1.2)*cell,1.6*cell,1.6*cell);
+  });
+}
+
+/* ---------------- Demo data (in-memory) ---------------- */
+/* ---------------- i18n ---------------- */
+let LANG = 'vi';
+const I18N = {
+  vi:{
+    app_tagline:'Hệ thống quản lý công đoạn & đo thời gian thực hiện cho dây chuyền mạ PCB — Thiết kế · Mua hàng · Sản xuất.',
+    login_title:'Đăng nhập', login_sub:'Nhập tài khoản nhân viên để truy cập hệ thống.',
+    username:'Tên đăng nhập', password:'Mật khẩu', login_btn:'Đăng nhập',
+    forgot_link:'Quên mật khẩu?', register_link:'Đăng ký tài khoản mới', demo_accounts:'Tài khoản demo — bấm để đăng nhập nhanh',
+    nav_home:'Trang chủ', nav_assign:'Nhiệm vụ', nav_shift:'Ca làm việc', nav_dashboard:'Dashboard', nav_purchasing:'Mua hàng', nav_master:'Master',
+    logout:'Đăng xuất',
+    save:'Lưu', close:'Đóng', add:'Thêm', edit:'Sửa', delete:'Xoá', cancel:'Huỷ', search:'Tìm kiếm',
+    home_title:'Tổng hợp đơn hàng', home_sub:'Tiến độ được tính tự động theo bản vẽ đã hoàn thành trong Master.',
+    col_job:'Mã đơn', col_name:'Tên đơn hàng', col_plandate:'Ngày giao KH', col_progress:'Tiến độ', col_status:'Trạng thái', col_memo:'Memo', col_priority:'Ưu tiên',
+    status_done:'Hoàn thành', status_progress:'Đang làm', status_idle:'Chưa bắt đầu',
+    priority_high:'Cao', priority_medium:'Trung bình', priority_low:'Thấp',
+    assign_title:'Nhiệm vụ', assign_sub:'Phân công, theo dõi và trao đổi về từng nhiệm vụ.',
+    tab_manage:'Quản lý phân công', tab_mine:'Nhiệm vụ của tôi',
+    dash_title:'Dashboard tổng quan', dash_sub:'Lọc theo Job, nhân viên, bộ phận, bản vẽ, thời kỳ, trạng thái.',
+    export_report:'Xuất báo cáo',
+    purchasing_title:'Mua hàng', purchasing_sub:'Theo dõi yêu cầu mua hàng, khớp mã, PO và tình hình hàng về.',
+    master_title:'Quản lý Master', master_sub:'Bản vẽ, Job, công đoạn chuẩn, người dùng & phân quyền — chỉ Admin chỉnh sửa.',
+    lang_label:'Ngôn ngữ',
+  },
+  en:{
+    app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
+    login_title:'Sign in', login_sub:'Enter your employee account to access the system.',
+    username:'Username', password:'Password', login_btn:'Sign in',
+    forgot_link:'Forgot password?', register_link:'Create new account', demo_accounts:'Demo accounts — click to sign in',
+    nav_home:'Home', nav_assign:'Tasks', nav_shift:'Shift', nav_dashboard:'Dashboard', nav_purchasing:'Purchasing', nav_master:'Master data',
+    logout:'Log out',
+    save:'Save', close:'Close', add:'Add', edit:'Edit', delete:'Delete', cancel:'Cancel', search:'Search',
+    home_title:'Order overview', home_sub:'Progress is calculated automatically from drawings completed in Master.',
+    col_job:'Order code', col_name:'Order name', col_plandate:'Due date', col_progress:'Progress', col_status:'Status', col_memo:'Memo', col_priority:'Priority',
+    status_done:'Completed', status_progress:'In progress', status_idle:'Not started',
+    priority_high:'High', priority_medium:'Medium', priority_low:'Low',
+    assign_title:'Tasks', assign_sub:'Assign, track and discuss each task.',
+    tab_manage:'Manage assignments', tab_mine:'My tasks',
+    dash_title:'Dashboard overview', dash_sub:'Filter by job, employee, department, drawing, period, status.',
+    export_report:'Export report',
+    purchasing_title:'Purchasing', purchasing_sub:'Track purchase requests, code matching, POs and incoming shipments.',
+    master_title:'Master data', master_sub:'Drawings, Jobs, standard stages, users & permissions — Admin only.',
+    lang_label:'Language',
+  },
+  ja:{
+    app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
+    login_title:'ログイン', login_sub:'従業員アカウントでシステムにアクセスしてください。',
+    username:'ユーザー名', password:'パスワード', login_btn:'ログイン',
+    forgot_link:'パスワードをお忘れですか？', register_link:'新規アカウント登録', demo_accounts:'デモアカウント — クリックしてログイン',
+    nav_home:'ホーム', nav_assign:'タスク', nav_shift:'シフト', nav_dashboard:'ダッシュボード', nav_purchasing:'購買', nav_master:'マスター',
+    logout:'ログアウト',
+    save:'保存', close:'閉じる', add:'追加', edit:'編集', delete:'削除', cancel:'キャンセル', search:'検索',
+    home_title:'受注一覧', home_sub:'進捗はMasterで完了した図面から自動計算されます。',
+    col_job:'受注番号', col_name:'受注名', col_plandate:'納期', col_progress:'進捗', col_status:'状態', col_memo:'メモ', col_priority:'優先度',
+    status_done:'完了', status_progress:'進行中', status_idle:'未着手',
+    priority_high:'高', priority_medium:'中', priority_low:'低',
+    assign_title:'タスク', assign_sub:'タスクの割り当て・追跡・やり取り。',
+    tab_manage:'割り当て管理', tab_mine:'自分のタスク',
+    dash_title:'ダッシュボード概要', dash_sub:'受注・担当者・部門・図面・期間・状態で絞り込み。',
+    export_report:'レポート出力',
+    purchasing_title:'購買', purchasing_sub:'購買依頼、コード照合、PO、入荷状況を管理。',
+    master_title:'マスター管理', master_sub:'図面・受注・標準工程・ユーザー権限 — Admin専用。',
+    lang_label:'言語',
+  }
+};
+function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
+function setLang(l){
+  LANG=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===l));
+  if(SESSION){ renderNav(); goto(ACTIVE_VIEW); }
+  else { renderLoginTexts(); }
+}
+function renderLoginTexts(){
+  document.getElementById('loginTagline').textContent=t('app_tagline');
+  document.getElementById('loginTitleTxt').textContent=t('login_title');
+  document.getElementById('loginSubTxt').textContent=t('login_sub');
+  document.getElementById('lblUser').textContent=t('username');
+  document.getElementById('lblPass').textContent=t('password');
+  document.getElementById('loginBtnTxt').textContent=t('login_btn');
+  document.getElementById('forgotLinkTxt').textContent=t('forgot_link');
+  document.getElementById('registerLinkTxt').textContent=t('register_link');
+  document.getElementById('demoAccTxt').textContent=t('demo_accounts');
+}
+
+let DEPTS = ['Thiết kế','Mua hàng','Sản xuất'];
+const STAGE_MASTER = {
+  'Thiết kế': ['Bóc tách dữ liệu','Vẽ mạch','Duyệt bản vẽ'],
+  'Mua hàng': ['Báo giá','Đặt hàng','Nhận hàng'],
+  'Sản xuất': ['Cắt phôi','Khoan','Mạ đồng','Hàn','Lắp ráp','Kiểm tra QC','Đóng gói']
+};
+
+let USERS = [
+  {id:'u1', name:'Trần Văn Admin', code:'NV001', dept:'Quản trị', role:'admin', username:'admin', password:'123', status:'active'},
+  {id:'u2', name:'Lê Thị Quản', code:'NV002', dept:'Sản xuất', role:'manager', username:'quan.ql', password:'123', status:'active'},
+  {id:'u3', name:'Phạm Minh Thiết', code:'NV003', dept:'Thiết kế', role:'employee', username:'thiet.tk', password:'123', status:'active'},
+  {id:'u4', name:'Nguyễn Thu Mua', code:'NV004', dept:'Mua hàng', role:'employee', username:'mua.mh', password:'123', status:'active'},
+  {id:'u5', name:'Hoàng Văn Sản', code:'NV005', dept:'Sản xuất', role:'employee', username:'san.sx', password:'123', status:'active'},
+  {id:'u6', name:'Vũ Thị Ngọc', code:'NV006', dept:'Sản xuất', role:'employee', username:'ngoc.sx', password:'123', status:'pending'},
+];
+
+let DRAWINGS = [
+  {code:'BV-1001', name:'Mạch nguồn 12V Rev.A', job:'JOB-2026-014', qty:120, versions:[{version:'A', issueDate:'2026-08-10'}]},
+  {code:'BV-1002', name:'Mạch điều khiển motor', job:'JOB-2026-014', qty:80, versions:[{version:'A', issueDate:'2026-08-05'},{version:'B', issueDate:'2026-08-22'}]},
+  {code:'BV-1003', name:'Board cảm biến nhiệt', job:'JOB-2026-015', qty:200, versions:[{version:'A', issueDate:'2026-08-12'}]},
+  {code:'BV-1004', name:'Mạch LED driver', job:'JOB-2026-015', qty:150, versions:[{version:'A', issueDate:'2026-08-14'}]},
+  {code:'BV-1005', name:'Board giao tiếp RS485', job:'JOB-2026-016', qty:60, versions:[{version:'A', issueDate:'2026-07-20'},{version:'B', issueDate:'2026-08-01'},{version:'C', issueDate:'2026-08-25'}]},
+  {code:'BV-1006', name:'Mạch nguồn phụ 5V', job:'JOB-2026-016', qty:60, versions:[{version:'A', issueDate:'2026-08-02'}]},
+  {code:'BV-1007', name:'Board mở rộng I/O', job:'JOB-2026-017', qty:40, versions:[{version:'A', issueDate:'2026-08-28'}]},
+];
+function latestVersion(d){ return (d.versions&&d.versions.length)? d.versions[d.versions.length-1] : {version:'-',issueDate:'-'}; }
+
+let ORDERS = [
+  {code:'JOB-2026-014', name_vi:'Đơn hàng Cty Sao Việt — Bộ nguồn công nghiệp', name_en:'Sao Viet Co. Order — Industrial Power Supply', name_ja:'サオベト社受注 — 産業用電源', planDate:'2026-09-20', priority:'high', memo:'Khách yêu cầu ưu tiên mạ vàng.'},
+  {code:'JOB-2026-015', name_vi:'Đơn hàng Cty Đông Phương — Cảm biến & LED', name_en:'Dong Phuong Co. Order — Sensors & LED', name_ja:'ドンフォン社受注 — センサー・LED', planDate:'2026-09-18', priority:'medium', memo:''},
+  {code:'JOB-2026-016', name_vi:'Đơn hàng Cty Hải An — Board giao tiếp', name_en:'Hai An Co. Order — Interface Board', name_ja:'ハイアン社受注 — インターフェースボード', planDate:'2026-09-25', priority:'medium', memo:'Chờ linh kiện nhập khẩu.'},
+  {code:'JOB-2026-017', name_vi:'Đơn hàng nội bộ — Board mở rộng thử nghiệm', name_en:'Internal Order — Test Expansion Board', name_ja:'社内受注 — 試験用拡張ボード', planDate:'2026-09-30', priority:'low', memo:''},
+];
+function getJobName(o){ if(!o) return '—'; return o['name_'+LANG] || o.name_vi || o.name_en || o.code; }
+function getJobNameByCode(code){ return getJobName(ORDERS.find(o=>o.code===code)); }
+
+let ASSIGNS = [
+  {id:uid('as'), content:'Bóc tách và vẽ lại mạch nguồn 12V theo yêu cầu khách hàng mới.', by:'u2', to:'u3', job:'JOB-2026-014', drawing:'BV-1001', status:'inprogress', rejectReason:'', comments:[{by:'Lê Thị Quản', text:'Nhớ check lại footprint tụ lọc.', time:'08:10'}], lastSeenBy:{}, createdAt:'2026-09-04 08:00'},
+  {id:uid('as'), content:'Lên đơn đặt hàng linh kiện cho board RS485.', by:'u2', to:'u4', job:'JOB-2026-016', drawing:'BV-1005', status:'sent', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:'2026-09-05 07:40'},
+  {id:uid('as'), content:'Mạ đồng lô board cảm biến nhiệt BV-1003.', by:'u2', to:'u5', job:'JOB-2026-015', drawing:'BV-1003', status:'done', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:'2026-09-03 08:00'},
+];
+
+let TIMELOGS = [
+  {id:uid('tl'), user:'u5', job:'JOB-2026-015', drawingCodes:['BV-1003'], drawingName:'Board cảm biến nhiệt', dept:'Sản xuất', stage:'Mạ đồng', start:Date.now()-1000*60*95, pausedMs:0, end:Date.now()-1000*60*20, status:'done'},
+  {id:uid('tl'), user:'u5', job:'JOB-2026-014', drawingCodes:['BV-1002'], drawingName:'Mạch điều khiển motor', dept:'Sản xuất', stage:'Cắt phôi', start:Date.now()-1000*60*40, pausedMs:0, end:null, status:'paused'},
+  {id:uid('tl'), user:'u3', job:'JOB-2026-014', drawingCodes:['BV-1001'], drawingName:'Mạch nguồn 12V Rev.A', dept:'Thiết kế', stage:'Vẽ mạch', start:Date.now()-1000*60*130, pausedMs:0, end:Date.now()-1000*60*10, status:'done'},
+];
+
+let XCODES = [
+  {code:'X-8801', name:'Tụ điện 100uF 25V', model:'CAP-100UF-25V', maker:'Nichicon'},
+  {code:'X-8802', name:'IC ổn áp nguồn 5V', model:'LM7805', maker:'Texas Instruments'},
+  {code:'X-8803', name:'Đầu nối RS485 2 chân', model:'RS485-CONN-2P', maker:'Molex'},
+  {code:'X-8804', name:'Điện trở dán 10K 0805', model:'RES-10K-0805', maker:'Yageo'},
+  {code:'X-8805', name:'Điện trở dán 10K 0603', model:'RES-10K-0603', maker:'Yageo'},
+];
+let POLINES = []; // các dòng PO đã đọc từ file, dùng để đối chiếu minh bạch
+let PURCHASE_ITEMS = [
+  {id:uid('pi'), jobCode:'JOB-2026-016', itemName:'Tụ điện 100uF', model:'CAP-100UF-25V', maker:'Nichicon', qtyNeeded:500, qtyStock:50, qtyToBuy:450, unit:'Cái',
+   xcode:'X-8801', xcodeName:'Tụ điện 100uF 25V', requestDate:'2026-09-01', buyer:'u4',
+   poNumber:'PO-2026-0091', poDate:'2026-09-03', poName:'Tụ điện lọc nguồn', supplier:'Cty Linh Kiện Phương Nam', expectedDate:'2026-09-22',
+   batches:[{qty:200, date:'2026-09-15', note:'Về đợt đầu, đủ chứng từ'}], note:'', poOnly:false},
+  {id:uid('pi'), jobCode:'JOB-2026-016', itemName:'Đầu nối RS485', model:'RS485-CONN-2P', maker:'Molex', qtyNeeded:120, qtyStock:0, qtyToBuy:120, unit:'Cái',
+   xcode:'X-8803', xcodeName:'Đầu nối RS485 2 chân', requestDate:'2026-09-02', buyer:'u4',
+   poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'',
+   batches:[], note:'Chưa lên PO.', poOnly:false},
+  {id:uid('pi'), jobCode:'JOB-2026-015', itemName:'Điện trở 10K SMD', model:'', maker:'', qtyNeeded:1000, qtyStock:1000, qtyToBuy:0, unit:'Cái',
+   xcode:'Không tìm được', xcodeName:'', requestDate:'2026-09-02', buyer:'',
+   poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'Đủ tồn kho, chưa cần mua.', poOnly:false},
+];
+
+let NOTIFS = [
+  {id:uid('nt'), user:'u3', text:'Bạn có nhiệm vụ mới: "Bóc tách và vẽ lại mạch nguồn 12V".', read:false, time:'08:00'},
+  {id:uid('nt'), user:'u4', text:'Bạn có nhiệm vụ mới: "Lên đơn đặt hàng linh kiện RS485".', read:false, time:'07:40'},
+  {id:uid('nt'), user:'u2', text:'Hoàng Văn Sản đã hoàn thành nhiệm vụ mạ đồng BV-1003.', read:true, time:'Hôm qua'},
+];
+
+/* ---------------- Session / State ---------------- */
+let SESSION=null;
+let ACTIVE_VIEW='home';
+let RUNNING_TICK=null;
+
+function showPane(name){
+  ['login','forgot','register'].forEach(p=>{
+    document.getElementById('pane-'+p).classList.toggle('hidden', p!==name);
+  });
+  if(name==='register'){
+    document.getElementById('rg-dept').innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+  }
+}
+function renderDemoAccounts(){
+  const g=document.getElementById('demoGrid');
+  const shown=[
+    {u:'admin', r:'Admin — Quản trị hệ thống'},
+    {u:'quan.ql', r:'Quản lý — Sản xuất'},
+    {u:'thiet.tk', r:'Nhân viên — Thiết kế'},
+    {u:'mua.mh', r:'Nhân viên — Mua hàng'},
+    {u:'san.sx', r:'Nhân viên — Sản xuất'},
+  ];
+  g.innerHTML=shown.map(s=>{
+    const usr=USERS.find(x=>x.username===s.u);
+    return `<button class="demo-chip" onclick="quickLogin('${s.u}')"><b>${usr.name}</b><span>${s.u} · 123</span></button>`;
+  }).join('');
+}
+function quickLogin(u){
+  document.getElementById('li-user').value=u;
+  document.getElementById('li-pass').value='123';
+  doLogin();
+}
+function doLogin(){
+  const u=document.getElementById('li-user').value.trim();
+  const p=document.getElementById('li-pass').value;
+  const found=USERS.find(x=>x.username===u && x.password===p);
+  const err=document.getElementById('loginErr');
+  if(!found){ err.textContent='Sai tên đăng nhập hoặc mật khẩu.'; return; }
+  if(found.status==='pending'){ err.textContent='Tài khoản đang chờ Admin duyệt.'; return; }
+  if(found.status==='locked'){ err.textContent='Tài khoản đã bị khoá. Liên hệ Admin.'; return; }
+  err.textContent='';
+  SESSION=found;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  boot();
+}
+function forgotFlow(mode){
+  const u=document.getElementById('fp-user').value.trim();
+  const m=document.getElementById('forgotMsg');
+  if(!u){ m.textContent='Nhập tên đăng nhập trước đã.'; m.style.color='var(--danger)'; return; }
+  const found=USERS.find(x=>x.username===u);
+  if(!found){ m.textContent='Không tìm thấy tài khoản này.'; m.style.color='var(--danger)'; return; }
+  if(mode==='admin'){ m.textContent='Đã gửi yêu cầu tới Admin — Admin sẽ cấp mật khẩu mới cho bạn.'; }
+  else{ m.textContent='Đã gửi email khôi phục mật khẩu (giả lập demo) tới tài khoản '+u+'.'; }
+  m.style.color='var(--solder)';
+}
+function doRegister(){
+  const name=document.getElementById('rg-name').value.trim();
+  const code=document.getElementById('rg-code').value.trim();
+  const dept=document.getElementById('rg-dept').value;
+  const user=document.getElementById('rg-user').value.trim();
+  const pass=document.getElementById('rg-pass').value;
+  const m=document.getElementById('regMsg');
+  if(!name||!code||!user||!pass){ m.textContent='Vui lòng điền đầy đủ thông tin.'; m.style.color='var(--danger)'; return; }
+  if(USERS.some(x=>x.username===user)){ m.textContent='Tên đăng nhập đã tồn tại.'; m.style.color='var(--danger)'; return; }
+  USERS.push({id:uid('u'), name, code, dept, role:'employee', username:user, password:pass, status:'pending'});
+  m.textContent='Đăng ký thành công! Tài khoản đang chờ Admin duyệt.'; m.style.color='var(--solder)';
+  ['rg-name','rg-code','rg-user','rg-pass'].forEach(id=>document.getElementById(id).value='');
+}
+function logout(){
+  SESSION=null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('li-pass').value='';
+  showPane('login');
+  if(RUNNING_TICK) clearInterval(RUNNING_TICK);
+}
+
+/* ---------------- Nav config ---------------- */
+function navItemsFor(role){
+  const base=[
+    {id:'home', label:t('nav_home'), icon:'home'},
+    {id:'assign', label:t('nav_assign'), icon:'list'},
+  ];
+  if(role==='employee') base.push({id:'shift', label:t('nav_shift'), icon:'clock'});
+  base.push({id:'dashboard', label:t('nav_dashboard'), icon:'chart'});
+  if(SESSION && SESSION.dept==='Mua hàng' || role==='manager' || role==='admin'){
+    base.push({id:'purchasing', label:t('nav_purchasing'), icon:'cart'});
+  }
+  if(role==='admin') base.push({id:'master', label:t('nav_master'), icon:'db'});
+  return base;
+}
+
+/* ---------------- Boot / shell render ---------------- */
+function boot(){
+  document.getElementById('uAvatar').textContent=SESSION.name.split(' ').slice(-1)[0][0];
+  document.getElementById('uName').textContent=SESSION.name;
+  document.getElementById('uMeta').textContent=SESSION.code+' · '+SESSION.dept;
+  renderNav();
+  goto('home');
+  renderNotifBell();
+  if(RUNNING_TICK) clearInterval(RUNNING_TICK);
+  RUNNING_TICK=setInterval(()=>{ if(ACTIVE_VIEW==='shift') renderShift(); }, 1000);
+}
+function renderNav(){
+  const items=navItemsFor(SESSION.role);
+  document.getElementById('navGroup').innerHTML=items.map(it=>`
+    <div class="nav-item ${ACTIVE_VIEW===it.id?'active':''}" onclick="goto('${it.id}')">
+      ${icon(it.icon,17)}<span>${it.label}</span>
+      ${it.id==='assign'?`<span class="nav-badge hidden" id="assignBadge"></span>`:''}
+    </div>`).join('');
+  updateAssignBadge();
+  document.querySelectorAll('.lang-switch-top .lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===LANG));
+}
+function updateAssignBadge(){
+  const el=document.getElementById('assignBadge'); if(!el) return;
+  const mineNew=ASSIGNS.filter(a=>a.to===SESSION.id && a.status==='sent').length;
+  const unreadChat=ASSIGNS.filter(a=>(a.to===SESSION.id||a.by===SESSION.id) && a.comments.length>(a.lastSeenBy&&a.lastSeenBy[SESSION.id]||0)).length;
+  const total=mineNew+unreadChat;
+  if(total){ el.textContent=total; el.classList.remove('hidden'); } else el.classList.add('hidden');
+}
+function goto(view){
+  ACTIVE_VIEW=view;
+  renderNav();
+  const titles={home:t('nav_home'),assign:t('nav_assign'),shift:t('nav_shift'),dashboard:t('nav_dashboard'),purchasing:t('nav_purchasing'),master:t('nav_master')};
+  document.getElementById('topTitle').textContent=titles[view]||view;
+  document.getElementById('topPath').textContent='FlowTrack / '+(titles[view]||view);
+  const root=document.getElementById('viewRoot');
+  root.innerHTML='<div style="padding:60px;text-align:center;color:var(--text-mute)">…</div>';
+  const renderers={home:renderHome, assign:renderAssign, shift:renderShift, dashboard:renderDashboard, purchasing:renderPurchasing, master:renderMaster};
+  (renderers[view]||renderHome)();
+}
+
+/* ---------------- Notifications ---------------- */
+function toggleNotif(){
+  const p=document.getElementById('notifPanel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden')) renderNotifBell(true);
+}
+function renderNotifBell(open){
+  const mine=NOTIFS.filter(n=>n.user===SESSION.id);
+  const unread=mine.filter(n=>!n.read).length;
+  const cnt=document.getElementById('notifCount');
+  cnt.textContent=unread||''; cnt.style.display=unread?'inline-block':'none';
+  const p=document.getElementById('notifPanel');
+  p.innerHTML = mine.length? mine.slice().reverse().map(n=>`
+    <div class="notif-item ${n.read?'':'unread'}">${n.text}<div class="t">${n.time}</div></div>
+  `).join('') : `<div class="notif-item">Không có thông báo.</div>`;
+  if(open) mine.forEach(n=>n.read=true);
+}
+
+/* ---------------- HOME / ORDERS ---------------- */
+function computeOrderProgress(jobCode){
+  const drs=DRAWINGS.filter(d=>d.job===jobCode);
+  // tác vụ đã ghi nhận cho job này nhưng KHÔNG gắn bản vẽ cụ thể nào (áp dụng chung)
+  const genericLogs=TIMELOGS.filter(l=>l.job===jobCode && (!l.drawingCodes || l.drawingCodes.length===0));
+  const genericStarted = genericLogs.length>0;
+  if(!drs.length){
+    if(genericStarted) return {pct:0,status:'progress'};
+    return {pct:0,status:'idle'};
+  }
+  let doneCount=0, anyStarted=genericStarted;
+  drs.forEach(d=>{
+    const logs=TIMELOGS.filter(l=>l.drawingCodes.includes(d.code));
+    if(logs.some(l=>l.status==='done')) doneCount++;
+    if(logs.length) anyStarted=true;
+  });
+  const pct=Math.round((doneCount/drs.length)*100);
+  let status='idle';
+  if(pct===100 && !genericLogs.some(l=>l.status!=='done')) status='done'; else if(anyStarted) status='progress';
+  return {pct,status};
+}
+function priorityBadge(p){
+  const map={high:['priority_high','badge-danger'],medium:['priority_medium','badge-progress'],low:['priority_low','badge-idle']};
+  const [k,c]=map[p]||map.medium; return `<span class="badge ${c}">${t(k)}</span>`;
+}
+function renderHome(){
+  const rows=ORDERS.map(o=>{
+    const p=computeOrderProgress(o.code);
+    const badge = p.status==='done'?`<span class="badge badge-done">${t('status_done')}</span>`
+      : p.status==='progress'?`<span class="badge badge-progress">${t('status_progress')}</span>`
+      : `<span class="badge badge-idle">${t('status_idle')}</span>`;
+    return `<tr class="row-click" onclick="openOrderDetail('${o.code}')">
+      <td class="mono">${o.code}</td>
+      <td>${getJobName(o)}</td>
+      <td class="mono">${o.planDate}</td>
+      <td>${priorityBadge(o.priority)}</td>
+      <td style="min-width:140px"><div class="progress"><div style="width:${p.pct}%"></div></div><span style="font-size:11px;color:var(--text-mute)">${p.pct}%</span></td>
+      <td>${badge}</td>
+      <td style="color:var(--text-mute);font-size:12.5px;max-width:220px">${o.memo||'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head"><div><h2>${t('home_title')}</h2><p>${t('home_sub')}</p></div></div>
+    <div class="card scroll-x">
+      <table><thead><tr><th>${t('col_job')}</th><th>${t('col_name')}</th><th>${t('col_plandate')}</th><th>${t('col_priority')}</th><th>${t('col_progress')}</th><th>${t('col_status')}</th><th>${t('col_memo')}</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+function openOrderDetail(code){
+  const o=ORDERS.find(x=>x.code===code);
+  const drs=DRAWINGS.filter(d=>d.job===code);
+  const canEdit = SESSION.role==='admin'||SESSION.role==='manager';
+  const rows=drs.map(d=>{
+    const logs=TIMELOGS.filter(l=>l.drawingCodes.includes(d.code));
+    const done=logs.some(l=>l.status==='done');
+    const started=logs.length>0;
+    const st= done?`<span class="badge badge-done">Xong</span>` : started?`<span class="badge badge-progress">Đang làm</span>` : `<span class="badge badge-idle">Chưa làm</span>`;
+    const totalMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length),0);
+    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td>${st}</td><td class="mono">${fmtDur(totalMs)}</td></tr>`;
+  }).join('');
+  const genericTasks=TIMELOGS.filter(l=>l.job===code && (!l.drawingCodes||l.drawingCodes.length===0));
+  const genericNote = genericTasks.length? `<p style="font-size:11.5px;color:var(--amber);margin:6px 0 0">⚠ Có ${genericTasks.length} tác vụ đã ghi nhận cho job này nhưng chưa gắn bản vẽ cụ thể (vẫn được tính là "Đang làm").</p>` : '';
+  const editFields = canEdit ? `
+    <div class="grid-cols g2">
+      <div class="field"><label>Tên đơn hàng (Tiếng Việt)</label><input id="ordNameViEdit" value="${(o.name_vi||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Ngày giao kế hoạch</label><input id="ordDateEdit" type="date" value="${o.planDate}"></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Tên đơn hàng (English)</label><input id="ordNameEnEdit" value="${(o.name_en||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Tên đơn hàng (日本語)</label><input id="ordNameJaEdit" value="${(o.name_ja||'').replace(/"/g,'&quot;')}"></div>
+    </div>
+    <div class="field"><label>Mức độ ưu tiên</label><select id="ordPriorityEdit">
+      <option value="high" ${o.priority==='high'?'selected':''}>${t('priority_high')}</option>
+      <option value="medium" ${o.priority==='medium'?'selected':''}>${t('priority_medium')}</option>
+      <option value="low" ${o.priority==='low'?'selected':''}>${t('priority_low')}</option>
+    </select></div>
+    <div class="field"><label>Memo quản lý</label><textarea rows="2" id="memoEdit">${o.memo||''}</textarea></div>
+  ` : `
+    <p style="color:var(--text-dim);font-size:13px">${getJobName(o)} · Giao KH: ${o.planDate}</p>
+    <p style="font-size:12.5px;color:var(--text-mute)">Memo: ${o.memo||'—'}</p>
+  `;
+  openModal(`Chi tiết đơn hàng ${o.code}`, `
+    ${editFields}
+    ${genericNote}
+    <table style="margin-top:10px"><thead><tr><th>Bản vẽ</th><th>Tên</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
+  `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:()=>{
+      o.name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
+      o.name_en=document.getElementById('ordNameEnEdit').value.trim();
+      o.name_ja=document.getElementById('ordNameJaEdit').value.trim();
+      o.priority=document.getElementById('ordPriorityEdit').value;
+      o.planDate=document.getElementById('ordDateEdit').value||o.planDate;
+      o.memo=document.getElementById('memoEdit').value;
+      closeModal(); renderHome(); toast('Đã cập nhật thông tin đơn hàng.','ok');
+    }}] : [{label:'Đóng', onClick:closeModal}]);
+}
+
+/* ---------------- ASSIGN ---------------- */
+let assignTab = (SESSION&&SESSION.role!=='employee')?'manage':'mine';
+function renderAssign(){
+  assignTab = (SESSION.role!=='employee')?'manage':'mine';
+  const canManage = SESSION.role==='manager'||SESSION.role==='admin';
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head"><div><h2>Nhiệm vụ</h2><p>Phân công, theo dõi và trao đổi về từng nhiệm vụ.</p></div></div>
+    <div class="tabs">
+      ${canManage?`<button class="tab-btn ${assignTab==='manage'?'active':''}" onclick="switchAssignTab('manage')">Quản lý phân công</button>`:''}
+      <button class="tab-btn ${assignTab==='mine'?'active':''}" onclick="switchAssignTab('mine')">Nhiệm vụ của tôi</button>
+    </div>
+    <div id="assignBody"></div>`;
+  renderAssignBody();
+}
+function switchAssignTab(t){ assignTab=t; renderAssign(); assignTab=t;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  renderAssignBody();
+}
+function renderAssignBody(){
+  const body=document.getElementById('assignBody');
+  if(assignTab==='manage'){
+    const deptOpts=DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('');
+    const jobOpts=ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('');
+    const drawOpts=DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('');
+    const empOpts=USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+    body.innerHTML=`
+      <div class="card">
+        <h3 style="margin-top:0;font-size:14.5px">Tạo nhiệm vụ mới</h3>
+        <div class="grid-cols g2">
+          <div class="field"><label>Bộ phận</label><select id="asg-dept" onchange="refreshAssignTargets()"><option value="">— tất cả bộ phận —</option>${deptOpts}</select></div>
+          <div class="field" id="asg-to-wrap"><label>Chọn nhân viên</label><select id="asg-to"></select></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim);margin:-4px 0 12px">
+          <input type="checkbox" id="asg-broadcast" onchange="refreshAssignTargets()"> Giao cho tất cả nhân viên trong bộ phận đã chọn (không cần chọn từng người)
+        </label>
+        <div class="grid-cols g2">
+          <div class="field"><label>Liên kết Job (tuỳ chọn — để trống nếu áp dụng chung, không riêng job/bộ phận nào)</label><select id="asg-job"><option value="">— không có job cụ thể —</option>${jobOpts}</select></div>
+          <div class="field"><label>Liên kết bản vẽ (tuỳ chọn)</label><select id="asg-drawing"><option value="">— không có bản vẽ cụ thể —</option>${drawOpts}</select></div>
+        </div>
+        <div class="field"><label>Nội dung chỉ thị</label><textarea id="asg-content" rows="2" placeholder="Mô tả công việc cần thực hiện…"></textarea></div>
+        <button class="btn btn-primary" onclick="createAssign()">${icon('plus',15)} Phân nhiệm vụ</button>
+      </div>
+      <div class="card scroll-x">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <h3 style="margin:0;font-size:14.5px">Danh sách đã phân</h3>
+        </div>
+        <div class="filter-bar">
+          <select id="asgF-emp" onchange="renderAssignManageTable()"><option value="">Tất cả nhân viên</option>${empOpts}</select>
+          <select id="asgF-dept" onchange="renderAssignManageTable()"><option value="">Tất cả bộ phận</option>${deptOpts}</select>
+          <select id="asgF-status" onchange="renderAssignManageTable()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="sent">Đã phân</option><option value="accepted">Đã nhận</option>
+            <option value="inprogress">Đang làm</option><option value="done">Hoàn thành</option><option value="rejected">Từ chối</option>
+          </select>
+          <select id="asgF-job" onchange="renderAssignManageTable()"><option value="">Tất cả Job</option>${jobOpts}</select>
+          <input id="asgF-search" placeholder="Tìm theo nội dung…" oninput="renderAssignManageTable()">
+        </div>
+        <div id="assignManageTableWrap"></div>
+      </div>`;
+    refreshAssignTargets();
+    renderAssignManageTable();
+  } else {
+    const mine=ASSIGNS.filter(a=>a.to===SESSION.id).slice().reverse();
+    const pending=mine.filter(a=>a.status==='sent');
+    const accepted=mine.filter(a=>a.status!=='sent');
+    body.innerHTML=`
+      <div class="card">
+        <h3 style="margin-top:0;font-size:14.5px">Nhiệm vụ mới — cần phản hồi (${pending.length})</h3>
+        ${pending.length? pending.map(a=>assignCardEmployee(a,true)).join('') : `<p style="color:var(--text-mute);font-size:13px">Không có nhiệm vụ chờ phản hồi.</p>`}
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-size:14.5px">Nhiệm vụ đã nhận</h3>
+        ${accepted.length? accepted.map(a=>assignCardEmployee(a,false)).join('') : `<p style="color:var(--text-mute);font-size:13px">Chưa có nhiệm vụ nào.</p>`}
+      </div>`;
+  }
+}
+function renderAssignManageTable(){
+  const wrap=document.getElementById('assignManageTableWrap'); if(!wrap) return;
+  const fEmp=document.getElementById('asgF-emp').value, fDept=document.getElementById('asgF-dept').value,
+        fStatus=document.getElementById('asgF-status').value, fJob=document.getElementById('asgF-job').value,
+        fSearch=document.getElementById('asgF-search').value;
+  const list=ASSIGNS.slice().reverse().filter(a=>{
+    const emp=USERS.find(u=>u.id===a.to);
+    if(fEmp && a.to!==fEmp) return false;
+    if(fDept && (!emp||emp.dept!==fDept)) return false;
+    if(fStatus && a.status!==fStatus) return false;
+    if(fJob && a.job!==fJob) return false;
+    if(fSearch && !matchesSearch(a.content, fSearch)) return false;
+    return true;
+  });
+  wrap.innerHTML=`<table><thead><tr><th>Nội dung</th><th>Giao cho</th><th>Job/BV</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>${list.map(a=>assignRowManage(a)).join('')||`<tr><td colspan="5" style="color:var(--text-mute)">Không có nhiệm vụ phù hợp bộ lọc.</td></tr>`}</tbody></table>`;
+}
+function statusBadge(s){
+  const map={sent:['Đã phân','badge-info'],accepted:['Đã nhận','badge-info'],inprogress:['Đang làm','badge-progress'],done:['Hoàn thành','badge-done'],rejected:['Từ chối','badge-danger']};
+  const [lbl,cls]=map[s]||['—','badge-idle']; return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function hasUnreadChat(a){
+  const seen=(a.lastSeenBy && a.lastSeenBy[SESSION.id]) || 0;
+  return a.comments.length > seen;
+}
+function chatBtn(id, a){
+  const unread=hasUnreadChat(a);
+  return `<button class="btn btn-ghost btn-sm" style="position:relative" onclick="openAssignChat('${id}')">${icon('chat',14)} Trao đổi${a.comments.length?` (${a.comments.length})`:''}${unread?`<span style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface)"></span>`:''}</button>`;
+}
+function refreshAssignTargets(){
+  const dept=document.getElementById('asg-dept').value;
+  const broadcast=document.getElementById('asg-broadcast').checked;
+  const wrap=document.getElementById('asg-to-wrap');
+  const list=USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept));
+  if(broadcast){
+    wrap.innerHTML=`<label>Người nhận</label><p style="font-size:12.5px;color:var(--text-dim);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:9px 11px;margin:0">
+      Sẽ giao cho <b>${list.length}</b> nhân viên${dept?` thuộc bộ phận ${dept}`:' (tất cả bộ phận)'}.</p>`;
+  } else {
+    wrap.innerHTML=`<label>Chọn nhân viên</label><select id="asg-to">${list.map(u=>`<option value="${u.id}">${u.name} (${u.dept})</option>`).join('')||'<option value="">— không có nhân viên —</option>'}</select>`;
+  }
+}
+function assignRowManage(a){
+  const emp=USERS.find(u=>u.id===a.to);
+  return `<tr>
+    <td style="max-width:260px">${a.content}</td>
+    <td>${emp?emp.name:'—'}</td>
+    <td class="mono" style="font-size:12px">${a.job||'—'}${a.drawing?' / '+a.drawing:''}</td>
+    <td>${statusBadge(a.status)}${a.status==='rejected'?`<div style="font-size:11px;color:var(--danger);margin-top:3px">Lý do: ${a.rejectReason}</div>`:''}</td>
+    <td style="white-space:nowrap">
+      ${chatBtn(a.id, a)}
+      ${a.status==='rejected'?`<button class="btn btn-sm btn-primary" style="margin-left:6px" onclick="reassignTask('${a.id}')">↻ Phân lại</button>`:''}
+    </td>
+  </tr>`;
+}
+function reassignTask(id){
+  const a=ASSIGNS.find(x=>x.id===id);
+  a.status='sent'; a.rejectReason=''; a.createdAt=nowStr();
+  NOTIFS.push({id:uid('nt'), user:a.to, text:`Nhiệm vụ đã được phân lại: "${a.content.slice(0,50)}${a.content.length>50?'…':''}"`, read:false, time:'Vừa xong'});
+  renderAssignManageTable(); updateAssignBadge();
+  toast('Đã phân lại nhiệm vụ cho nhân viên.','ok');
+}
+function assignCardEmployee(a,isPending){
+  return `<div class="card" style="margin-bottom:10px;background:var(--surface-2)">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:13.5px">${a.content}</div>
+        <div style="font-size:11.5px;color:var(--text-mute);margin-top:4px">Job: <span class="mono">${a.job||'—'}</span> ${a.drawing?'· BV: <span class="mono">'+a.drawing+'</span>':''} · ${a.createdAt}</div>
+      </div>
+      <div>${statusBadge(a.status)}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      ${isPending?`
+        <button class="btn btn-solder btn-sm" onclick="respondAssign('${a.id}','accept')">${icon('check',14)} Nhận</button>
+        <button class="btn btn-danger btn-sm" onclick="respondAssign('${a.id}','reject')">${icon('x',14)} Từ chối</button>
+      `:`
+        ${a.status==='accepted'?`<button class="btn btn-sm btn-primary" onclick="respondAssign('${a.id}','start')">Bắt đầu</button>`:''}
+        ${a.status==='inprogress'?`<button class="btn btn-sm btn-solder" onclick="respondAssign('${a.id}','finish')">Hoàn thành</button>`:''}
+        ${chatBtn(a.id, a)}
+      `}
+    </div>
+  </div>`;
+}
+function createAssign(){
+  const dept=document.getElementById('asg-dept').value;
+  const broadcast=document.getElementById('asg-broadcast').checked;
+  const job=document.getElementById('asg-job').value;
+  const drawing=document.getElementById('asg-drawing').value;
+  const content=document.getElementById('asg-content').value.trim();
+  if(!content){ toast('Nhập nội dung chỉ thị trước đã.','err'); return; }
+
+  let targets=[];
+  if(broadcast){
+    targets = USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept)).map(u=>u.id);
+    if(!targets.length){ toast('Không có nhân viên nào phù hợp để giao.','err'); return; }
+  } else {
+    const toSel=document.getElementById('asg-to');
+    if(!toSel || !toSel.value){ toast('Chọn nhân viên nhận nhiệm vụ.','err'); return; }
+    targets=[toSel.value];
+  }
+
+  targets.forEach(to=>{
+    const a={id:uid('as'), content, by:SESSION.id, to, job, drawing, status:'sent', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:nowStr()};
+    ASSIGNS.push(a);
+    NOTIFS.push({id:uid('nt'), user:to, text:`Bạn có nhiệm vụ mới: "${content.slice(0,50)}${content.length>50?'…':''}"`, read:false, time:'Vừa xong'});
+  });
+  toast(targets.length>1?`Đã giao nhiệm vụ cho ${targets.length} nhân viên.`:'Đã phân nhiệm vụ.','ok');
+  document.getElementById('asg-content').value='';
+  renderAssignManageTable(); updateAssignBadge();
+}
+function respondAssign(id,action){
+  const a=ASSIGNS.find(x=>x.id===id);
+  if(action==='accept'){ a.status='accepted'; toast('Đã nhận nhiệm vụ.','ok'); }
+  else if(action==='reject'){
+    openModal('Lý do từ chối', `<div class="field"><label>Ghi rõ lý do</label><textarea id="rejReason" rows="3"></textarea></div>`,
+      [{label:'Xác nhận từ chối', primary:true, danger:true, onClick:()=>{
+        const r=document.getElementById('rejReason').value.trim();
+        if(!r){toast('Cần nhập lý do.','err'); return;}
+        a.status='rejected'; a.rejectReason=r; closeModal(); renderAssignBody(); toast('Đã từ chối nhiệm vụ.','ok'); updateAssignBadge();
+      }}]);
+    return;
+  }
+  else if(action==='start'){ a.status='inprogress'; toast('Đã bắt đầu nhiệm vụ.','ok'); }
+  else if(action==='finish'){ a.status='done'; toast('Đã hoàn thành nhiệm vụ!','ok'); }
+  renderAssignBody(); updateAssignBadge();
+}
+function openAssignChat(id){
+  const a=ASSIGNS.find(x=>x.id===id);
+  if(!a.lastSeenBy) a.lastSeenBy={};
+  a.lastSeenBy[SESSION.id]=a.comments.length;
+  updateAssignBadge();
+  if(assignTab==='manage') renderAssignManageTable(); else renderAssignBody();
+  const msgs=a.comments.map(c=>`<div class="chat-msg"><b>${c.by}:</b> ${c.text}<span class="t">${c.time}</span></div>`).join('');
+  openModal('Trao đổi nhiệm vụ', `
+    <p style="font-size:12.5px;color:var(--text-dim)">${a.content}</p>
+    <div class="chat-box" id="chatBox">${msgs||'<div style="color:var(--text-mute);font-size:12.5px">Chưa có trao đổi nào.</div>'}</div>
+    <div style="display:flex;gap:8px">
+      <input id="chatInput" placeholder="Nhập tin nhắn…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+      <button class="btn btn-primary btn-sm" onclick="sendChat('${id}')">Gửi</button>
+    </div>`, []);
+}
+function sendChat(id){
+  const a=ASSIGNS.find(x=>x.id===id);
+  const inp=document.getElementById('chatInput');
+  if(!inp.value.trim()) return;
+  a.comments.push({by:SESSION.name, text:inp.value.trim(), time:new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
+  if(!a.lastSeenBy) a.lastSeenBy={};
+  a.lastSeenBy[SESSION.id]=a.comments.length; // người vừa gửi coi như đã đọc hết
+  // gửi thông báo có tin nhắn mới cho phía còn lại
+  const other = a.by===SESSION.id ? a.to : a.by;
+  if(other) NOTIFS.push({id:uid('nt'), user:other, text:`Có tin nhắn mới trong nhiệm vụ: "${a.content.slice(0,40)}${a.content.length>40?'…':''}"`, read:false, time:'Vừa xong'});
+  openAssignChat(id);
+}
+
+/* ---------------- SHIFT / TIME TRACKING ---------------- */
+let scanBuffer=[]; // codes scanned in a row without picking a stage in between
+function renderShift(){
+  const myLogs=TIMELOGS.filter(l=>l.user===SESSION.id);
+  const unfinished=myLogs.filter(l=>l.status==='paused');
+  const running=myLogs.filter(l=>l.status==='running');
+  const doneToday=myLogs.filter(l=>l.status==='done');
+
+  const rowHtml=(l)=>{
+    const elapsed=(l.end||Date.now())-l.start-l.pausedMs;
+    return `<tr>
+      <td class="mono">${l.job}</td>
+      <td class="mono">${l.drawingCodes.join(', ')}</td>
+      <td>${l.drawingName}</td>
+      <td>${l.stage}</td>
+      <td class="timer">${fmtDur(elapsed)}</td>
+      <td>${l.status==='running'?`<button class="btn btn-sm" onclick="pauseLog('${l.id}')">⏸ Pause</button> <button class="btn btn-sm btn-solder" onclick="finishLog('${l.id}')">✓ Finish</button>`
+        : l.status==='paused'?`<button class="btn btn-sm btn-primary" onclick="resumeLog('${l.id}')">▶ Resume</button>`
+        : `<span class="badge badge-done">Đã xong</span>`}</td>
+    </tr>`;
+  };
+
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head"><div><h2>Ca làm việc hôm nay</h2><p>Ghi nhận thời gian thực hiện theo từng bản vẽ / công đoạn.</p></div>
+      <button class="btn btn-primary" onclick="openAddTask()">${icon('plus',15)} Thêm tác vụ</button>
+    </div>
+
+    ${unfinished.length?`
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Việc dở từ trước — bấm Resume để tiếp tục</h3>
+      <table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead>
+      <tbody>${unfinished.map(rowHtml).join('')}</tbody></table>
+    </div>`:''}
+
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;color:var(--copper-hi)">Đang thực hiện</h3>
+      ${running.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
+      : `<div class="empty-state">${icon('clock',30)}<p>Chưa có tác vụ nào đang chạy. Bấm "Thêm tác vụ" để bắt đầu.</p></div>`}
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px">Đã hoàn thành hôm nay</h3>
+      ${doneToday.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
+      : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
+    </div>`;
+}
+function pauseLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='paused'; l.pausedAt=Date.now(); renderShift(); toast('Đã tạm dừng.','ok'); }
+function resumeLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='running'; if(l.pausedAt){ l.pausedMs+=(Date.now()-l.pausedAt); } renderShift(); toast('Tiếp tục thực hiện.','ok'); }
+function finishLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='done'; l.end=Date.now(); renderShift(); toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok'); }
+
+function openAddTask(){
+  scanBuffer=[];
+  const stageOpts=Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i)
+    .map(s=>`<option value="${s}">${s}</option>`).join('');
+  openModal('Thêm tác vụ mới', `
+    <div class="tabs" style="margin-bottom:12px">
+      <button class="tab-btn active" id="tab-qr" onclick="switchAddTab('qr')">${icon('qr',14)} Quét QR</button>
+      <button class="tab-btn" id="tab-manual" onclick="switchAddTab('manual')">Nhập thủ công</button>
+    </div>
+    <div id="addTab-qr">
+      <p style="font-size:12px;color:var(--text-mute)">Demo: gõ hoặc chọn mã bản vẽ để giả lập quét QR. Có thể quét liên tục nhiều bản vẽ.</p>
+      <div class="field"><label>Mã bản vẽ (QR)</label>
+        <select id="qrPick"><option value="">— chọn bản vẽ để giả lập quét —</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
+      </div>
+      <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} Quét mã này</button>
+      <div id="scanList" style="margin:10px 0;font-size:12.5px;color:var(--text-dim)"></div>
+      <div class="field"><label>Công đoạn cho lô vừa quét</label><select id="qrStage">${stageOpts}</select></div>
+      <p style="font-size:11.5px;color:var(--text-mute)">Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được <b>chia đều</b> cho các bản vẽ trong dòng.</p>
+    </div>
+    <div id="addTab-manual" class="hidden">
+      <div class="field"><label>Job</label><select id="mnJob"><option value="">— không —</option>${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</select></div>
+      <div class="field"><label>Tìm bản vẽ (gõ có dấu hoặc không dấu đều được)</label>
+        <input id="mnSearch" placeholder="vd: mach nguon" oninput="filterManualDrawings()">
+        <select id="mnDrawing" size="4" style="margin-top:6px">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}<option value="">— để trống —</option></select>
+      </div>
+      <div class="field"><label>Công đoạn</label><select id="mnStage">${stageOpts}</select></div>
+    </div>
+  `, [{label:'Bắt đầu (Start)', primary:true, onClick:submitAddTask}]);
+}
+function switchAddTab(t){
+  document.getElementById('addTab-qr').classList.toggle('hidden', t!=='qr');
+  document.getElementById('addTab-manual').classList.toggle('hidden', t!=='manual');
+  document.getElementById('tab-qr').classList.toggle('active', t==='qr');
+  document.getElementById('tab-manual').classList.toggle('active', t==='manual');
+}
+function addToScanBuffer(){
+  const v=document.getElementById('qrPick').value;
+  if(!v){ toast('Chọn 1 bản vẽ để giả lập quét.','err'); return; }
+  if(!scanBuffer.includes(v)) scanBuffer.push(v);
+  document.getElementById('scanList').innerHTML='Đã quét: '+scanBuffer.map(c=>`<span class="code-chip">${c}</span>`).join(' ');
+  toast('Đã quét '+v,'ok');
+}
+function filterManualDrawings(){
+  const q=document.getElementById('mnSearch').value;
+  const sel=document.getElementById('mnDrawing');
+  sel.innerHTML=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q))
+    .map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')+`<option value="">— để trống —</option>`;
+}
+function submitAddTask(){
+  const isQr = !document.getElementById('addTab-qr').classList.contains('hidden');
+  let codes=[], job='', stage='', name='';
+  if(isQr){
+    if(!scanBuffer.length){ toast('Chưa quét mã bản vẽ nào.','err'); return; }
+    codes=scanBuffer.slice();
+    stage=document.getElementById('qrStage').value;
+    const first=DRAWINGS.find(d=>d.code===codes[0]);
+    job=first?first.job:'';
+    name=codes.map(c=>{const d=DRAWINGS.find(x=>x.code===c); return d?d.name:c;}).join(', ');
+  } else {
+    job=document.getElementById('mnJob').value;
+    const dc=document.getElementById('mnDrawing').value;
+    stage=document.getElementById('mnStage').value;
+    codes=dc?[dc]:[];
+    const d=DRAWINGS.find(x=>x.code===dc);
+    name=d?d.name:'(không chọn bản vẽ)';
+  }
+  const log={id:uid('tl'), user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stage, start:Date.now(), pausedMs:0, end:null, status:'running'};
+  TIMELOGS.push(log);
+  closeModal(); renderShift();
+  toast(codes.length>1?`Đã bắt đầu tác vụ gộp ${codes.length} bản vẽ.`:'Đã bắt đầu tác vụ.','ok');
+}
+
+/* ---------------- DASHBOARD ---------------- */
+let dashDrawState={page:1, pageSize:10, sig:''};
+function renderDashboard(){
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head">
+      <div><h2>${t('dash_title')}</h2><p>${t('dash_sub')}</p></div>
+      <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
+    </div>
+    <div class="filter-bar">
+      <select id="fJob" onchange="renderDashBody()"><option value="">Tất cả Job</option>${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</select>
+      <select id="fUser" onchange="renderDashBody()"><option value="">Tất cả nhân viên</option>${USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</select>
+      <select id="fDept" onchange="renderDashBody()"><option value="">Tất cả bộ phận</option>${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
+      <select id="fDrawing" onchange="renderDashBody()"><option value="">Tất cả bản vẽ</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
+      <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
+      <select id="fPeriod" onchange="renderDashBody()">
+        <option value="">Toàn bộ thời gian</option>
+        <option value="today">Hôm nay</option>
+        <option value="7d">7 ngày qua</option>
+        <option value="30d">30 ngày qua</option>
+        <option value="custom">Tuỳ chọn khoảng ngày…</option>
+      </select>
+      <input type="date" id="fDateFrom" class="hidden" onchange="renderDashBody()">
+      <input type="date" id="fDateTo" class="hidden" onchange="renderDashBody()">
+    </div>
+    <div id="dashBody"></div>`;
+  renderDashBody();
+}
+function renderDashBody(){
+  const fJob=document.getElementById('fJob').value, fUser=document.getElementById('fUser').value,
+        fDept=document.getElementById('fDept').value, fStatus=document.getElementById('fStatus').value,
+        fDrawing=document.getElementById('fDrawing').value, fPeriod=document.getElementById('fPeriod').value;
+
+  const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
+  const isCustom=fPeriod==='custom';
+  fromEl.classList.toggle('hidden', !isCustom); toEl.classList.toggle('hidden', !isCustom);
+
+  let rangeStart=null, rangeEnd=null;
+  const dayMs=24*3600*1000;
+  if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
+  else if(fPeriod==='7d'){ rangeStart=Date.now()-7*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='30d'){ rangeStart=Date.now()-30*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='custom'){
+    if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0);
+    if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999);
+  }
+
+  // reset drawing-table page whenever a filter actually changes
+  const sig=JSON.stringify([fJob,fUser,fDept,fDrawing,fStatus,fPeriod,fromEl.value,toEl.value]);
+  if(sig!==dashDrawState.sig){ dashDrawState.page=1; dashDrawState.sig=sig; }
+
+  let logs=TIMELOGS.filter(l=>
+    (!fJob||l.job===fJob) && (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
+    (!fStatus||l.status===fStatus) && (!fDrawing||l.drawingCodes.includes(fDrawing)) &&
+    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
+  );
+
+  const total=logs.length, running=logs.filter(l=>l.status==='running').length, done=logs.filter(l=>l.status==='done').length;
+  const overdue=ASSIGNS.filter(a=>a.status!=='done'&&a.status!=='rejected').length;
+  const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
+
+  const stageAgg={};
+  logs.forEach(l=>{
+    const per=((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1);
+    if(!stageAgg[l.stage]) stageAgg[l.stage]={sum:0,n:0};
+    stageAgg[l.stage].sum+=per; stageAgg[l.stage].n++;
+  });
+  const stageKeys=Object.keys(stageAgg);
+  const maxAvg=Math.max(1,...stageKeys.map(k=>stageAgg[k].sum/stageAgg[k].n));
+  const bars=stageKeys.map(k=>{
+    const avg=stageAgg[k].sum/stageAgg[k].n;
+    const h=Math.max(6,(avg/maxAvg)*130);
+    return `<div class="bar-col"><div class="bar-val">${fmtDur(avg)}</div><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${k}</div></div>`;
+  }).join('');
+
+  // ---- Toàn bộ bản vẽ theo Master (lọc theo Job nếu có chọn) — kể cả bản vẽ chưa từng làm ----
+  const logsForDrawings = TIMELOGS.filter(l=>
+    (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
+    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
+  );
+  const scopedDrawings = (fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
+  const drawStats = scopedDrawings.map(d=>{
+    const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
+    const doneD=matching.some(l=>l.status==='done');
+    const started=matching.length>0;
+    const state = doneD?'done':started?'progress':'idle';
+    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1),0);
+    return {d, state, dMs};
+  });
+  const cntTotalD=drawStats.length, cntDone=drawStats.filter(x=>x.state==='done').length,
+        cntProgress=drawStats.filter(x=>x.state==='progress').length, cntIdle=drawStats.filter(x=>x.state==='idle').length;
+  const jobTotalMs=drawStats.reduce((s,x)=>s+x.dMs,0);
+
+  const pageSize = dashDrawState.pageSize==='all' ? drawStats.length||1 : dashDrawState.pageSize;
+  const pageCount = Math.max(1, Math.ceil(drawStats.length/pageSize));
+  if(dashDrawState.page>pageCount) dashDrawState.page=pageCount;
+  const startIdx=(dashDrawState.page-1)*pageSize;
+  const pageItems=drawStats.slice(startIdx, startIdx+pageSize);
+
+  const rowsJd = pageItems.map(({d,state,dMs})=>{
+    const st = state==='done'?`<span class="badge badge-done">Hoàn thành</span>` : state==='progress'?`<span class="badge badge-progress">Đang làm</span>` : `<span class="badge badge-idle">Chưa làm</span>`;
+    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job}</td><td>${st}</td><td class="mono">${fmtDur(dMs)}</td></tr>`;
+  }).join('');
+
+  const jobDrawingsSection = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0;font-size:14px">${fJob?`Toàn bộ bản vẽ của Job ${fJob}`:'Toàn bộ bản vẽ trong Master'} <span style="color:var(--text-mute);font-weight:400">(kể cả bản vẽ chưa từng thực hiện)</span></h3>
+        <div style="font-size:12.5px;color:var(--text-dim)">Tổng thời gian đã làm: <b class="mono" style="color:var(--copper-hi)">${fmtDur(jobTotalMs)}</b></div>
+      </div>
+      <div class="grid-cols g4" style="margin-top:12px">
+        <div class="stat-card"><div class="num">${cntTotalD}</div><div class="lbl">Tổng số bản vẽ</div></div>
+        <div class="stat-card accent-amber"><div class="num">${cntProgress}</div><div class="lbl">Đang làm</div></div>
+        <div class="stat-card accent-solder"><div class="num">${cntDone}</div><div class="lbl">Đã hoàn thành</div></div>
+        <div class="stat-card accent-danger"><div class="num">${cntIdle}</div><div class="lbl">Chưa làm</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;color:var(--text-mute)">Hiển thị ${drawStats.length?startIdx+1:0}–${Math.min(startIdx+pageSize,drawStats.length)} / ${drawStats.length} bản vẽ</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;color:var(--text-mute)">Số dòng/trang:</label>
+          <select onchange="dashDrawPageSizeChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">
+            <option value="10" ${dashDrawState.pageSize===10?'selected':''}>10</option>
+            <option value="20" ${dashDrawState.pageSize===20?'selected':''}>20</option>
+            <option value="50" ${dashDrawState.pageSize===50?'selected':''}>50</option>
+            <option value="all" ${dashDrawState.pageSize==='all'?'selected':''}>Tất cả</option>
+          </select>
+        </div>
+      </div>
+      <table style="margin-top:10px"><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead>
+      <tbody>${rowsJd||`<tr><td colspan="5" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
+      <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
+        <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">‹ Trước</button>
+        <span style="font-size:12.5px;color:var(--text-dim)">Trang ${dashDrawState.page}/${pageCount}</span>
+        <button class="btn btn-sm" ${dashDrawState.page>=pageCount?'disabled':''} onclick="dashDrawPageChange(1)">Sau ›</button>
+      </div>
+    </div>`;
+
+  const rows=logs.slice().reverse().map(l=>{
+    const u=USERS.find(x=>x.id===l.user);
+    const dur=((l.end||Date.now())-l.start-l.pausedMs);
+    return `<tr><td class="mono">${l.job||'—'}</td><td>${u?u.name:'—'}</td><td>${l.dept}</td><td class="mono">${l.drawingCodes.join(', ')||'—'}</td><td>${l.stage}</td><td>${statusPill(l.status)}</td><td class="mono">${fmtDur(dur)}</td></tr>`;
+  }).join('');
+
+  document.getElementById('dashBody').innerHTML=`
+    <div class="grid-cols g4">
+      <div class="stat-card accent-copper"><div class="num">${total}</div><div class="lbl">Tổng bản ghi công đoạn</div></div>
+      <div class="stat-card accent-amber"><div class="num">${running}</div><div class="lbl">Đang thực hiện</div></div>
+      <div class="stat-card accent-solder"><div class="num">${done}</div><div class="lbl">Đã hoàn thành</div></div>
+      <div class="stat-card accent-danger"><div class="num">${overdue}</div><div class="lbl">Nhiệm vụ chưa xong</div></div>
+    </div>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div><h3 style="margin:0 0 3px;font-size:14px">Tổng thời gian đã làm (theo bộ lọc hiện tại)</h3><p style="margin:0;font-size:12px;color:var(--text-mute)">Tổng cộng thời gian của toàn bộ bản ghi đang được lọc bên dưới.</p></div>
+      <div class="timer" style="font-size:22px">${fmtDur(totalTimeMs)}</div>
+    </div>
+    ${jobDrawingsSection}
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px">Thời gian trung bình mỗi công đoạn</h3>
+      ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`}
+    </div>
+    <div class="card scroll-x">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3></div>
+      <table style="margin-top:10px"><thead><tr><th>Job</th><th>Nhân viên</th><th>Bộ phận</th><th>Bản vẽ</th><th>Công đoạn</th><th>Trạng thái</th><th>Thời gian</th></tr></thead>
+      <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Không có dữ liệu.</td></tr>`}</tbody></table>
+    </div>`;
+}
+function dashDrawPageChange(delta){ dashDrawState.page+=delta; renderDashBody(); }
+function dashDrawPageSizeChange(v){ dashDrawState.pageSize = v==='all'?'all':Number(v); dashDrawState.page=1; renderDashBody(); }
+function exportDashboardReport(){
+  const fJob=document.getElementById('fJob').value, fUser=document.getElementById('fUser').value,
+        fDept=document.getElementById('fDept').value, fStatus=document.getElementById('fStatus').value,
+        fDrawing=document.getElementById('fDrawing').value, fPeriod=document.getElementById('fPeriod').value;
+  const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
+  let rangeStart=null, rangeEnd=null; const dayMs=24*3600*1000;
+  if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
+  else if(fPeriod==='7d'){ rangeStart=Date.now()-7*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='30d'){ rangeStart=Date.now()-30*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='custom'){ if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0); if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999); }
+
+  const logs=TIMELOGS.filter(l=>
+    (!fJob||l.job===fJob) && (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
+    (!fStatus||l.status===fStatus) && (!fDrawing||l.drawingCodes.includes(fDrawing)) &&
+    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
+  );
+  const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
+  const logsForDrawings = TIMELOGS.filter(l=>(!fUser||l.user===fUser)&&(!fDept||l.dept===fDept)&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
+  const scopedDrawings=(fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
+  const drawStats=scopedDrawings.map(d=>{
+    const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
+    const doneD=matching.some(l=>l.status==='done'); const started=matching.length>0;
+    const state=doneD?'Hoàn thành':started?'Đang làm':'Chưa làm';
+    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1),0);
+    return [d.code, d.name, d.job, state, fmtDur(dMs)];
+  });
+
+  const summaryRows=[
+    ['BÁO CÁO DASHBOARD — PCB FLOWTRACK'],
+    ['Ngày xuất', nowStr()],
+    [],
+    ['Bộ lọc áp dụng'],
+    ['Job', fJob||'Tất cả'],
+    ['Nhân viên', fUser?(USERS.find(u=>u.id===fUser)||{}).name||'':'Tất cả'],
+    ['Bộ phận', fDept||'Tất cả'],
+    ['Bản vẽ', fDrawing||'Tất cả'],
+    ['Trạng thái', fStatus||'Tất cả'],
+    ['Thời kỳ', fPeriod||'Toàn bộ thời gian'],
+    [],
+    ['TỔNG QUAN'],
+    ['Tổng số bản ghi công đoạn', logs.length],
+    ['Tổng thời gian đã làm (hh:mm:ss)', fmtDur(totalTimeMs)],
+    ['Tổng số bản vẽ (theo phạm vi lọc)', drawStats.length],
+    ['— Đã hoàn thành', drawStats.filter(r=>r[3]==='Hoàn thành').length],
+    ['— Đang làm', drawStats.filter(r=>r[3]==='Đang làm').length],
+    ['— Chưa làm', drawStats.filter(r=>r[3]==='Chưa làm').length],
+  ];
+  const drawingRows=[['Mã bản vẽ','Tên bản vẽ','Job','Trạng thái','Thời gian đã làm'], ...drawStats];
+  const detailRows=[['Job','Nhân viên','Bộ phận','Bản vẽ','Công đoạn','Trạng thái','Bắt đầu','Thời gian'],
+    ...logs.slice().reverse().map(l=>{
+      const u=USERS.find(x=>x.id===l.user);
+      const dur=((l.end||Date.now())-l.start-l.pausedMs);
+      const stMap={running:'Đang làm',paused:'Tạm dừng',done:'Hoàn thành'};
+      return [l.job||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stage, stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), fmtDur(dur)];
+    })];
+
+  try{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Tong quan');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(drawingRows), 'Ban ve');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Chi tiet');
+    XLSX.writeFile(wb, `BaoCao_Dashboard_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast('Đã xuất báo cáo Excel.','ok');
+  }catch(err){
+    const csv=[
+      ...summaryRows.map(r=>r.join(',')), '',
+      'DANH SÁCH BẢN VẼ', ...drawingRows.map(r=>r.join(',')), '',
+      'CHI TIẾT BẢN GHI', ...detailRows.map(r=>r.join(','))
+    ].join('\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`BaoCao_Dashboard_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    toast('Không có kết nối để xuất Excel — đã xuất báo cáo dạng CSV thay thế.','err');
+  }
+}
+function statusPill(s){
+  const map={running:['Đang làm','badge-progress'],paused:['Tạm dừng','badge-idle'],done:['Hoàn thành','badge-done']};
+  const [t,c]=map[s]||['—','badge-idle']; return `<span class="badge ${c}">${t}</span>`;
+}
+
+/* ---------------- PURCHASING ---------------- */
+function calcQtyToBuy(qtyNeeded,qtyStock){ return Math.max((Number(qtyNeeded)||0)-(Number(qtyStock)||0), 0); }
+function batchTotal(item){ return (item.batches||[]).reduce((s,b)=>s+(Number(b.qty)||0),0); }
+function purchaseStatusOf(item){
+  if(item.poOnly) return 'poOnly';
+  const total=batchTotal(item);
+  if(item.qtyToBuy<=0) return 'noNeed';
+  if(total>=item.qtyToBuy) return 'complete';
+  if(total>0) return 'partial';
+  if(item.poNumber) return 'ordered';
+  return 'notOrdered';
+}
+function purchaseStatusBadge(item){
+  const s=purchaseStatusOf(item);
+  const map={
+    poOnly:['Chỉ có trên PO','badge-info'],
+    noNeed:['Đủ tồn kho','badge-idle'],
+    notOrdered:['Chưa lên PO','badge-danger'],
+    ordered:['Đã lên PO, chưa về','badge-progress'],
+    partial:['Về một phần','badge-progress'],
+    complete:['Đã về đủ','badge-done'],
+  };
+  const [lbl,cls]=map[s]||['—','badge-idle'];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function normTokens(str){
+  return stripDiacritics(String(str||'')).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=2);
+}
+function tokenOverlapRatio(a,b){
+  const ta=new Set(normTokens(a)), tb=new Set(normTokens(b));
+  if(!ta.size||!tb.size) return 0;
+  let common=0; ta.forEach(x=>{ if(tb.has(x)) common++; });
+  return common/Math.min(ta.size,tb.size);
+}
+function findColIndex(headerRow, synonyms){
+  const norm=(headerRow||[]).map(h=>stripDiacritics(String(h||'')).replace(/[^a-z0-9]/g,''));
+  for(let i=0;i<norm.length;i++){ for(const syn of synonyms){ if(norm[i]===syn || (norm[i] && norm[i].includes(syn))) return i; } }
+  return -1;
+}
+function readTabularFile(file, onSheet, onDone){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const lines=e.target.result.split(/\r?\n/).filter(x=>x.trim().length);
+      const rows=lines.map(l=>l.split(','));
+      onSheet(rows[0]||[], rows.slice(1), file.name);
+      onDone();
+    };
+    reader.readAsText(file);
+  } else {
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        wb.SheetNames.forEach(sn=>{
+          const json=XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1});
+          if(json.length) onSheet(json[0]||[], json.slice(1), sn);
+        });
+      }catch(err){ toast('Không đọc được file Excel — thử lại khi có mạng hoặc dùng .csv.','err'); }
+      onDone();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+let poLinesVisible=false;
+function renderPurchasing(){
+  const alerts = PURCHASE_ITEMS.filter(it=>!it.poOnly && it.qtyToBuy>0 && !it.poNumber);
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head"><div><h2>${t('purchasing_title')}</h2><p>${t('purchasing_sub')}</p></div>
+      <button class="btn btn-primary" onclick="openPurchaseItemForm()">${icon('plus',15)} Thêm mặt hàng thủ công</button>
+    </div>
+
+    ${alerts.length?`<div class="card" style="border-color:var(--danger)">
+      <h3 style="margin-top:0;font-size:14px;color:var(--danger)">⚠ Cảnh báo hàng chưa lên PO (${alerts.length})</h3>
+      <table><thead><tr><th>Job</th><th>Mặt hàng</th><th>SL cần mua</th><th>Đơn vị</th></tr></thead>
+      <tbody>${alerts.map(it=>`<tr><td class="mono">${it.jobCode||'—'}</td><td>${it.itemName}</td><td class="mono">${it.qtyToBuy}</td><td>${it.unit||'—'}</td></tr>`).join('')}</tbody></table>
+    </div>`:''}
+
+    <div class="grid-cols g3">
+      <div class="card">
+        <h3 style="margin-top:0;font-size:13.5px">1. Tải file PR</h3>
+        <label class="upload-drop">📄 Chọn file PR (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" onchange="handlePRUpload(this)"></label>
+        <p style="font-size:11px;color:var(--text-mute);margin:8px 0 0">Tự nhận diện cột: Job, Tên hàng, Model, Maker, SL cần/tồn, ĐVT, ngày yêu cầu.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-size:13.5px">2. Tải file Xcode</h3>
+        <label class="upload-drop">📄 Chọn file Xcode (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" onchange="handleXcodeUpload(this)"></label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <p style="font-size:11px;color:var(--text-mute);margin:0">${XCODES.length} mã tham chiếu</p>
+          <button class="btn btn-sm btn-ghost" onclick="matchAllXcodes()">↻ Khớp lại</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-size:13.5px">3. Tải file PO (nhiều file)</h3>
+        <label class="upload-drop">📄 Chọn 1+ file PO (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" multiple onchange="handlePOUpload(this)"></label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px">
+          <p style="font-size:11px;color:var(--text-mute);margin:0">${POLINES.length} dòng PO đã đọc</p>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-ghost" onclick="togglePOLinesView()">👁 Xem thô</button>
+            <button class="btn btn-sm btn-primary" onclick="matchAllPOs()">↻ Khớp PO</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="poLinesWrap" class="card ${poLinesVisible?'':'hidden'}"></div>
+
+    <div class="card scroll-x">
+      <h3 style="margin-top:0;font-size:14px">Danh sách mặt hàng cần mua (bấm 1 dòng để xem/sửa chi tiết)</h3>
+      <table><thead><tr><th>Job</th><th>Mặt hàng</th><th>Model / Maker</th><th>SL cần mua</th><th>ĐVT</th><th>Xcode</th><th>PO</th><th>Người mua</th><th>Đã về / Cần</th><th>Trạng thái</th></tr></thead>
+      <tbody>${PURCHASE_ITEMS.map(it=>purchaseRow(it)).join('') || `<tr><td colspan="10" style="color:var(--text-mute)">Chưa có mặt hàng nào. Tải file PR hoặc thêm thủ công.</td></tr>`}</tbody></table>
+    </div>`;
+  if(poLinesVisible) renderPOLinesRaw();
+}
+function purchaseRow(it){
+  const buyer=USERS.find(u=>u.id===it.buyer);
+  const total=batchTotal(it);
+  return `<tr class="row-click" onclick="openPurchaseItemForm('${it.id}')">
+    <td class="mono">${it.jobCode||'—'}${it.jobCode?`<div style="font-size:11px;color:var(--text-mute)">${getJobNameByCode(it.jobCode)}</div>`:''}</td>
+    <td>${it.itemName}${it.poOnly?` <span class="badge badge-info" style="margin-left:4px">Chỉ trên PO</span>`:''}${it.note?`<div style="font-size:11px;color:var(--amber);max-width:200px">${it.note}</div>`:''}</td>
+    <td style="font-size:12px;color:var(--text-dim)">${it.model||'—'} / ${it.maker||'—'}</td>
+    <td class="mono">${it.qtyToBuy}</td>
+    <td>${it.unit||'—'}</td>
+    <td class="mono" style="font-size:11.5px;max-width:150px">${it.xcode||'—'}</td>
+    <td class="mono" style="font-size:11.5px">${it.poNumber||'—'}</td>
+    <td style="font-size:12px">${buyer?buyer.name:'—'}</td>
+    <td class="mono">${total} / ${it.qtyToBuy}</td>
+    <td>${purchaseStatusBadge(it)}</td>
+  </tr>`;
+}
+function togglePOLinesView(){ poLinesVisible=!poLinesVisible; renderPurchasing(); }
+function renderPOLinesRaw(){
+  const wrap=document.getElementById('poLinesWrap'); if(!wrap) return;
+  wrap.innerHTML = `<h3 style="margin-top:0;font-size:13.5px">Dòng PO thô đã đọc (để đối chiếu minh bạch)</h3>` + (POLINES.length? `<div class="scroll-x"><table><thead><tr><th>File</th><th>Sheet</th><th>Mô tả trên PO</th><th>Số PO</th><th>Ngày PO</th><th>Tên trên PO</th><th>NCC</th><th>SL</th><th>Đã khớp?</th></tr></thead>
+    <tbody>${POLINES.map(l=>`<tr><td style="font-size:11px">${l.file}</td><td style="font-size:11px">${l.sheet}</td><td>${l.desc}</td><td class="mono">${l.poNumber||'—'}</td><td class="mono">${l.poDate||'—'}</td><td>${l.poName||'—'}</td><td>${l.supplier||'—'}</td><td class="mono">${l.qty||'—'}</td><td>${l.matched?'✅':'—'}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p style="color:var(--text-mute);font-size:12.5px">Chưa có dòng PO nào.</p>`);
+}
+function handlePRUpload(input){
+  const file=input.files[0]; if(!file) return;
+  let added=0;
+  readTabularFile(file, (header, rows)=>{
+    const idx={
+      job:findColIndex(header,['majob','jobcode','job','sojob']),
+      itemName:findColIndex(header,['tenmathang','tenhang','itemname','tenvattu']),
+      model:findColIndex(header,['model']),
+      maker:findColIndex(header,['maker','nsx','hangsx','manufacturer']),
+      qtyNeeded:findColIndex(header,['slcan','soluongcan','qtyneeded','soluongyeucau']),
+      qtyStock:findColIndex(header,['sltonkho','tonkho','stock','qtystock']),
+      unit:findColIndex(header,['dvt','donvitinh','unit']),
+      requestDate:findColIndex(header,['ngayyeucau','requestdate','ngayyc','ngaydenghi']),
+    };
+    rows.forEach(r=>{
+      const itemName = idx.itemName>-1? String(r[idx.itemName]||'').trim() : '';
+      if(!itemName) return;
+      const qtyNeeded = idx.qtyNeeded>-1? Number(r[idx.qtyNeeded])||0 : 0;
+      const qtyStock = idx.qtyStock>-1? Number(r[idx.qtyStock])||0 : 0;
+      PURCHASE_ITEMS.push({
+        id:uid('pi'), jobCode: idx.job>-1? String(r[idx.job]||'').trim() : '',
+        itemName, model: idx.model>-1?String(r[idx.model]||'').trim():'', maker: idx.maker>-1?String(r[idx.maker]||'').trim():'',
+        qtyNeeded, qtyStock, qtyToBuy: calcQtyToBuy(qtyNeeded,qtyStock),
+        unit: idx.unit>-1?String(r[idx.unit]||'').trim():'',
+        xcode:'', xcodeName:'', requestDate: idx.requestDate>-1?String(r[idx.requestDate]||'').trim():'',
+        buyer:'', poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'', poOnly:false
+      });
+      added++;
+    });
+  }, ()=>{
+    renderPurchasing();
+    toast(`Đã nhập ${added} dòng từ file PR. Đang chạy khớp Xcode…`,'ok');
+    if(XCODES.length) matchAllXcodes();
+  });
+}
+function handleXcodeUpload(input){
+  const file=input.files[0]; if(!file) return;
+  const newList=[]; let added=0;
+  readTabularFile(file, (header, rows)=>{
+    const idx={
+      code:findColIndex(header,['maxcode','xcode','macode']),
+      name:findColIndex(header,['tenmathang','tenhang','name']),
+      model:findColIndex(header,['model']),
+      maker:findColIndex(header,['maker','nsx','hangsx']),
+    };
+    rows.forEach(r=>{
+      const code = idx.code>-1? String(r[idx.code]||'').trim() : '';
+      if(!code) return;
+      newList.push({code, name: idx.name>-1?String(r[idx.name]||'').trim():'', model: idx.model>-1?String(r[idx.model]||'').trim():'', maker: idx.maker>-1?String(r[idx.maker]||'').trim():''});
+      added++;
+    });
+  }, ()=>{
+    if(newList.length) XCODES=newList;
+    renderPurchasing();
+    toast(`Đã nạp ${added} mã Xcode. Đang chạy khớp…`,'ok');
+    matchAllXcodes();
+  });
+}
+function matchAllXcodes(){
+  if(!XCODES.length){ toast('Chưa có dữ liệu Xcode để khớp.','err'); return; }
+  PURCHASE_ITEMS.forEach(it=>{
+    if(it.poOnly) return;
+    const itemStr=[it.itemName,it.model,it.maker].join(' ');
+    const matches=XCODES.filter(xc=>{
+      const modelMatch = it.model && xc.model && stripDiacritics(it.model)===stripDiacritics(xc.model);
+      const makerMatch = it.maker && xc.maker && stripDiacritics(it.maker)===stripDiacritics(xc.maker);
+      if(modelMatch && (makerMatch || !xc.maker)) return true;
+      return tokenOverlapRatio(itemStr, [xc.name,xc.model,xc.maker].join(' ')) >= 0.5;
+    });
+    if(matches.length){ it.xcode=matches.map(m=>m.code).join(', '); it.xcodeName=matches.map(m=>m.name).join(', '); }
+    else { it.xcode='Không tìm được'; it.xcodeName=''; }
+  });
+  renderPurchasing();
+  toast('Đã chạy khớp Xcode cho toàn bộ danh sách.','ok');
+}
+function handlePOUpload(input){
+  const files=Array.from(input.files||[]); if(!files.length) return;
+  let totalLines=0, remaining=files.length;
+  files.forEach(file=>{
+    readTabularFile(file, (header, rows, sheetName)=>{
+      const idx={
+        desc:findColIndex(header,['tenmathang','mota','description','noidungpo','tenhang']),
+        poNumber:findColIndex(header,['sopo','ponumber','mapo']),
+        poDate:findColIndex(header,['ngaypo','podate','ngayphathanh']),
+        poName:findColIndex(header,['tentrenpo','ponametitle']),
+        supplier:findColIndex(header,['nhacungcap','supplier','ncc']),
+        qty:findColIndex(header,['soluong','qty','sl']),
+      };
+      rows.forEach(r=>{
+        const desc = idx.desc>-1? String(r[idx.desc]||'').trim() : '';
+        if(!desc) return;
+        POLINES.push({
+          file:file.name, sheet:sheetName, desc,
+          poNumber: idx.poNumber>-1?String(r[idx.poNumber]||'').trim():'',
+          poDate: idx.poDate>-1?String(r[idx.poDate]||'').trim():'',
+          poName: idx.poName>-1?String(r[idx.poName]||'').trim():'',
+          supplier: idx.supplier>-1?String(r[idx.supplier]||'').trim():'',
+          qty: idx.qty>-1?Number(r[idx.qty])||0:0,
+          matched:false
+        });
+        totalLines++;
+      });
+    }, ()=>{
+      remaining--;
+      if(remaining===0){
+        renderPurchasing();
+        toast(`Đã đọc ${totalLines} dòng PO từ ${files.length} file. Đang chạy khớp…`,'ok');
+        matchAllPOs();
+      }
+    });
+  });
+}
+function matchAllPOs(){
+  if(!POLINES.length){ toast('Chưa có dữ liệu PO để khớp.','err'); return; }
+  POLINES.forEach(l=>l.matched=false);
+  const baseItems = PURCHASE_ITEMS.filter(it=>!it.poOnly);
+  baseItems.forEach(it=>{ it.poNumber=''; it.poDate=''; it.poName=''; it.supplier=''; });
+  const firstAssignDone={};
+  const newRows=[];
+  POLINES.forEach(line=>{
+    let bestItem=null, bestScore=0;
+    baseItems.forEach(it=>{
+      const score=tokenOverlapRatio(line.desc, [it.itemName,it.model,it.maker].join(' '));
+      if(score>bestScore){ bestScore=score; bestItem=it; }
+    });
+    if(bestItem && bestScore>=0.5){
+      line.matched=true;
+      if(!firstAssignDone[bestItem.id]){
+        bestItem.poNumber=line.poNumber; bestItem.poDate=line.poDate; bestItem.poName=line.poName; bestItem.supplier=line.supplier;
+        firstAssignDone[bestItem.id]=true;
+      } else {
+        newRows.push({...bestItem, id:uid('pi'), poNumber:line.poNumber, poDate:line.poDate, poName:line.poName, supplier:line.supplier, batches:[], note:'Tách dòng do mặt hàng này được đặt ở nhiều PO khác nhau.'});
+      }
+    } else {
+      newRows.push({
+        id:uid('pi'), jobCode:'', itemName:line.desc, model:'', maker:'',
+        qtyNeeded:0, qtyStock:0, qtyToBuy:line.qty||0, unit:'',
+        xcode:'', xcodeName:'', requestDate:'', buyer:'',
+        poNumber:line.poNumber, poDate:line.poDate, poName:line.poName, supplier:line.supplier, expectedDate:'',
+        batches:[], note:'Có trên PO nhưng không có trong PR.', poOnly:true
+      });
+    }
+  });
+  PURCHASE_ITEMS=[...baseItems, ...newRows];
+  renderPurchasing();
+  const unmatchedCount=newRows.filter(r=>r.poOnly).length;
+  toast(`Đã khớp PO xong. ${unmatchedCount} dòng PO không tìm được trong PR (đã ghi chú riêng).`,'ok');
+}
+let purchaseFormBatches=[];
+function openPurchaseItemForm(id){
+  const existing = id? PURCHASE_ITEMS.find(x=>x.id===id) : null;
+  const jobOpts = ORDERS.map(o=>`<option value="${o.code}" ${existing&&existing.jobCode===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('');
+  const buyerOpts = USERS.filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${existing&&existing.buyer===u.id?'selected':''}>${u.name} (${u.dept})</option>`).join('');
+  purchaseFormBatches = existing? (existing.batches||[]).map(b=>({...b})) : [];
+  openModal(existing?'Chi tiết mặt hàng mua':'Thêm mặt hàng mua thủ công', `
+    <div class="grid-cols g2">
+      <div class="field"><label>Job</label><select id="pf-job"><option value="">— không —</option>${jobOpts}</select></div>
+      <div class="field"><label>Tên mặt hàng</label><input id="pf-name" value="${existing?(existing.itemName||'').replace(/"/g,'&quot;'):''}"></div>
+    </div>
+    <div class="grid-cols g3">
+      <div class="field"><label>Model</label><input id="pf-model" value="${existing?(existing.model||''):''}"></div>
+      <div class="field"><label>Maker</label><input id="pf-maker" value="${existing?(existing.maker||''):''}"></div>
+      <div class="field"><label>Đơn vị tính</label><input id="pf-unit" value="${existing?(existing.unit||''):''}"></div>
+    </div>
+    <div class="grid-cols g3">
+      <div class="field"><label>SL cần</label><input id="pf-needed" type="number" value="${existing?existing.qtyNeeded:0}" onchange="recalcQtyToBuyPreview()"></div>
+      <div class="field"><label>SL tồn kho</label><input id="pf-stock" type="number" value="${existing?existing.qtyStock:0}" onchange="recalcQtyToBuyPreview()"></div>
+      <div class="field"><label>SL cần mua</label><input id="pf-tobuy" type="number" value="${existing?existing.qtyToBuy:0}"></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Ngày yêu cầu</label><input id="pf-reqdate" type="date" value="${existing?existing.requestDate:''}"></div>
+      <div class="field"><label>Người được phân công mua</label><select id="pf-buyer"><option value="">— chưa phân —</option>${buyerOpts}</select></div>
+    </div>
+    <div class="card" style="background:var(--surface-2);margin:14px 0">
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 6px">Kết quả khớp mã Xcode (tự động — chạy lại ở màn hình chính nếu cần)</p>
+      <p style="font-size:12.5px;margin:0"><b class="mono">${existing?(existing.xcode||'—'):'—'}</b> ${existing&&existing.xcodeName?'— '+existing.xcodeName:''}</p>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Số PO</label><input id="pf-po" value="${existing?(existing.poNumber||''):''}"></div>
+      <div class="field"><label>Ngày phát hành PO</label><input id="pf-podate" type="date" value="${existing?(existing.poDate||''):''}"></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Tên trên PO</label><input id="pf-poname" value="${existing?(existing.poName||''):''}"></div>
+      <div class="field"><label>Nhà cung cấp</label><input id="pf-supplier" value="${existing?(existing.supplier||''):''}"></div>
+    </div>
+    <div class="field"><label>Ngày về dự kiến</label><input id="pf-expected" type="date" value="${existing?(existing.expectedDate||''):''}"></div>
+    <div class="field">
+      <label>Các đợt hàng về thực tế</label>
+      <div id="batchRows"></div>
+      <button class="btn btn-sm btn-ghost" onclick="addBatchRow()">${icon('plus',13)} Thêm đợt</button>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:8px">Tổng đã về: <b class="mono" id="batchTotalTxt">0</b></p>
+    </div>
+    <div class="field"><label>Ghi chú</label><textarea id="pf-note" rows="2">${existing?(existing.note||''):''}</textarea></div>
+  `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>savePurchaseItemForm(id)}]);
+  renderBatchRows();
+}
+function recalcQtyToBuyPreview(){
+  const needed=Number(document.getElementById('pf-needed').value)||0;
+  const stock=Number(document.getElementById('pf-stock').value)||0;
+  document.getElementById('pf-tobuy').value = calcQtyToBuy(needed,stock);
+}
+function renderBatchRows(){
+  const wrap=document.getElementById('batchRows'); if(!wrap) return;
+  wrap.innerHTML = purchaseFormBatches.map((b,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11.5px;color:var(--text-mute);width:50px">Đợt ${i+1}</span>
+      <input type="number" placeholder="SL" value="${b.qty||''}" style="width:80px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'qty',this.value)">
+      <input type="date" value="${b.date||''}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'date',this.value)">
+      <input placeholder="Ghi chú" value="${b.note||''}" style="flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'note',this.value)">
+      <button class="btn btn-ghost btn-sm" onclick="removeBatchRow(${i})">✕</button>
+    </div>`).join('');
+  const total=purchaseFormBatches.reduce((s,b)=>s+(Number(b.qty)||0),0);
+  const totalEl=document.getElementById('batchTotalTxt'); if(totalEl) totalEl.textContent=total;
+}
+function addBatchRow(){ purchaseFormBatches.push({qty:0,date:'',note:''}); renderBatchRows(); }
+function removeBatchRow(i){ purchaseFormBatches.splice(i,1); renderBatchRows(); }
+function updateBatchRow(i,key,val){ purchaseFormBatches[i][key]= key==='qty'?Number(val)||0:val; renderBatchRows(); }
+function savePurchaseItemForm(id){
+  const data={
+    jobCode:document.getElementById('pf-job').value,
+    itemName:document.getElementById('pf-name').value.trim(),
+    model:document.getElementById('pf-model').value.trim(),
+    maker:document.getElementById('pf-maker').value.trim(),
+    unit:document.getElementById('pf-unit').value.trim(),
+    qtyNeeded:Number(document.getElementById('pf-needed').value)||0,
+    qtyStock:Number(document.getElementById('pf-stock').value)||0,
+    qtyToBuy:Number(document.getElementById('pf-tobuy').value)||0,
+    requestDate:document.getElementById('pf-reqdate').value,
+    buyer:document.getElementById('pf-buyer').value,
+    poNumber:document.getElementById('pf-po').value.trim(),
+    poDate:document.getElementById('pf-podate').value,
+    poName:document.getElementById('pf-poname').value.trim(),
+    supplier:document.getElementById('pf-supplier').value.trim(),
+    expectedDate:document.getElementById('pf-expected').value,
+    batches:purchaseFormBatches.slice(),
+    note:document.getElementById('pf-note').value,
+  };
+  if(!data.itemName){ toast('Nhập tên mặt hàng.','err'); return; }
+  if(id){
+    const idx=PURCHASE_ITEMS.findIndex(x=>x.id===id);
+    PURCHASE_ITEMS[idx]={...PURCHASE_ITEMS[idx], ...data};
+  } else {
+    PURCHASE_ITEMS.push({id:uid('pi'), xcode:'', xcodeName:'', poOnly:false, ...data});
+  }
+  closeModal(); renderPurchasing();
+  toast(id?'Đã cập nhật mặt hàng.':'Đã thêm mặt hàng mới.','ok');
+  if(XCODES.length) matchAllXcodes();
+}
+
+/* ---------------- MASTER ---------------- */
+let masterTab='drawings';
+function renderMaster(){
+  document.getElementById('viewRoot').innerHTML=`
+    <div class="view-head"><div><h2>${t('master_title')}</h2><p>${t('master_sub')}</p></div></div>
+    <div class="tabs">
+      <button class="tab-btn ${masterTab==='drawings'?'active':''}" onclick="switchMasterTab('drawings')">Bản vẽ</button>
+      <button class="tab-btn ${masterTab==='jobs'?'active':''}" onclick="switchMasterTab('jobs')">Job</button>
+      <button class="tab-btn ${masterTab==='stages'?'active':''}" onclick="switchMasterTab('stages')">Công đoạn</button>
+      <button class="tab-btn ${masterTab==='users'?'active':''}" onclick="switchMasterTab('users')">Người dùng</button>
+    </div>
+    <div id="masterBody"></div>`;
+  renderMasterBody();
+}
+function switchMasterTab(tb){ masterTab=tb; renderMaster(); }
+function renderMasterBody(){
+  const body=document.getElementById('masterBody');
+  if(masterTab==='drawings'){
+    body.innerHTML=`
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <input id="dwSearch" placeholder="Tìm bản vẽ (có/không dấu)…" oninput="renderDrawingTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <button class="btn btn-sm btn-ghost" onclick="downloadDrawingTemplate()">⬇ Tải template</button>
+          <label class="btn btn-sm">⬆ Nhập Excel (nhiều sheet)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this)"></label>
+          <button class="btn btn-sm btn-primary" onclick="openDrawingForm()">${icon('plus',14)} Thêm bản vẽ</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px">Nguyên tắc nhập: dữ liệu mới sẽ ghi đè theo mã bản vẽ, nhưng bản vẽ đã phát sinh thời gian làm việc sẽ không bị xoá. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.</p>
+        <div id="drawingTableWrap"></div>
+      </div>`;
+    renderDrawingTable();
+  } else if(masterTab==='jobs'){
+    body.innerHTML=`
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input id="jbSearch" placeholder="Tìm Job (có/không dấu)…" oninput="renderJobTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <button class="btn btn-sm btn-ghost" onclick="downloadJobTemplate()">⬇ Tải template</button>
+          <label class="btn btn-sm">⬆ Nhập Excel/CSV<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this)"></label>
+          <button class="btn btn-sm btn-primary" onclick="openJobForm()">${icon('plus',14)} Thêm Job</button>
+        </div>
+        <div id="jobTableWrap"></div>
+      </div>`;
+    renderJobTable();
+  } else if(masterTab==='stages'){
+    body.innerHTML=`
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px">Thêm bộ phận mới</h3>
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">Tạo thêm bộ phận để tuỳ chỉnh quản lý (vd: QC, Kho, Bảo trì…). Bộ phận mới sẽ xuất hiện ở đăng ký, phân quyền, phân công nhiệm vụ và dashboard.</p>
+      <div style="display:flex;gap:8px;max-width:420px">
+        <input id="newDeptName" placeholder="Tên bộ phận mới…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+        <button class="btn btn-primary btn-sm" onclick="addDept()">${icon('plus',14)} Thêm bộ phận</button>
+      </div>
+    </div>
+    <div class="grid-cols g3">${DEPTS.map(d=>`
+      <div class="card">
+        <h3 style="margin-top:0;font-size:14px">${d}</h3>
+        <div id="stageList-${d}">${(STAGE_MASTER[d]||[]).map((s,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px"><span>${s}</span><button class="btn btn-ghost btn-sm" onclick="removeStage('${d}',${i})">✕</button></div>`).join('')}</div>
+        <div style="display:flex;gap:6px;margin-top:10px"><input id="newStage-${d}" placeholder="Công đoạn mới…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px"><button class="btn btn-sm" onclick="addStage('${d}')">+</button></div>
+      </div>`).join('')}</div>`;
+  } else {
+    const pendingUsers=USERS.filter(u=>u.status==='pending');
+    body.innerHTML=`
+      ${pendingUsers.length?`<div class="card" style="border-color:var(--amber)">
+        <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Tài khoản chờ duyệt (${pendingUsers.length})</h3>
+        ${pendingUsers.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-soft)">
+          <span style="font-size:13px">${u.name} · ${u.code} · ${u.dept}</span>
+          <div style="display:flex;gap:6px"><button class="btn btn-sm btn-solder" onclick="approveUser('${u.id}')">Duyệt</button><button class="btn btn-sm btn-danger" onclick="rejectUser('${u.id}')">Từ chối</button></div>
+        </div>`).join('')}
+      </div>`:''}
+      <div class="card scroll-x">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="margin:0;font-size:14px">Danh sách người dùng</h3>
+          <button class="btn btn-sm btn-primary" onclick="openAddUser()">${icon('plus',14)} Thêm người dùng</button>
+        </div>
+        <table><thead><tr><th>Tên</th><th>Mã NV</th><th>Bộ phận</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+        <tbody>${USERS.filter(u=>u.status!=='pending').map(u=>`<tr>
+          <td>${u.name}</td><td class="mono">${u.code}</td><td>${u.dept}</td>
+          <td><span class="badge badge-info">${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]}</span></td>
+          <td>${u.status==='active'?'<span class="badge badge-done">Hoạt động</span>':'<span class="badge badge-danger">Đã khoá</span>'}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="toggleLock('${u.id}')">${u.status==='active'?'Khoá':'Mở khoá'}</button></td>
+        </tr>`).join('')}</tbody></table>
+      </div>`;
+  }
+}
+
+/* ---- Master: Bản vẽ (với version) ---- */
+function renderDrawingTable(){
+  const q=document.getElementById('dwSearch')?document.getElementById('dwSearch').value:'';
+  const rows=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q)).map(d=>{
+    const lv=latestVersion(d);
+    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
+    <td class="mono">${lv.version}</td><td class="mono">${lv.issueDate}</td><td class="mono">${d.qty}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" onclick="openVersionHistory('${d.code}')">🕘 Lịch sử</button>
+      <button class="btn btn-ghost btn-sm" onclick="openDrawingForm('${d.code}')">${t('edit')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
+    </td></tr>`;
+  }).join('');
+  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Phiên bản hiện tại</th><th>Ngày phát hành</th><th>SL</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+}
+function openVersionHistory(code){
+  const d=DRAWINGS.find(x=>x.code===code);
+  openModal('Lịch sử phiên bản — '+code, `
+    <table><thead><tr><th>Phiên bản</th><th>Ngày phát hành</th></tr></thead>
+    <tbody>${d.versions.map(v=>`<tr><td class="mono">${v.version}</td><td class="mono">${v.issueDate||'—'}</td></tr>`).join('')}</tbody></table>
+  `, [{label:t('close'), onClick:closeModal}]);
+}
+let drawFormVersions=[];
+function openDrawingForm(code){
+  const existing = code? DRAWINGS.find(d=>d.code===code) : null;
+  drawFormVersions = existing? existing.versions.map(v=>({...v})) : [{version:'A', issueDate:new Date().toISOString().slice(0,10)}];
+  const jobOpts = ORDERS.map(o=>`<option value="${o.code}" ${existing&&existing.job===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('');
+  openModal(existing? 'Sửa bản vẽ '+code : 'Thêm bản vẽ mới', `
+    <div class="grid-cols g2">
+      <div class="field"><label>Mã bản vẽ</label><input id="nd-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
+      <div class="field"><label>Job</label><select id="nd-job">${jobOpts}</select></div>
+    </div>
+    <div class="field"><label>Tên bản vẽ</label><input id="nd-name" value="${existing?existing.name.replace(/"/g,'&quot;'):''}"></div>
+    <div class="field"><label>Số lượng</label><input id="nd-qty" type="number" value="${existing?existing.qty:0}"></div>
+    <div class="field">
+      <label>Phiên bản &amp; ngày phát hành (dòng cuối = phiên bản hiện hành)</label>
+      <div id="versionRows"></div>
+      <button class="btn btn-sm btn-ghost" onclick="addVersionRow()">${icon('plus',13)} Thêm phiên bản</button>
+    </div>
+  `, [{label: existing?t('save'):t('add'), primary:true, onClick:()=>saveDrawingForm(code)}]);
+  renderVersionRows();
+}
+function renderVersionRows(){
+  const wrap=document.getElementById('versionRows'); if(!wrap) return;
+  wrap.innerHTML = drawFormVersions.map((v,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input placeholder="Phiên bản (vd: A)" value="${v.version}" style="width:100px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px" onchange="updateVersionRow(${i},'version',this.value)">
+      <input type="date" value="${v.issueDate}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px" onchange="updateVersionRow(${i},'issueDate',this.value)">
+      ${drawFormVersions.length>1?`<button class="btn btn-ghost btn-sm" onclick="removeVersionRow(${i})">✕</button>`:''}
+    </div>`).join('');
+}
+function updateVersionRow(i,key,val){ drawFormVersions[i][key]=val; }
+function addVersionRow(){ drawFormVersions.push({version:'', issueDate:new Date().toISOString().slice(0,10)}); renderVersionRows(); }
+function removeVersionRow(i){ drawFormVersions.splice(i,1); renderVersionRows(); }
+function saveDrawingForm(editingCode){
+  const code=document.getElementById('nd-code').value.trim();
+  const name=document.getElementById('nd-name').value.trim();
+  const job=document.getElementById('nd-job').value;
+  const qty=Number(document.getElementById('nd-qty').value)||0;
+  if(!code){ toast('Nhập mã bản vẽ.','err'); return; }
+  const versions = drawFormVersions.filter(v=>v.version.trim()).map(v=>({version:v.version.trim(), issueDate:v.issueDate}));
+  if(!versions.length){ toast('Cần ít nhất 1 phiên bản.','err'); return; }
+  const idx=DRAWINGS.findIndex(d=>d.code===code);
+  if(idx>-1){ DRAWINGS[idx]={...DRAWINGS[idx], name, job, qty, versions}; }
+  else { DRAWINGS.push({code,name,job,qty,versions}); }
+  closeModal(); renderMasterBody();
+  toast(editingCode?'Đã cập nhật bản vẽ.':'Đã thêm bản vẽ.', 'ok');
+}
+function downloadDrawingTemplate(){
+  const header=['Ma Job','Ma ban ve','Ten ban ve','Phien ban','Ngay phat hanh (YYYY-MM-DD)','So luong'];
+  const sample=[
+    ['JOB-2026-014','BV-2001','Mach vi du Rev A','A','2026-09-01', 100],
+    ['JOB-2026-014','BV-2001','Mach vi du Rev B','B','2026-09-10', 100],
+  ];
+  try{
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet([header, ...sample]);
+    ws['!cols']=[{wch:16},{wch:14},{wch:26},{wch:10},{wch:24},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Ban ve');
+    XLSX.writeFile(wb,'Template_BanVe.xlsx');
+    toast('Đã tải template bản vẽ.','ok');
+  }catch(e){
+    const csv=[header.join(','), ...sample.map(r=>r.join(','))].join('\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Template_BanVe.csv'; a.click();
+    toast('Không có mạng để tạo Excel — đã tải template CSV.','err');
+  }
+}
+function importDrawingsExcel(input){
+  const file=input.files[0]; if(!file) return;
+  const applyRows=(rawRows)=>{
+    let added=0, updated=0;
+    const grouped={};
+    rawRows.forEach(r=>{
+      if(!r.code) return;
+      if(!grouped[r.code]) grouped[r.code]={job:r.job||'', name:r.name||'', qty:r.qty||0, versions:[]};
+      grouped[r.code].versions.push({version:r.version||'A', issueDate:r.issueDate||''});
+      if(r.name) grouped[r.code].name=r.name;
+      if(r.job) grouped[r.code].job=r.job;
+      if(r.qty) grouped[r.code].qty=r.qty;
+    });
+    Object.keys(grouped).forEach(code=>{
+      const g=grouped[code];
+      const hasHistory=TIMELOGS.some(l=>l.drawingCodes.includes(code));
+      const idx=DRAWINGS.findIndex(d=>d.code===code);
+      if(idx>-1){
+        if(!hasHistory){ DRAWINGS[idx]={...DRAWINGS[idx], name:g.name||DRAWINGS[idx].name, job:g.job||DRAWINGS[idx].job, qty:g.qty||DRAWINGS[idx].qty, versions:g.versions.length?g.versions:DRAWINGS[idx].versions}; updated++; }
+        else { g.versions.forEach(v=>{ if(!DRAWINGS[idx].versions.some(ev=>ev.version===v.version)) DRAWINGS[idx].versions.push(v); }); updated++; }
+      } else { DRAWINGS.push({code, name:g.name||'', job:g.job||'', qty:g.qty||0, versions:g.versions}); added++; }
+    });
+    renderMasterBody();
+    toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ.`,'ok');
+  };
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const lines=e.target.result.split(/\r?\n/).filter(Boolean);
+      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {job:c[0],code:c[1],name:c[2],version:c[3]||'A',issueDate:c[4]||'',qty:Number(c[5])||0};}));
+    };
+    reader.readAsText(file);
+  } else {
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        let rows=[];
+        wb.SheetNames.forEach(sn=>{
+          const json=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});
+          json.slice(1).forEach(r=>{ if(r[1]) rows.push({job:r[0]||'', code:String(r[1]), name:r[2]||'', version:r[3]||'A', issueDate:r[4]||'', qty:Number(r[5])||0}); });
+        });
+        applyRows(rows);
+      }catch(err){ toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+function openQrFor(code){
+  openModal('Mã QR bản vẽ '+code, `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div class="qr-box" style="width:180px;height:180px"><canvas id="qrCanvas"></canvas></div>
+      <div class="code-chip">${code}</div>
+      <p style="font-size:11.5px;color:var(--text-mute);text-align:center">Dán mã này lên phiếu/bản vẽ để nhân viên sản xuất quét khi bắt đầu công đoạn.</p>
+    </div>`, [{label:t('close'), onClick:closeModal}]);
+  setTimeout(()=>pseudoQR(code, document.getElementById('qrCanvas')),10);
+}
+
+/* ---- Master: Job ---- */
+function renderJobTable(){
+  const q=document.getElementById('jbSearch')?document.getElementById('jbSearch').value:'';
+  const rows=ORDERS.filter(o=>matchesSearch(getJobName(o),q)||matchesSearch(o.code,q)).map(o=>`
+    <tr><td class="mono">${o.code}</td><td>${getJobName(o)}</td><td class="mono">${o.planDate}</td><td>${priorityBadge(o.priority)}</td>
+    <td style="max-width:180px;font-size:12px;color:var(--text-mute)">${o.memo||'—'}</td>
+    <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openJobForm('${o.code}')">${t('edit')}</button>
+    <button class="btn btn-ghost btn-sm" onclick="deleteJobConfirm('${o.code}')">${t('delete')}</button></td></tr>`).join('');
+  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>Mã Job</th><th>Tên</th><th>Ngày cần giao</th><th>Ưu tiên</th><th>Memo</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+}
+function openJobForm(code){
+  const existing = code? ORDERS.find(o=>o.code===code) : null;
+  openModal(existing?'Sửa Job '+code:'Thêm Job mới', `
+    <div class="grid-cols g2">
+      <div class="field"><label>Mã Job</label><input id="jf-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
+      <div class="field"><label>Ngày cần giao</label><input id="jf-date" type="date" value="${existing?existing.planDate:''}"></div>
+    </div>
+    <div class="field"><label>Tên (Tiếng Việt)</label><input id="jf-name-vi" value="${existing?(existing.name_vi||'').replace(/"/g,'&quot;'):''}"></div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Tên (English)</label><input id="jf-name-en" value="${existing?(existing.name_en||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="field"><label>Tên (日本語)</label><input id="jf-name-ja" value="${existing?(existing.name_ja||'').replace(/"/g,'&quot;'):''}"></div>
+    </div>
+    <div class="field"><label>Mức độ ưu tiên</label><select id="jf-priority">
+      <option value="high" ${existing&&existing.priority==='high'?'selected':''}>${t('priority_high')}</option>
+      <option value="medium" ${!existing||existing.priority==='medium'?'selected':''}>${t('priority_medium')}</option>
+      <option value="low" ${existing&&existing.priority==='low'?'selected':''}>${t('priority_low')}</option>
+    </select></div>
+    <div class="field"><label>Memo</label><textarea id="jf-memo" rows="2">${existing?(existing.memo||''):''}</textarea></div>
+  `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>saveJobForm(!!existing)}]);
+}
+function saveJobForm(isEdit){
+  const code=document.getElementById('jf-code').value.trim();
+  if(!code){toast('Nhập mã Job.','err'); return;}
+  const name_vi=document.getElementById('jf-name-vi').value.trim();
+  const name_en=document.getElementById('jf-name-en').value.trim();
+  const name_ja=document.getElementById('jf-name-ja').value.trim();
+  const priority=document.getElementById('jf-priority').value;
+  const planDate=document.getElementById('jf-date').value;
+  const memo=document.getElementById('jf-memo').value;
+  const idx=ORDERS.findIndex(o=>o.code===code);
+  if(idx>-1){ ORDERS[idx]={...ORDERS[idx], name_vi, name_en, name_ja, priority, planDate, memo}; }
+  else { ORDERS.push({code, name_vi, name_en, name_ja, priority, planDate, memo}); }
+  closeModal(); renderMasterBody();
+  toast(isEdit?'Đã cập nhật Job.':'Đã thêm Job mới.','ok');
+}
+function deleteJobConfirm(code){
+  const hasDrawings = DRAWINGS.some(d=>d.job===code);
+  openModal('Xoá Job '+code, `<p style="font-size:13px">Bạn có chắc muốn xoá Job này?</p>${hasDrawings?`<p style="font-size:12.5px;color:var(--danger)">⚠ Job này đang có bản vẽ liên kết trong Master. Xoá Job sẽ không xoá các bản vẽ đó, nhưng chúng sẽ mất liên kết đúng khi lọc theo Job.</p>`:''}`,
+   [{label:t('delete'), primary:true, danger:true, onClick:()=>{ ORDERS=ORDERS.filter(o=>o.code!==code); closeModal(); renderMasterBody(); toast('Đã xoá Job.','ok'); }}]);
+}
+function downloadJobTemplate(){
+  const header=['Ma Job','Ten (Tieng Viet)','Ten (English)','Ten (Japanese)','Ngay can giao (YYYY-MM-DD)','Uu tien (high/medium/low)','Memo'];
+  const sample=[['JOB-2026-020','Don hang vi du','Sample order','サンプル受注','2026-10-15','medium','']];
+  try{
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet([header, ...sample]);
+    ws['!cols']=[{wch:16},{wch:26},{wch:26},{wch:26},{wch:20},{wch:16},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Template Job');
+    XLSX.writeFile(wb,'Template_Job.xlsx');
+    toast('Đã tải template Job.','ok');
+  }catch(e){
+    const csv=[header.join(','), ...sample.map(r=>r.join(','))].join('\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Template_Job.csv'; a.click();
+    toast('Không có mạng để tạo Excel — đã tải template CSV.','err');
+  }
+}
+function importJobsExcel(input){
+  const file=input.files[0]; if(!file) return;
+  const applyRows=(rows)=>{
+    let added=0, updated=0;
+    rows.forEach(r=>{
+      if(!r.code) return;
+      const idx=ORDERS.findIndex(o=>o.code===r.code);
+      const data={code:r.code, name_vi:r.name_vi||'', name_en:r.name_en||'', name_ja:r.name_ja||'', planDate:r.planDate||'', priority:r.priority||'medium', memo:r.memo||''};
+      if(idx>-1){ ORDERS[idx]={...ORDERS[idx], ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))}; updated++; }
+      else { ORDERS.push(data); added++; }
+    });
+    renderMasterBody();
+    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job.`,'ok');
+  };
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const lines=e.target.result.split(/\r?\n/).filter(Boolean);
+      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {code:c[0],name_vi:c[1],name_en:c[2],name_ja:c[3],planDate:c[4],priority:c[5],memo:c[6]};}));
+    };
+    reader.readAsText(file);
+  } else {
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        let rows=[];
+        wb.SheetNames.forEach(sn=>{
+          const json=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});
+          json.slice(1).forEach(r=>{ if(r[0]) rows.push({code:String(r[0]), name_vi:r[1]||'', name_en:r[2]||'', name_ja:r[3]||'', planDate:r[4]||'', priority:r[5]||'medium', memo:r[6]||''}); });
+        });
+        applyRows(rows);
+      }catch(err){ toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function addDept(){
+  const inp=document.getElementById('newDeptName');
+  const v=inp.value.trim();
+  if(!v){ toast('Nhập tên bộ phận.','err'); return; }
+  if(DEPTS.includes(v)){ toast('Bộ phận này đã tồn tại.','err'); return; }
+  DEPTS.push(v);
+  STAGE_MASTER[v]=[];
+  renderMasterBody();
+  toast('Đã thêm bộ phận "'+v+'".','ok');
+}
+function addStage(dept){
+  const inp=document.getElementById('newStage-'+dept);
+  const v=inp.value.trim(); if(!v) return;
+  STAGE_MASTER[dept].push(v); renderMasterBody(); toast('Đã thêm công đoạn.','ok');
+}
+function removeStage(dept,i){ STAGE_MASTER[dept].splice(i,1); renderMasterBody(); }
+function approveUser(id){ const u=USERS.find(x=>x.id===id); u.status='active'; renderMasterBody(); toast('Đã duyệt tài khoản '+u.name,'ok'); }
+function rejectUser(id){ USERS=USERS.filter(x=>x.id!==id); renderMasterBody(); toast('Đã từ chối đăng ký.','ok'); }
+function toggleLock(id){ const u=USERS.find(x=>x.id===id); u.status = u.status==='active'?'locked':'active'; renderMasterBody(); toast('Đã cập nhật trạng thái tài khoản.','ok'); }
+function openAddUser(){
+  openModal('Thêm người dùng', `
+    <div class="grid-cols g2">
+      <div class="field"><label>Họ tên</label><input id="au-name"></div>
+      <div class="field"><label>Mã NV</label><input id="au-code"></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Bộ phận</label><select id="au-dept">${DEPTS.map(d=>`<option>${d}</option>`).join('')}</select></div>
+      <div class="field"><label>Vai trò</label><select id="au-role"><option value="employee">Nhân viên</option><option value="manager">Quản lý</option><option value="admin">Admin</option></select></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Tên đăng nhập</label><input id="au-user"></div>
+      <div class="field"><label>Mật khẩu</label><input id="au-pass" value="123"></div>
+    </div>`, [{label:'Thêm', primary:true, onClick:()=>{
+      const username=document.getElementById('au-user').value.trim();
+      if(!username){toast('Nhập tên đăng nhập.','err'); return;}
+      USERS.push({id:uid('u'), name:document.getElementById('au-name').value, code:document.getElementById('au-code').value, dept:document.getElementById('au-dept').value, role:document.getElementById('au-role').value, username, password:document.getElementById('au-pass').value||'123', status:'active'});
+      closeModal(); renderMasterBody(); renderDemoAccounts(); toast('Đã thêm người dùng.','ok');
+    }}]);
+}
+
+/* ---------------- Generic Modal ---------------- */
+function openModal(title, bodyHtml, actions){
+  document.getElementById('modalRoot').innerHTML=`
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <div class="modal-head"><h3>${title}</h3><button class="icon-btn" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">${bodyHtml}</div>
+        <div class="modal-foot" id="modalFoot"></div>
+      </div>
+    </div>`;
+  const foot=document.getElementById('modalFoot');
+  foot.innerHTML='';
+  (actions||[{label:'Đóng',onClick:closeModal}]).forEach(a=>{
+    const b=document.createElement('button');
+    b.className='btn '+(a.primary?(a.danger?'btn-danger':'btn-primary'):'btn-ghost');
+    b.textContent=a.label;
+    b.onclick=a.onClick;
+    foot.appendChild(b);
+  });
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+
+/* ---------------- Init ---------------- */
+renderDemoAccounts();
+document.addEventListener('click', (e)=>{
+  const panel=document.getElementById('notifPanel');
+  if(panel && !panel.classList.contains('hidden')){
+    if(!e.target.closest('.notif-panel') && !e.target.closest('.icon-btn')) panel.classList.add('hidden');
+  }
+});
+</script>
+</body>
+</html>
