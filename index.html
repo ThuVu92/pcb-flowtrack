@@ -2947,8 +2947,12 @@ function downloadDrawingTemplate(){
 }
 function importDrawingsExcel(input){
   const file=input.files[0]; if(!file) return;
+  /** Gộp toàn bộ thay đổi thành vài lệnh ghi hàng loạt (thay vì 2-3 lượt gọi
+      mạng cho MỖI bản vẽ) — với danh sách vài trăm dòng, cách cũ chạy tuần
+      tự từng dòng có thể mất hàng phút; nếu người dùng rời trang giữa
+      chừng thì các dòng chưa tới lượt sẽ không được ghi, trông như "đoạn
+      sau không cập nhật gì". */
   const applyRows=async (rawRows)=>{
-    let added=0, updated=0, failed=0;
     const grouped={};
     rawRows.forEach(r=>{
       if(!r.code) return;
@@ -2957,11 +2961,16 @@ function importDrawingsExcel(input){
       if(r.name) grouped[r.code].name=r.name;
       if(r.job) grouped[r.code].job=r.job;
     });
-    for(const code of Object.keys(grouped)){
+
+    let added=0, updated=0, failed=0; const failedCodes=[];
+    const toInsertDrawings=[], toInsertVersions=[];
+    const toUpdateDrawings=[], toReplaceVersionCodes=[];
+    const localOps=[];
+
+    Object.keys(grouped).forEach(code=>{
       const g=grouped[code];
       if(g.job && !ORDERS.some(o=>o.code===g.job)){
-        console.error(`Bỏ qua bản vẽ ${code}: Job "${g.job}" chưa tồn tại trong Master → Job.`);
-        failed++; continue;
+        failed++; failedCodes.push(code); return;
       }
       const hasHistory=TIMELOGS.some(l=>l.drawingCodes.includes(code));
       const idx=DRAWINGS.findIndex(d=>d.code===code);
@@ -2969,32 +2978,54 @@ function importDrawingsExcel(input){
         if(!hasHistory){
           const name=g.name||DRAWINGS[idx].name, job=g.job||DRAWINGS[idx].job;
           const versions=g.versions.length?g.versions:DRAWINGS[idx].versions;
-          const {error:e1}=await supabase.from('drawings').update({name, job_code:job||null}).eq('code',code);
-          if(e1){ console.error(e1); failed++; continue; }
-          await supabase.from('drawing_versions').delete().eq('drawing_code',code);
-          const {error:e2}=await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
-          if(e2){ console.error(e2); failed++; continue; }
-          DRAWINGS[idx]={...DRAWINGS[idx], name, job, versions};
+          toUpdateDrawings.push({code, name, job_code:job||null});
+          toReplaceVersionCodes.push(code);
+          versions.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
+          localOps.push({type:'update', idx, name, job, versions});
         } else {
           const newOnes=g.versions.filter(v=>!DRAWINGS[idx].versions.some(ev=>ev.version===v.version));
-          if(newOnes.length){
-            const {error:e3}=await supabase.from('drawing_versions').insert(newOnes.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
-            if(e3){ console.error(e3); failed++; continue; }
-          }
-          newOnes.forEach(v=>DRAWINGS[idx].versions.push(v));
+          newOnes.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
+          localOps.push({type:'append', idx, newOnes});
         }
         updated++;
       } else {
-        const {error:e4}=await supabase.from('drawings').insert({code, name:g.name||'', job_code:g.job||null});
-        if(e4){ console.error(e4); failed++; continue; }
-        const {error:e5}=await supabase.from('drawing_versions').insert(g.versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
-        if(e5){ console.error(e5); failed++; continue; }
-        DRAWINGS.push({code, name:g.name||'', job:g.job||'', versions:g.versions});
+        toInsertDrawings.push({code, name:g.name||'', job_code:g.job||null});
+        g.versions.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
+        localOps.push({type:'insert', code, name:g.name||'', job:g.job||'', versions:g.versions});
         added++;
       }
+    });
+
+    try{
+      if(toInsertDrawings.length){
+        const {error}=await supabase.from('drawings').insert(toInsertDrawings);
+        if(error) throw error;
+      }
+      if(toUpdateDrawings.length){
+        const {error}=await supabase.from('drawings').upsert(toUpdateDrawings, {onConflict:'code'});
+        if(error) throw error;
+      }
+      if(toReplaceVersionCodes.length){
+        const {error}=await supabase.from('drawing_versions').delete().in('drawing_code', toReplaceVersionCodes);
+        if(error) throw error;
+      }
+      if(toInsertVersions.length){
+        const {error}=await supabase.from('drawing_versions').insert(toInsertVersions);
+        if(error) throw error;
+      }
+    }catch(err){
+      console.error(err);
+      toast('Lỗi khi ghi dữ liệu lên Supabase: '+err.message,'err');
+      return;
     }
+
+    localOps.forEach(op=>{
+      if(op.type==='update') DRAWINGS[op.idx]={...DRAWINGS[op.idx], name:op.name, job:op.job, versions:op.versions};
+      else if(op.type==='append') op.newOnes.forEach(v=>DRAWINGS[op.idx].versions.push(v));
+      else if(op.type==='insert') DRAWINGS.push({code:op.code, name:op.name, job:op.job, versions:op.versions});
+    });
     renderMasterBody();
-    const failMsg = failed? `, lỗi ${failed} dòng (mở Console trình duyệt để xem chi tiết — thường do Job chưa tồn tại trong Master → Job)` : '';
+    const failMsg = failed? `, bỏ qua ${failed} dòng vì Job chưa có trong Master → Job (${failedCodes.slice(0,5).join(', ')}${failedCodes.length>5?', …':''})` : '';
     toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ${failMsg}.`, failed?'err':'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
@@ -3151,19 +3182,31 @@ function downloadJobTemplate(){
 function importJobsExcel(input){
   const file=input.files[0]; if(!file) return;
   const applyRows=async (rows)=>{
-    let added=0, updated=0, failed=0;
-    for(const r of rows){
-      if(!r.code) continue;
-      const idx=ORDERS.findIndex(o=>o.code===r.code);
+    // Gộp thành 1 lệnh upsert hàng loạt thay vì 1 lượt gọi mạng/dòng — xem
+    // giải thích chi tiết ở importDrawingsExcel (cùng vấn đề hiệu năng).
+    const grouped={};
+    rows.forEach(r=>{
+      if(!r.code) return;
+      const existingIdx=ORDERS.findIndex(o=>o.code===r.code);
+      const base=grouped[r.code] || (existingIdx>-1 ? {...ORDERS[existingIdx]} : {code:r.code, name_vi:'', name_en:'', name_ja:'', planDate:'', priority:'medium', memo:''});
       const data={code:r.code, name_vi:r.name_vi||'', name_en:r.name_en||'', name_ja:r.name_ja||'', planDate:r.planDate||'', priority:r.priority||'medium', memo:r.memo||''};
-      const merged = idx>-1 ? {...ORDERS[idx], ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))} : data;
-      const {error}=await supabase.from('jobs').upsert({code:merged.code, name_vi:merged.name_vi, name_en:merged.name_en, name_ja:merged.name_ja, plan_date:merged.planDate||null, priority:merged.priority, memo:merged.memo});
-      if(error){ console.error(error); failed++; continue; }
-      if(idx>-1){ ORDERS[idx]=merged; updated++; } else { ORDERS.push(merged); added++; }
-    }
+      grouped[r.code]={...base, ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))};
+    });
+    const codes=Object.keys(grouped);
+    if(!codes.length){ toast('Không có dòng hợp lệ để nhập.','err'); return; }
+    const upsertRows=codes.map(c=>{
+      const m=grouped[c];
+      return {code:m.code, name_vi:m.name_vi, name_en:m.name_en, name_ja:m.name_ja, plan_date:m.planDate||null, priority:m.priority, memo:m.memo};
+    });
+    const {error}=await supabase.from('jobs').upsert(upsertRows);
+    if(error){ console.error(error); toast('Lỗi khi nhập: '+error.message,'err'); return; }
+    let added=0, updated=0;
+    codes.forEach(c=>{
+      const idx=ORDERS.findIndex(o=>o.code===c);
+      if(idx>-1){ ORDERS[idx]=grouped[c]; updated++; } else { ORDERS.push(grouped[c]); added++; }
+    });
     renderMasterBody();
-    const failMsg = failed? `, lỗi ${failed} dòng (mở Console trình duyệt để xem chi tiết)` : '';
-    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job${failMsg}.`, failed?'err':'ok');
+    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job.`,'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){
