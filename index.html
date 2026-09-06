@@ -271,6 +271,17 @@ tr.row-click:hover td{background:var(--surface-2);}
   background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px;
 }
 
+/* Dropdown gợi ý tự viết (thay cho <datalist> — không hỗ trợ tốt trên Safari di động) */
+.combo-wrap{position:relative;}
+.combo-list{
+  position:absolute; top:100%; left:0; right:0; margin-top:4px; max-height:220px; overflow-y:auto;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+  box-shadow:var(--shadow); z-index:50;
+}
+.combo-item{padding:9px 12px; font-size:13px; cursor:pointer;}
+.combo-item:hover,.combo-item.active{background:var(--surface-3);}
+.combo-item.muted{color:var(--text-mute); cursor:default;}
+
 .upload-drop{
   border:1.5px dashed var(--border); border-radius:10px; padding:22px; text-align:center; color:var(--text-mute);
   font-size:12.5px; cursor:pointer; background:var(--surface-2);
@@ -489,6 +500,48 @@ function matchesSearch(target, query){
   if(!query) return true;
   return stripDiacritics(target).includes(stripDiacritics(query));
 }
+
+/* ---------------- "Combo" — ô gõ để tìm + gợi ý, tự viết ----------------
+   Thay cho <input list=...><datalist>: datalist không hiện gợi ý đáng tin
+   cậy trên Safari di động (xác nhận qua báo lỗi thật của người dùng), nên
+   cần tự vẽ danh sách gợi ý bằng JS để chạy đúng trên mọi trình duyệt.
+   input.value LUÔN LÀ giá trị thật (mã Job/bản vẽ, tên công đoạn…) — chọn
+   từ gợi ý sẽ điền đúng value đó vào ô, không điền nhãn hiển thị. */
+let COMBO_OPTIONS={};
+function comboHTML(id, options, placeholder, onChangeFn){
+  COMBO_OPTIONS[id]=options||[];
+  const call = onChangeFn? onChangeFn+'()' : '';
+  return `<div class="combo-wrap">
+    <input id="${id}" placeholder="${placeholder||''}" autocomplete="off"
+      oninput="comboFilter('${id}'); ${call}" onfocus="comboFilter('${id}')"
+      ${onChangeFn?`onchange="${call}"`:''}>
+    <div class="combo-list hidden" id="${id}-list"></div>
+  </div>`;
+}
+function comboFilter(id){
+  const input=document.getElementById(id); if(!input) return;
+  const q=input.value.trim();
+  const opts=COMBO_OPTIONS[id]||[];
+  const filtered = q? opts.filter(o=>matchesSearch(o.label,q)||matchesSearch(o.value,q)) : opts;
+  const list=document.getElementById(id+'-list'); if(!list) return;
+  comboCloseAll(id);
+  list.innerHTML = filtered.length
+    ? filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="comboPick('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('')
+    : `<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+  list.classList.remove('hidden');
+}
+function comboPick(id, value){
+  const input=document.getElementById(id); if(!input) return;
+  input.value=value;
+  document.getElementById(id+'-list').classList.add('hidden');
+  input.dispatchEvent(new Event('change')); // để các onchange="..." có sẵn vẫn chạy khi chọn bằng tay
+}
+function comboCloseAll(exceptId){
+  document.querySelectorAll('.combo-list').forEach(l=>{ if(!exceptId || l.id!==exceptId+'-list') l.classList.add('hidden'); });
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.combo-wrap')) comboCloseAll();
+});
 function toast(msg, type){
   const wrap=document.getElementById('toastWrap');
   const el=document.createElement('div');
@@ -1549,7 +1602,7 @@ async function finishLog(id){
 function openAddTask(){
   scanBuffer=[];
   const stageOpts=Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i)
-    .map(s=>`<option value="${s}">${s}</option>`).join('');
+    .map(s=>({value:s, label:s}));
   openModal('Thêm tác vụ mới', `
     <div class="tabs" style="margin-bottom:12px">
       <button class="tab-btn active" id="tab-qr" onclick="switchAddTab('qr')">${icon('qr',14)} Quét QR</button>
@@ -1574,24 +1627,20 @@ function openAddTask(){
       <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} Quét mã này</button>
       <div id="scanList" style="margin:10px 0;font-size:12.5px;color:var(--text-dim)"></div>
       <div class="field"><label>Công đoạn cho lô vừa quét</label>
-        <input id="qrStage" list="qrStageList" placeholder="vd: Vẽ mạch, Mạ đồng…" autocomplete="off">
-        <datalist id="qrStageList">${stageOpts}</datalist>
+        ${comboHTML('qrStage', stageOpts, 'vd: Vẽ mạch, Mạ đồng…')}
       </div>
       <p style="font-size:11.5px;color:var(--text-mute)">Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được <b>chia đều</b> cho các bản vẽ trong dòng.</p>
     </div>
     <div id="addTab-manual" class="hidden">
       <p style="font-size:11.5px;color:var(--text-mute);margin-top:0">Chọn từ danh sách có sẵn, hoặc gõ nội dung mới nếu không làm trên bản vẽ/Job cụ thể (vd: việc khác, họp, bảo trì…) — Job/bản vẽ gõ mới sẽ tự thêm vào Master.</p>
       <div class="field"><label>Job</label>
-        <input id="mnJob" list="mnJobList" placeholder="— để trống nếu không có Job — gõ để tìm hoặc thêm mới" autocomplete="off">
-        <datalist id="mnJobList">${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</datalist>
+        ${comboHTML('mnJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), '— để trống nếu không có Job — gõ để tìm hoặc thêm mới')}
       </div>
       <div class="field"><label>Bản vẽ</label>
-        <input id="mnDrawing" list="mnDrawingList" placeholder="— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới" autocomplete="off">
-        <datalist id="mnDrawingList">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</datalist>
+        ${comboHTML('mnDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), '— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới')}
       </div>
       <div class="field"><label>Công đoạn / công việc</label>
-        <input id="mnStage" list="mnStageList" placeholder="vd: Vẽ mạch, Họp nhóm, Bảo trì máy…" autocomplete="off">
-        <datalist id="mnStageList">${stageOpts}</datalist>
+        ${comboHTML('mnStage', stageOpts, 'vd: Vẽ mạch, Họp nhóm, Bảo trì máy…')}
       </div>
     </div>
   `, [{label:'Bắt đầu (Start)', primary:true, onClick:submitAddTask}]);
@@ -1780,14 +1829,10 @@ function renderDashboard(){
       <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
     </div>
     <div class="filter-bar">
-      <input id="fJob" list="fJobList" placeholder="Tất cả Job — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
-      <datalist id="fJobList">${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</datalist>
-      <input id="fUser" list="fUserList" placeholder="Tất cả nhân viên — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
-      <datalist id="fUserList">${USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}</datalist>
-      <input id="fDept" list="fDeptList" placeholder="Tất cả bộ phận — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
-      <datalist id="fDeptList">${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</datalist>
-      <input id="fDrawing" list="fDrawingList" placeholder="Tất cả bản vẽ — gõ để tìm…" oninput="renderDashBody()" autocomplete="off">
-      <datalist id="fDrawingList">${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</datalist>
+      ${comboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), 'Tất cả Job — gõ để tìm…', 'renderDashBody')}
+      ${comboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), 'Tất cả nhân viên — gõ để tìm…', 'renderDashBody')}
+      ${comboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), 'Tất cả bộ phận — gõ để tìm…', 'renderDashBody')}
+      ${comboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), 'Tất cả bản vẽ — gõ để tìm…', 'renderDashBody')}
       <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
       <select id="fPeriod" onchange="renderDashBody()">
         <option value="">Toàn bộ thời gian</option>
