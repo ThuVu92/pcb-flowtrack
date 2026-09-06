@@ -1352,6 +1352,7 @@ function openAddTask(){
       </div>
       <div id="qrCamWrap" class="hidden" style="margin-bottom:10px">
         <video id="qrVideo" playsinline muted style="width:100%;max-width:320px;border-radius:8px;background:#000;display:block"></video>
+        <div id="qrDebug" style="font-size:11px;color:var(--text-mute);margin-top:4px;font-family:var(--font-mono)"></div>
       </div>
       <div class="field"><label>Mã bản vẽ (QR)</label>
         <select id="qrPick"><option value="">— chọn bản vẽ để giả lập quét —</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
@@ -1391,7 +1392,7 @@ function addScannedCode(code){
 }
 
 /* ---------------- Quét QR bằng camera thật ---------------- */
-let qrCamStream=null, qrCamRAF=null, qrLastCode='', qrLastCodeAt=0;
+let qrCamStream=null, qrCamRAF=null, qrLastCode='', qrLastCodeAt=0, qrCamDbgInterval=null;
 async function toggleQrCamera(){
   if(qrCamStream){ stopQrCamera(); return; }
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
@@ -1414,6 +1415,11 @@ async function toggleQrCamera(){
   btn.textContent='Tắt camera';
   const canvas=document.createElement('canvas');
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  let qrFrameCount=0, qrLastErr='';
+  const dbg=document.getElementById('qrDebug');
+  const updateDbg=()=>{ if(dbg) dbg.textContent=`video: ${video.videoWidth}x${video.videoHeight} · khung đã xử lý: ${qrFrameCount}${qrLastErr?' · lỗi: '+qrLastErr:''}`; };
+  const dbgInterval=setInterval(updateDbg, 300);
+  qrCamDbgInterval=dbgInterval;
   const tick=()=>{
     if(!qrCamStream) return;
     try{
@@ -1425,9 +1431,10 @@ async function toggleQrCamera(){
         ctx.drawImage(video,0,0,canvas.width,canvas.height);
         const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
         const result=jsQR(imgData.data, imgData.width, imgData.height);
+        qrFrameCount++;
         if(result && result.data) onQrDetected(result.data);
       }
-    }catch(err){ console.error('QR scan frame error:', err); }
+    }catch(err){ console.error('QR scan frame error:', err); qrLastErr=err.message; }
     qrCamRAF=requestAnimationFrame(tick);
   };
   qrCamRAF=requestAnimationFrame(tick);
@@ -1435,6 +1442,8 @@ async function toggleQrCamera(){
 function stopQrCamera(){
   if(qrCamRAF) cancelAnimationFrame(qrCamRAF);
   qrCamRAF=null;
+  if(qrCamDbgInterval) clearInterval(qrCamDbgInterval);
+  qrCamDbgInterval=null;
   if(qrCamStream){ qrCamStream.getTracks().forEach(tr=>tr.stop()); qrCamStream=null; }
   const wrap=document.getElementById('qrCamWrap'); if(wrap) wrap.classList.add('hidden');
   const btn=document.getElementById('qrCamBtn'); if(btn) btn.textContent='Bật camera quét';
