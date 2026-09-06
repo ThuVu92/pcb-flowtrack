@@ -303,6 +303,10 @@ tr.row-click:hover td{background:var(--surface-2);}
   .login-card{grid-template-columns:1fr;}
   .login-visual{display:none;}
   .g4,.g3{grid-template-columns:repeat(2,1fr);}
+  .topbar{padding:10px 12px; gap:6px; flex-wrap:wrap; row-gap:8px;}
+  .topbar .path{display:none;}
+  .topbar h1{font-size:15px;}
+  .lang-switch-top{gap:4px;}
 }
 #printQrSheet{display:none;}
 @media print{
@@ -428,6 +432,17 @@ tr.row-click:hover td{background:var(--surface-2);}
           🔔<span class="nav-badge" id="notifCount" style="position:absolute;top:-6px;right:-6px;"></span>
         </button>
         <div class="notif-panel hidden" id="notifPanel"></div>
+      </div>
+      <div style="position:relative;">
+        <button class="icon-btn" onclick="toggleUserMenu()">👤</button>
+        <div class="notif-panel hidden" id="userMenuPanel" style="min-width:210px;padding:0;overflow:hidden">
+          <div style="padding:10px 12px;border-bottom:1px solid var(--border-soft)">
+            <b id="umName" style="font-size:13px"></b>
+            <div id="umMeta" style="font-size:11.5px;color:var(--text-mute);margin-top:2px"></div>
+          </div>
+          <button class="btn btn-ghost btn-block btn-sm" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="closeUserMenu();openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
+          <button class="btn btn-ghost btn-block btn-sm" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="logout()">↩ Đăng xuất</button>
+        </div>
       </div>
     </div>
     <div class="view" id="viewRoot"></div>
@@ -916,6 +931,17 @@ function toggleNotif(){
   p.classList.toggle('hidden');
   if(!p.classList.contains('hidden')) renderNotifBell(true);
 }
+/** Menu tài khoản trên topbar (Gửi yêu cầu / Đăng xuất) — luôn hiển thị ở mọi
+    kích thước màn hình, kể cả điện thoại, nơi sidebar bị ẩn thành thanh menu dưới. */
+function toggleUserMenu(){
+  const p=document.getElementById('userMenuPanel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden') && SESSION){
+    document.getElementById('umName').textContent=SESSION.name;
+    document.getElementById('umMeta').textContent=SESSION.code+' · '+SESSION.dept;
+  }
+}
+function closeUserMenu(){ document.getElementById('userMenuPanel').classList.add('hidden'); }
 function renderNotifBell(open){
   const mine=NOTIFS.filter(n=>n.user===SESSION.id);
   const unread=mine.filter(n=>!n.read).length;
@@ -2833,10 +2859,12 @@ async function initSession(){
 }
 initSession();
 document.addEventListener('click', (e)=>{
-  const panel=document.getElementById('notifPanel');
-  if(panel && !panel.classList.contains('hidden')){
-    if(!e.target.closest('.notif-panel') && !e.target.closest('.icon-btn')) panel.classList.add('hidden');
-  }
+  ['notifPanel','userMenuPanel'].forEach(id=>{
+    const panel=document.getElementById(id);
+    if(panel && !panel.classList.contains('hidden')){
+      if(!e.target.closest('.notif-panel') && !e.target.closest('.icon-btn')) panel.classList.add('hidden');
+    }
+  });
 });
 </script>
 </body>
