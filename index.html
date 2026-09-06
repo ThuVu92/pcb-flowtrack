@@ -639,6 +639,13 @@ function excelDateToISO(v){
   }
   return String(v).trim();
 }
+/** Chuẩn hoá ô "Ưu tiên" đọc từ Excel về đúng 1 trong 3 giá trị
+    database chấp nhận (high/medium/low) — nếu gõ sai/thiếu/tiếng Việt
+    thì mặc định về 'medium' thay vì để database từ chối cả dòng. */
+function normalizePriority(v){
+  const s=String(v||'').trim().toLowerCase();
+  return ['high','medium','low'].includes(s) ? s : 'medium';
+}
 function mapTimelog(l, drawCodes){
   return {id:l.id, user:l.user_id, job:l.job_code, drawingCodes:drawCodes||[], drawingName:l.drawing_name,
     dept:DEPT_NAME_BY_ID[l.dept_id]||'', stage:l.stage, start:new Date(l.start_at).getTime(),
@@ -2438,7 +2445,7 @@ function importJobsExcel(input){
     const reader=new FileReader();
     reader.onload=e=>{
       const lines=e.target.result.split(/\r?\n/).filter(Boolean);
-      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {code:c[0],name_vi:c[1],name_en:c[2],name_ja:c[3],planDate:excelDateToISO(c[4]),priority:c[5],memo:c[6]};}))
+      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {code:c[0],name_vi:c[1],name_en:c[2],name_ja:c[3],planDate:excelDateToISO(c[4]),priority:normalizePriority(c[5]),memo:c[6]};}))
         .catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
     };
     reader.readAsText(file);
@@ -2450,7 +2457,7 @@ function importJobsExcel(input){
         let rows=[];
         wb.SheetNames.forEach(sn=>{
           const json=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});
-          json.slice(1).forEach(r=>{ if(r[0]) rows.push({code:String(r[0]), name_vi:r[1]||'', name_en:r[2]||'', name_ja:r[3]||'', planDate:excelDateToISO(r[4]), priority:r[5]||'medium', memo:r[6]||''}); });
+          json.slice(1).forEach(r=>{ if(r[0]) rows.push({code:String(r[0]), name_vi:r[1]||'', name_en:r[2]||'', name_ja:r[3]||'', planDate:excelDateToISO(r[4]), priority:normalizePriority(r[5]), memo:r[6]||''}); });
         });
         applyRows(rows).catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
       }catch(err){ console.error(err); toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
