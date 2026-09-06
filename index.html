@@ -551,6 +551,7 @@ const I18N = {
     th_dept:'Bộ phận', th_employee:'Nhân viên', th_role:'Vai trò', th_emp_code:'Mã NV',
     th_current_version:'Phiên bản hiện tại', th_issue_date:'Ngày phát hành', th_version:'Phiên bản',
     th_job_code:'Mã Job', th_due_date:'Ngày cần giao',
+    th_started_at:'Bắt đầu lúc', th_finished_at:'Hoàn thành lúc',
   },
   en:{
     app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
@@ -577,6 +578,7 @@ const I18N = {
     th_dept:'Department', th_employee:'Employee', th_role:'Role', th_emp_code:'Employee code',
     th_current_version:'Current version', th_issue_date:'Issue date', th_version:'Version',
     th_job_code:'Job code', th_due_date:'Due date',
+    th_started_at:'Started at', th_finished_at:'Finished at',
   },
   ja:{
     app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
@@ -603,6 +605,7 @@ const I18N = {
     th_dept:'部門', th_employee:'従業員', th_role:'役割', th_emp_code:'社員番号',
     th_current_version:'現行版', th_issue_date:'発行日', th_version:'バージョン',
     th_job_code:'受注番号', th_due_date:'納期',
+    th_started_at:'開始日時', th_finished_at:'完了日時',
   }
 };
 function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
@@ -738,7 +741,7 @@ async function loadCoreData(){
   ASSIGNS=(assigns||[]).map(a=>({
     id:a.id, content:a.content, by:a.by_user, to:a.to_user, job:a.job_code, drawing:a.drawing_code,
     status:a.status, rejectReason:a.reject_reason||'',
-    comments:(commentsByAssign[a.id]||[]).map(c=>({by:nameById[c.by_user]||'—', text:c.text,
+    comments:(commentsByAssign[a.id]||[]).map(c=>({_id:c.id, by:nameById[c.by_user]||'—', text:c.text,
       time:new Date(c.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})})),
     lastSeenBy:seenByAssign[a.id]||{},
     createdAt:new Date(a.created_at).toLocaleString('vi-VN'),
@@ -747,6 +750,158 @@ async function loadCoreData(){
   NOTIFS=(notifs||[]).map(mapNotif);
 
   EDIT_REQUESTS=(editReqs||[]).map(r=>({id:r.id, userId:r.user_id, userName:nameById[r.user_id]||'—', message:r.message, status:r.status, createdAt:new Date(r.created_at).toLocaleString('vi-VN')}));
+}
+
+/* =========================================================================
+   REALTIME — nhận thay đổi từ Supabase ngay khi có (không cần tải lại trang).
+   Mỗi thay đổi được vá trực tiếp vào mảng dữ liệu cục bộ (không load lại toàn
+   bộ, vừa nhanh vừa đỡ tốn băng thông), rồi chỉ vẽ lại đúng phần màn hình
+   đang xem liên quan tới bảng vừa đổi.
+   ========================================================================= */
+let REALTIME_CHANNEL=null;
+let realtimeEverSubscribed=false;
+
+function upsertById(arr, item, idKey){
+  idKey=idKey||'id';
+  const idx=arr.findIndex(x=>x[idKey]===item[idKey]);
+  if(idx>-1) arr[idx]=item; else arr.push(item);
+}
+function removeById(arr, id, idKey){
+  idKey=idKey||'id';
+  const idx=arr.findIndex(x=>x[idKey]===id);
+  if(idx>-1) arr.splice(idx,1);
+}
+function getUserName(id){ const u=USERS.find(x=>x.id===id); return u?u.name:'—'; }
+/** Vẽ lại đúng phần đang xem nếu nó liên quan tới bảng vừa thay đổi —
+    tránh vẽ lại cả trang (mất nội dung đang gõ dở ở ô lọc/tìm kiếm khác). */
+function refreshAffectedView(views){
+  if(!SESSION || !document.getElementById('app').classList.contains('active')) return;
+  if(!views.includes(ACTIVE_VIEW)) return;
+  if(ACTIVE_VIEW==='home') renderHome();
+  else if(ACTIVE_VIEW==='assign') { renderAssignBody(); }
+  else if(ACTIVE_VIEW==='shift') renderShift();
+  else if(ACTIVE_VIEW==='dashboard') renderDashBody();
+  else if(ACTIVE_VIEW==='master') renderMasterBody();
+  updateAssignBadge();
+}
+
+function setupRealtime(){
+  if(REALTIME_CHANNEL) return;
+  REALTIME_CHANNEL=supabase.channel('app-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'depts'},({eventType,new:row})=>{
+      if(eventType==='DELETE') return; // không có UI xoá bộ phận, bỏ qua
+      if(!DEPT_NAME_BY_ID[row.id]){
+        DEPT_NAME_BY_ID[row.id]=row.name; DEPT_ID_BY_NAME[row.name]=row.id;
+        if(!DEPTS.includes(row.name)) DEPTS.push(row.name);
+        if(!STAGE_MASTER[row.name]) STAGE_MASTER[row.name]=[];
+      }
+      refreshAffectedView(['master']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'stages'},({eventType,new:row,old:oldRow})=>{
+      const dn=DEPT_NAME_BY_ID[(row||oldRow).dept_id]; if(!dn) return;
+      if(!STAGE_MASTER[dn]) STAGE_MASTER[dn]=[];
+      if(eventType==='DELETE'){ STAGE_MASTER[dn]=STAGE_MASTER[dn].filter(s=>s!==oldRow.name); }
+      else if(!STAGE_MASTER[dn].includes(row.name)){ STAGE_MASTER[dn].push(row.name); }
+      refreshAffectedView(['master']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(USERS, oldRow.id); }
+      else{
+        upsertById(USERS, mapProfile(row));
+        if(SESSION && SESSION.id===row.id){
+          if(row.status!=='active'){ toast('Tài khoản của bạn đã bị khoá/thay đổi — vui lòng đăng nhập lại.','err'); logout(); return; }
+          Object.assign(SESSION, mapProfile(row));
+        }
+      }
+      refreshAffectedView(['master']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'jobs'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(ORDERS, oldRow.code, 'code'); }
+      else{ upsertById(ORDERS, mapJob(row), 'code'); }
+      refreshAffectedView(['home','master','dashboard']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'drawings'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(DRAWINGS, oldRow.code, 'code'); }
+      else{
+        const existing=DRAWINGS.find(d=>d.code===row.code);
+        upsertById(DRAWINGS, mapDrawing(row, existing?existing.versions.map(v=>({version:v.version,issue_date:v.issueDate})):null), 'code');
+      }
+      refreshAffectedView(['home','master','dashboard']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'drawing_versions'},({eventType,new:row,old:oldRow})=>{
+      const code=(row||oldRow).drawing_code;
+      const d=DRAWINGS.find(x=>x.code===code); if(!d) return;
+      if(eventType==='DELETE'){ d.versions=d.versions.filter(v=>v.version!==oldRow.version); if(!d.versions.length) d.versions=[{version:'-',issueDate:'-'}]; }
+      else if(!d.versions.some(v=>v.version===row.version)){ d.versions=d.versions.filter(v=>v.version!=='-'); d.versions.push({version:row.version, issueDate:row.issue_date}); }
+      refreshAffectedView(['master']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'assigns'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(ASSIGNS, oldRow.id); }
+      else{
+        const existing=ASSIGNS.find(x=>x.id===row.id);
+        upsertById(ASSIGNS, {
+          id:row.id, content:row.content, by:row.by_user, to:row.to_user, job:row.job_code, drawing:row.drawing_code,
+          status:row.status, rejectReason:row.reject_reason||'',
+          comments:existing?existing.comments:[], lastSeenBy:existing?existing.lastSeenBy:{},
+          createdAt:new Date(row.created_at).toLocaleString('vi-VN'),
+        });
+        if(!existing && SESSION && row.to_user===SESSION.id){ toast('Bạn có nhiệm vụ mới!','ok'); }
+      }
+      refreshAffectedView(['assign']);
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'assign_comments'},({new:row})=>{
+      const a=ASSIGNS.find(x=>x.id===row.assign_id); if(!a) return;
+      if(a.comments.some(c=>c._id===row.id)) return;
+      a.comments.push({_id:row.id, by:getUserName(row.by_user), text:row.text,
+        time:new Date(row.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
+      refreshAffectedView(['assign']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'assign_last_seen'},({new:row})=>{
+      const a=ASSIGNS.find(x=>x.id===row.assign_id); if(!a) return;
+      if(!a.lastSeenBy) a.lastSeenBy={};
+      a.lastSeenBy[row.user_id]=row.seen_count;
+      refreshAffectedView(['assign']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'timelogs'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(TIMELOGS, oldRow.id); }
+      else{
+        const existing=TIMELOGS.find(x=>x.id===row.id);
+        upsertById(TIMELOGS, mapTimelog(row, existing?existing.drawingCodes:[]));
+      }
+      refreshAffectedView(['home','shift','dashboard']);
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'timelog_drawings'},({new:row})=>{
+      const l=TIMELOGS.find(x=>x.id===row.timelog_id); if(!l) return;
+      if(!l.drawingCodes.includes(row.drawing_code)) l.drawingCodes.push(row.drawing_code);
+      refreshAffectedView(['home','shift','dashboard']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'notifs'},({eventType,new:row,old:oldRow})=>{
+      if(!SESSION) return;
+      if(eventType==='DELETE'){ removeById(NOTIFS, oldRow.id); }
+      else{
+        if(row.user_id!==SESSION.id) return; // an toàn thêm — RLS đã lọc từ trước
+        upsertById(NOTIFS, mapNotif(row));
+      }
+      renderNotifBell();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'edit_requests'},({eventType,new:row,old:oldRow})=>{
+      if(eventType==='DELETE'){ removeById(EDIT_REQUESTS, oldRow.id); }
+      else{ upsertById(EDIT_REQUESTS, {id:row.id, userId:row.user_id, userName:getUserName(row.user_id), message:row.message, status:row.status, createdAt:new Date(row.created_at).toLocaleString('vi-VN')}); }
+      refreshAffectedView(['master']);
+    })
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED'){
+        if(realtimeEverSubscribed){
+          // Vừa kết nối lại sau khi mất mạng/máy ngủ — đồng bộ lại toàn bộ cho chắc.
+          loadCoreData().then(()=>{ if(SESSION){ SESSION=USERS.find(x=>x.id===SESSION.id)||SESSION; goto(ACTIVE_VIEW); } });
+        }
+        realtimeEverSubscribed=true;
+      }
+    });
+}
+function teardownRealtime(){
+  if(REALTIME_CHANNEL){ supabase.removeChannel(REALTIME_CHANNEL); REALTIME_CHANNEL=null; }
+  realtimeEverSubscribed=false;
 }
 
 /* ---------------- Dữ liệu mẫu Mua hàng (chưa nối Supabase — giai đoạn kế tiếp) ---------------- */
@@ -821,6 +976,7 @@ async function doLogin(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   boot();
+  setupRealtime();
 }
 function forgotFlow(mode){
   const u=document.getElementById('fp-user').value.trim();
@@ -861,6 +1017,7 @@ async function doRegister(){
   document.getElementById('rg-dept-other').classList.add('hidden');
 }
 async function logout(){
+  teardownRealtime();
   await supabase.auth.signOut();
   SESSION=null;
   document.getElementById('app').classList.remove('active');
@@ -876,7 +1033,7 @@ function navItemsFor(role){
     {id:'home', label:t('nav_home'), icon:'home'},
     {id:'assign', label:t('nav_assign'), icon:'list'},
   ];
-  if(role==='employee') base.push({id:'shift', label:t('nav_shift'), icon:'clock'});
+  base.push({id:'shift', label:t('nav_shift'), icon:'clock'});
   base.push({id:'dashboard', label:t('nav_dashboard'), icon:'chart'});
   if(SESSION && SESSION.dept==='Mua hàng' || role==='manager' || role==='admin'){
     base.push({id:'purchasing', label:t('nav_purchasing'), icon:'cart'});
@@ -1307,7 +1464,7 @@ async function sendChat(id){
   const text=inp.value.trim();
   const {data:cRow, error:cErr}=await supabase.from('assign_comments').insert({assign_id:id, by_user:SESSION.id, text}).select().single();
   if(cErr){ toast('Lỗi gửi tin nhắn: '+cErr.message,'err'); return; }
-  a.comments.push({by:SESSION.name, text, time:new Date(cRow.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
+  a.comments.push({_id:cRow.id, by:SESSION.name, text, time:new Date(cRow.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
   if(!a.lastSeenBy) a.lastSeenBy={};
   a.lastSeenBy[SESSION.id]=a.comments.length; // người vừa gửi coi như đã đọc hết
   await supabase.from('assign_last_seen').upsert({assign_id:id, user_id:SESSION.id, seen_count:a.comments.length}, {onConflict:'assign_id,user_id'});
@@ -1700,11 +1857,14 @@ function renderDashBody(){
   const scopedDrawings = (fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
   const allDrawStats = scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
-    const doneD=matching.some(l=>l.status==='done');
+    const doneLogs=matching.filter(l=>l.status==='done');
+    const doneD=doneLogs.length>0;
     const started=matching.length>0;
     const state = doneD?'done':started?'progress':'idle';
     const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1),0);
-    return {d, state, dMs};
+    const startedAt = started? Math.min(...matching.map(l=>l.start)) : null;
+    const finishedAt = doneD? Math.max(...doneLogs.map(l=>l.end)) : null;
+    return {d, state, dMs, startedAt, finishedAt};
   });
   const cntTotalD=allDrawStats.length, cntDone=allDrawStats.filter(x=>x.state==='done').length,
         cntProgress=allDrawStats.filter(x=>x.state==='progress').length, cntIdle=allDrawStats.filter(x=>x.state==='idle').length;
@@ -1717,9 +1877,9 @@ function renderDashBody(){
   const startIdx=(dashDrawState.page-1)*pageSize;
   const pageItems=drawStats.slice(startIdx, startIdx+pageSize);
 
-  const rowsJd = pageItems.map(({d,state,dMs})=>{
+  const rowsJd = pageItems.map(({d,state,dMs,startedAt,finishedAt})=>{
     const st = state==='done'?`<span class="badge badge-done">Hoàn thành</span>` : state==='progress'?`<span class="badge badge-progress">Đang làm</span>` : `<span class="badge badge-idle">Chưa làm</span>`;
-    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job}</td><td>${st}</td><td class="mono">${fmtDur(dMs)}</td></tr>`;
+    return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job}</td><td>${st}</td><td class="mono">${fmtDur(dMs)}</td><td class="mono" style="font-size:11.5px">${startedAt?new Date(startedAt).toLocaleString('vi-VN'):'—'}</td><td class="mono" style="font-size:11.5px">${finishedAt?new Date(finishedAt).toLocaleString('vi-VN'):'—'}</td></tr>`;
   }).join('');
 
   const jobDrawingsSection = `
@@ -1754,8 +1914,8 @@ function renderDashBody(){
           </select>
         </div>
       </div>
-      <table style="margin-top:10px"><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead>
-      <tbody>${rowsJd||`<tr><td colspan="5" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
+      <table style="margin-top:10px"><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th><th>${t('th_started_at')}</th><th>${t('th_finished_at')}</th></tr></thead>
+      <tbody>${rowsJd||`<tr><td colspan="7" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
         <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">‹ Trước</button>
         <span style="font-size:12.5px;color:var(--text-dim)">Trang ${dashDrawState.page}/${pageCount}</span>
@@ -1815,10 +1975,13 @@ function exportDashboardReport(){
   const scopedDrawings=(fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
   const drawStats=scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
-    const doneD=matching.some(l=>l.status==='done'); const started=matching.length>0;
+    const doneLogs=matching.filter(l=>l.status==='done');
+    const doneD=doneLogs.length>0; const started=matching.length>0;
     const state=doneD?'Hoàn thành':started?'Đang làm':'Chưa làm';
     const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1),0);
-    return [d.code, d.name, d.job, state, fmtDur(dMs)];
+    const startedAt=started?new Date(Math.min(...matching.map(l=>l.start))).toLocaleString('vi-VN'):'';
+    const finishedAt=doneD?new Date(Math.max(...doneLogs.map(l=>l.end))).toLocaleString('vi-VN'):'';
+    return [d.code, d.name, d.job, state, fmtDur(dMs), startedAt, finishedAt];
   });
 
   const summaryRows=[
@@ -1841,13 +2004,13 @@ function exportDashboardReport(){
     ['— Đang làm', drawStats.filter(r=>r[3]==='Đang làm').length],
     ['— Chưa làm', drawStats.filter(r=>r[3]==='Chưa làm').length],
   ];
-  const drawingRows=[['Mã bản vẽ','Tên bản vẽ','Job','Trạng thái','Thời gian đã làm'], ...drawStats];
-  const detailRows=[['Job','Nhân viên','Bộ phận','Bản vẽ','Công đoạn','Trạng thái','Bắt đầu','Thời gian'],
+  const drawingRows=[['Mã bản vẽ','Tên bản vẽ','Job','Trạng thái','Thời gian đã làm','Bắt đầu lúc','Hoàn thành lúc'], ...drawStats];
+  const detailRows=[['Job','Nhân viên','Bộ phận','Bản vẽ','Công đoạn','Trạng thái','Bắt đầu','Kết thúc','Thời gian'],
     ...logs.slice().reverse().map(l=>{
       const u=USERS.find(x=>x.id===l.user);
       const dur=((l.end||Date.now())-l.start-l.pausedMs);
       const stMap={running:'Đang làm',paused:'Tạm dừng',done:'Hoàn thành'};
-      return [l.job||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stage, stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), fmtDur(dur)];
+      return [l.job||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stage, stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), l.end?new Date(l.end).toLocaleString('vi-VN'):'—', fmtDur(dur)];
     })];
 
   try{
@@ -2851,6 +3014,7 @@ async function initSession(){
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').classList.add('active');
       boot();
+      setupRealtime();
       return;
     }
     await supabase.auth.signOut(); // tài khoản đã bị khoá/xoá kể từ lần đăng nhập trước
