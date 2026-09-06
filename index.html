@@ -347,10 +347,6 @@ tr.row-click:hover td{background:var(--surface-2);}
           <a onclick="showPane('forgot')" id="forgotLinkTxt">Quên mật khẩu?</a>
           <a onclick="showPane('register')" id="registerLinkTxt">Đăng ký tài khoản mới</a>
         </div>
-        <div class="demo-accts">
-          <p id="demoAccTxt">Tài khoản demo — bấm để đăng nhập nhanh</p>
-          <div class="demo-grid" id="demoGrid"></div>
-        </div>
       </div>
 
       <div id="pane-forgot" class="hidden">
@@ -425,9 +421,26 @@ tr.row-click:hover td{background:var(--surface-2);}
 
 <div id="modalRoot"></div>
 
+<!-- Supabase project config. Safe to expose client-side — the anon key only
+     grants what Row Level Security policies allow; see supabase/migrations/.
+     Loaded as a classic script (like xlsx.full.min.js below) so it's ready
+     before the app script runs — no module-script deferral ordering issues. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
+<script>
+  window.supabase = supabase.createClient(
+    'https://afmfzdpkwisifqexjdwu.supabase.co',
+    'sb_publishable_3O7jg47kbOgYuR0928Erow_xVmdqM1z'
+  );
+</script>
+
 <script>
 /* =========================================================================
-   PCB FLOWTRACK — DEMO (dữ liệu mẫu trong bộ nhớ, KHÔNG lưu vĩnh viễn)
+   PCB FLOWTRACK
+   Dữ liệu thật lưu trên Supabase (Postgres). Các biến USERS/ORDERS/...
+   dưới đây là bộ nhớ đệm phía client, được nạp từ Supabase sau khi đăng
+   nhập (xem loadCoreData()) và cập nhật lại sau mỗi lần ghi dữ liệu.
+   Riêng dữ liệu Mua hàng (XCODES/POLINES/PURCHASE_ITEMS) vẫn là dữ liệu
+   mẫu tạm thời — sẽ được nối vào Supabase ở giai đoạn kế tiếp.
    ========================================================================= */
 
 /* ---------------- Helpers ---------------- */
@@ -574,57 +587,109 @@ function renderLoginTexts(){
   document.getElementById('loginBtnTxt').textContent=t('login_btn');
   document.getElementById('forgotLinkTxt').textContent=t('forgot_link');
   document.getElementById('registerLinkTxt').textContent=t('register_link');
-  document.getElementById('demoAccTxt').textContent=t('demo_accounts');
 }
 
-let DEPTS = ['Thiết kế','Mua hàng','Sản xuất'];
-const STAGE_MASTER = {
-  'Thiết kế': ['Bóc tách dữ liệu','Vẽ mạch','Duyệt bản vẽ'],
-  'Mua hàng': ['Báo giá','Đặt hàng','Nhận hàng'],
-  'Sản xuất': ['Cắt phôi','Khoan','Mạ đồng','Hàn','Lắp ráp','Kiểm tra QC','Đóng gói']
-};
+let DEPTS = [];
+let STAGE_MASTER = {};
 
-let USERS = [
-  {id:'u1', name:'Trần Văn Admin', code:'NV001', dept:'Quản trị', role:'admin', username:'admin', password:'123', status:'active'},
-  {id:'u2', name:'Lê Thị Quản', code:'NV002', dept:'Sản xuất', role:'manager', username:'quan.ql', password:'123', status:'active'},
-  {id:'u3', name:'Phạm Minh Thiết', code:'NV003', dept:'Thiết kế', role:'employee', username:'thiet.tk', password:'123', status:'active'},
-  {id:'u4', name:'Nguyễn Thu Mua', code:'NV004', dept:'Mua hàng', role:'employee', username:'mua.mh', password:'123', status:'active'},
-  {id:'u5', name:'Hoàng Văn Sản', code:'NV005', dept:'Sản xuất', role:'employee', username:'san.sx', password:'123', status:'active'},
-  {id:'u6', name:'Vũ Thị Ngọc', code:'NV006', dept:'Sản xuất', role:'employee', username:'ngoc.sx', password:'123', status:'pending'},
-];
+let USERS = [];
 
-let DRAWINGS = [
-  {code:'BV-1001', name:'Mạch nguồn 12V Rev.A', job:'JOB-2026-014', qty:120, versions:[{version:'A', issueDate:'2026-08-10'}]},
-  {code:'BV-1002', name:'Mạch điều khiển motor', job:'JOB-2026-014', qty:80, versions:[{version:'A', issueDate:'2026-08-05'},{version:'B', issueDate:'2026-08-22'}]},
-  {code:'BV-1003', name:'Board cảm biến nhiệt', job:'JOB-2026-015', qty:200, versions:[{version:'A', issueDate:'2026-08-12'}]},
-  {code:'BV-1004', name:'Mạch LED driver', job:'JOB-2026-015', qty:150, versions:[{version:'A', issueDate:'2026-08-14'}]},
-  {code:'BV-1005', name:'Board giao tiếp RS485', job:'JOB-2026-016', qty:60, versions:[{version:'A', issueDate:'2026-07-20'},{version:'B', issueDate:'2026-08-01'},{version:'C', issueDate:'2026-08-25'}]},
-  {code:'BV-1006', name:'Mạch nguồn phụ 5V', job:'JOB-2026-016', qty:60, versions:[{version:'A', issueDate:'2026-08-02'}]},
-  {code:'BV-1007', name:'Board mở rộng I/O', job:'JOB-2026-017', qty:40, versions:[{version:'A', issueDate:'2026-08-28'}]},
-];
+let DRAWINGS = [];
 function latestVersion(d){ return (d.versions&&d.versions.length)? d.versions[d.versions.length-1] : {version:'-',issueDate:'-'}; }
 
-let ORDERS = [
-  {code:'JOB-2026-014', name_vi:'Đơn hàng Cty Sao Việt — Bộ nguồn công nghiệp', name_en:'Sao Viet Co. Order — Industrial Power Supply', name_ja:'サオベト社受注 — 産業用電源', planDate:'2026-09-20', priority:'high', memo:'Khách yêu cầu ưu tiên mạ vàng.'},
-  {code:'JOB-2026-015', name_vi:'Đơn hàng Cty Đông Phương — Cảm biến & LED', name_en:'Dong Phuong Co. Order — Sensors & LED', name_ja:'ドンフォン社受注 — センサー・LED', planDate:'2026-09-18', priority:'medium', memo:''},
-  {code:'JOB-2026-016', name_vi:'Đơn hàng Cty Hải An — Board giao tiếp', name_en:'Hai An Co. Order — Interface Board', name_ja:'ハイアン社受注 — インターフェースボード', planDate:'2026-09-25', priority:'medium', memo:'Chờ linh kiện nhập khẩu.'},
-  {code:'JOB-2026-017', name_vi:'Đơn hàng nội bộ — Board mở rộng thử nghiệm', name_en:'Internal Order — Test Expansion Board', name_ja:'社内受注 — 試験用拡張ボード', planDate:'2026-09-30', priority:'low', memo:''},
-];
+let ORDERS = [];
 function getJobName(o){ if(!o) return '—'; return o['name_'+LANG] || o.name_vi || o.name_en || o.code; }
 function getJobNameByCode(code){ return getJobName(ORDERS.find(o=>o.code===code)); }
 
-let ASSIGNS = [
-  {id:uid('as'), content:'Bóc tách và vẽ lại mạch nguồn 12V theo yêu cầu khách hàng mới.', by:'u2', to:'u3', job:'JOB-2026-014', drawing:'BV-1001', status:'inprogress', rejectReason:'', comments:[{by:'Lê Thị Quản', text:'Nhớ check lại footprint tụ lọc.', time:'08:10'}], lastSeenBy:{}, createdAt:'2026-09-04 08:00'},
-  {id:uid('as'), content:'Lên đơn đặt hàng linh kiện cho board RS485.', by:'u2', to:'u4', job:'JOB-2026-016', drawing:'BV-1005', status:'sent', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:'2026-09-05 07:40'},
-  {id:uid('as'), content:'Mạ đồng lô board cảm biến nhiệt BV-1003.', by:'u2', to:'u5', job:'JOB-2026-015', drawing:'BV-1003', status:'done', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:'2026-09-03 08:00'},
-];
+let ASSIGNS = [];
 
-let TIMELOGS = [
-  {id:uid('tl'), user:'u5', job:'JOB-2026-015', drawingCodes:['BV-1003'], drawingName:'Board cảm biến nhiệt', dept:'Sản xuất', stage:'Mạ đồng', start:Date.now()-1000*60*95, pausedMs:0, end:Date.now()-1000*60*20, status:'done'},
-  {id:uid('tl'), user:'u5', job:'JOB-2026-014', drawingCodes:['BV-1002'], drawingName:'Mạch điều khiển motor', dept:'Sản xuất', stage:'Cắt phôi', start:Date.now()-1000*60*40, pausedMs:0, end:null, status:'paused'},
-  {id:uid('tl'), user:'u3', job:'JOB-2026-014', drawingCodes:['BV-1001'], drawingName:'Mạch nguồn 12V Rev.A', dept:'Thiết kế', stage:'Vẽ mạch', start:Date.now()-1000*60*130, pausedMs:0, end:Date.now()-1000*60*10, status:'done'},
-];
+let TIMELOGS = [];
 
+/* ---------------- Supabase data layer ---------------- */
+const AUTH_EMAIL_DOMAIN = '@users.pcbflowtrack.com';
+let DEPT_NAME_BY_ID = {};
+let DEPT_ID_BY_NAME = {};
+
+function mapProfile(p){
+  return {id:p.id, name:p.name, code:p.code, username:p.username, dept:DEPT_NAME_BY_ID[p.dept_id]||'', role:p.role, status:p.status};
+}
+function mapJob(j){
+  return {code:j.code, name_vi:j.name_vi, name_en:j.name_en, name_ja:j.name_ja, planDate:j.plan_date, priority:j.priority, memo:j.memo||''};
+}
+function mapDrawing(d, versions){
+  return {code:d.code, name:d.name, job:d.job_code, qty:d.qty,
+    versions:(versions&&versions.length)? versions.map(v=>({version:v.version, issueDate:v.issue_date})) : [{version:'-',issueDate:'-'}]};
+}
+function mapTimelog(l, drawCodes){
+  return {id:l.id, user:l.user_id, job:l.job_code, drawingCodes:drawCodes||[], drawingName:l.drawing_name,
+    dept:DEPT_NAME_BY_ID[l.dept_id]||'', stage:l.stage, start:new Date(l.start_at).getTime(),
+    pausedMs:l.paused_ms||0, pausedAt:l.paused_at?new Date(l.paused_at).getTime():null,
+    end:l.end_at?new Date(l.end_at).getTime():null, status:l.status};
+}
+function mapNotif(n){
+  return {id:n.id, user:n.user_id, text:n.text, read:n.read, time:new Date(n.created_at).toLocaleString('vi-VN')};
+}
+
+/** Nạp toàn bộ dữ liệu dùng chung từ Supabase vào bộ nhớ đệm phía client.
+    Gọi lại sau khi đăng nhập và sau khi có thay đổi cần đồng bộ lại toàn bộ. */
+async function loadCoreData(){
+  const [{data:depts}, {data:stages}, {data:profiles}, {data:jobs}, {data:drawings}, {data:versions},
+         {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:notifs}]
+    = await Promise.all([
+      supabase.from('depts').select('*'),
+      supabase.from('stages').select('*').order('sort_order'),
+      supabase.from('profiles').select('*'),
+      supabase.from('jobs').select('*'),
+      supabase.from('drawings').select('*'),
+      supabase.from('drawing_versions').select('*'),
+      supabase.from('assigns').select('*').order('created_at'),
+      supabase.from('assign_comments').select('*').order('created_at'),
+      supabase.from('assign_last_seen').select('*'),
+      supabase.from('timelogs').select('*').order('start_at'),
+      supabase.from('timelog_drawings').select('*'),
+      supabase.from('notifs').select('*').order('created_at'),
+    ]);
+
+  DEPT_NAME_BY_ID={}; DEPT_ID_BY_NAME={};
+  (depts||[]).forEach(d=>{ DEPT_NAME_BY_ID[d.id]=d.name; DEPT_ID_BY_NAME[d.name]=d.id; });
+  DEPTS=(depts||[]).map(d=>d.name);
+
+  STAGE_MASTER={};
+  DEPTS.forEach(name=>STAGE_MASTER[name]=[]);
+  (stages||[]).slice().sort((a,b)=>a.sort_order-b.sort_order).forEach(s=>{
+    const dn=DEPT_NAME_BY_ID[s.dept_id]; if(dn) STAGE_MASTER[dn].push(s.name);
+  });
+
+  USERS=(profiles||[]).map(mapProfile);
+  const nameById={}; USERS.forEach(u=>nameById[u.id]=u.name);
+
+  ORDERS=(jobs||[]).map(mapJob);
+
+  const versionsByDrawing={};
+  (versions||[]).forEach(v=>{ (versionsByDrawing[v.drawing_code]=versionsByDrawing[v.drawing_code]||[]).push(v); });
+  DRAWINGS=(drawings||[]).map(d=>mapDrawing(d, versionsByDrawing[d.code]));
+
+  const tlDrawsByLog={};
+  (tlDrawings||[]).forEach(r=>{ (tlDrawsByLog[r.timelog_id]=tlDrawsByLog[r.timelog_id]||[]).push(r.drawing_code); });
+  TIMELOGS=(timelogs||[]).map(l=>mapTimelog(l, tlDrawsByLog[l.id]));
+
+  const commentsByAssign={};
+  (comments||[]).forEach(c=>{ (commentsByAssign[c.assign_id]=commentsByAssign[c.assign_id]||[]).push(c); });
+  const seenByAssign={};
+  (lastSeen||[]).forEach(r=>{ (seenByAssign[r.assign_id]=seenByAssign[r.assign_id]||{})[r.user_id]=r.seen_count; });
+  ASSIGNS=(assigns||[]).map(a=>({
+    id:a.id, content:a.content, by:a.by_user, to:a.to_user, job:a.job_code, drawing:a.drawing_code,
+    status:a.status, rejectReason:a.reject_reason||'',
+    comments:(commentsByAssign[a.id]||[]).map(c=>({by:nameById[c.by_user]||'—', text:c.text,
+      time:new Date(c.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})})),
+    lastSeenBy:seenByAssign[a.id]||{},
+    createdAt:new Date(a.created_at).toLocaleString('vi-VN'),
+  }));
+
+  NOTIFS=(notifs||[]).map(mapNotif);
+}
+
+/* ---------------- Dữ liệu mẫu Mua hàng (chưa nối Supabase — giai đoạn kế tiếp) ---------------- */
 let XCODES = [
   {code:'X-8801', name:'Tụ điện 100uF 25V', model:'CAP-100UF-25V', maker:'Nichicon'},
   {code:'X-8802', name:'IC ổn áp nguồn 5V', model:'LM7805', maker:'Texas Instruments'},
@@ -647,54 +712,48 @@ let PURCHASE_ITEMS = [
    poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'Đủ tồn kho, chưa cần mua.', poOnly:false},
 ];
 
-let NOTIFS = [
-  {id:uid('nt'), user:'u3', text:'Bạn có nhiệm vụ mới: "Bóc tách và vẽ lại mạch nguồn 12V".', read:false, time:'08:00'},
-  {id:uid('nt'), user:'u4', text:'Bạn có nhiệm vụ mới: "Lên đơn đặt hàng linh kiện RS485".', read:false, time:'07:40'},
-  {id:uid('nt'), user:'u2', text:'Hoàng Văn Sản đã hoàn thành nhiệm vụ mạ đồng BV-1003.', read:true, time:'Hôm qua'},
-];
+let NOTIFS = [];
 
 /* ---------------- Session / State ---------------- */
 let SESSION=null;
 let ACTIVE_VIEW='home';
 let RUNNING_TICK=null;
 
-function showPane(name){
+async function showPane(name){
   ['login','forgot','register'].forEach(p=>{
     document.getElementById('pane-'+p).classList.toggle('hidden', p!==name);
   });
   if(name==='register'){
-    document.getElementById('rg-dept').innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    const sel=document.getElementById('rg-dept');
+    sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    if(!DEPTS.length){
+      await loadDeptsPublic();
+      sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    }
   }
 }
-function renderDemoAccounts(){
-  const g=document.getElementById('demoGrid');
-  const shown=[
-    {u:'admin', r:'Admin — Quản trị hệ thống'},
-    {u:'quan.ql', r:'Quản lý — Sản xuất'},
-    {u:'thiet.tk', r:'Nhân viên — Thiết kế'},
-    {u:'mua.mh', r:'Nhân viên — Mua hàng'},
-    {u:'san.sx', r:'Nhân viên — Sản xuất'},
-  ];
-  g.innerHTML=shown.map(s=>{
-    const usr=USERS.find(x=>x.username===s.u);
-    return `<button class="demo-chip" onclick="quickLogin('${s.u}')"><b>${usr.name}</b><span>${s.u} · 123</span></button>`;
-  }).join('');
+/** Nạp danh sách bộ phận trước khi đăng nhập (màn hình đăng ký cần nó). */
+async function loadDeptsPublic(){
+  const {data}=await supabase.from('depts').select('*');
+  DEPT_NAME_BY_ID={}; DEPT_ID_BY_NAME={};
+  (data||[]).forEach(d=>{ DEPT_NAME_BY_ID[d.id]=d.name; DEPT_ID_BY_NAME[d.name]=d.id; });
+  DEPTS=(data||[]).map(d=>d.name);
 }
-function quickLogin(u){
-  document.getElementById('li-user').value=u;
-  document.getElementById('li-pass').value='123';
-  doLogin();
-}
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('li-user').value.trim();
   const p=document.getElementById('li-pass').value;
-  const found=USERS.find(x=>x.username===u && x.password===p);
   const err=document.getElementById('loginErr');
-  if(!found){ err.textContent='Sai tên đăng nhập hoặc mật khẩu.'; return; }
-  if(found.status==='pending'){ err.textContent='Tài khoản đang chờ Admin duyệt.'; return; }
-  if(found.status==='locked'){ err.textContent='Tài khoản đã bị khoá. Liên hệ Admin.'; return; }
+  if(!u||!p){ err.textContent='Nhập tên đăng nhập và mật khẩu.'; return; }
+  err.textContent='Đang đăng nhập…';
+  const {data:authData, error:authErr}=await supabase.auth.signInWithPassword({email:u+AUTH_EMAIL_DOMAIN, password:p});
+  if(authErr){ err.textContent='Sai tên đăng nhập hoặc mật khẩu.'; return; }
+  const {data:profile, error:profErr}=await supabase.from('profiles').select('*').eq('id',authData.user.id).single();
+  if(profErr||!profile){ err.textContent='Không tìm thấy hồ sơ người dùng.'; await supabase.auth.signOut(); return; }
+  if(profile.status==='pending'){ err.textContent='Tài khoản đang chờ Admin duyệt.'; await supabase.auth.signOut(); return; }
+  if(profile.status==='locked'){ err.textContent='Tài khoản đã bị khoá. Liên hệ Admin.'; await supabase.auth.signOut(); return; }
   err.textContent='';
-  SESSION=found;
+  await loadCoreData();
+  SESSION=USERS.find(x=>x.id===authData.user.id);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   boot();
@@ -703,13 +762,11 @@ function forgotFlow(mode){
   const u=document.getElementById('fp-user').value.trim();
   const m=document.getElementById('forgotMsg');
   if(!u){ m.textContent='Nhập tên đăng nhập trước đã.'; m.style.color='var(--danger)'; return; }
-  const found=USERS.find(x=>x.username===u);
-  if(!found){ m.textContent='Không tìm thấy tài khoản này.'; m.style.color='var(--danger)'; return; }
   if(mode==='admin'){ m.textContent='Đã gửi yêu cầu tới Admin — Admin sẽ cấp mật khẩu mới cho bạn.'; }
-  else{ m.textContent='Đã gửi email khôi phục mật khẩu (giả lập demo) tới tài khoản '+u+'.'; }
+  else{ m.textContent='Tính năng gửi email khôi phục chưa khả dụng — vui lòng liên hệ Admin để được cấp lại mật khẩu.'; }
   m.style.color='var(--solder)';
 }
-function doRegister(){
+async function doRegister(){
   const name=document.getElementById('rg-name').value.trim();
   const code=document.getElementById('rg-code').value.trim();
   const dept=document.getElementById('rg-dept').value;
@@ -717,12 +774,20 @@ function doRegister(){
   const pass=document.getElementById('rg-pass').value;
   const m=document.getElementById('regMsg');
   if(!name||!code||!user||!pass){ m.textContent='Vui lòng điền đầy đủ thông tin.'; m.style.color='var(--danger)'; return; }
-  if(USERS.some(x=>x.username===user)){ m.textContent='Tên đăng nhập đã tồn tại.'; m.style.color='var(--danger)'; return; }
-  USERS.push({id:uid('u'), name, code, dept, role:'employee', username:user, password:pass, status:'pending'});
+  if(pass.length<6){ m.textContent='Mật khẩu cần ít nhất 6 ký tự.'; m.style.color='var(--danger)'; return; }
+  m.textContent='Đang đăng ký…'; m.style.color='var(--text-dim)';
+  const {data:signUpData, error:signUpErr}=await supabase.auth.signUp({email:user+AUTH_EMAIL_DOMAIN, password:pass});
+  if(signUpErr){ m.textContent = /already|registered/i.test(signUpErr.message)?'Tên đăng nhập đã tồn tại.':'Lỗi đăng ký: '+signUpErr.message; m.style.color='var(--danger)'; return; }
+  const {error:profErr}=await supabase.from('profiles').insert({
+    id:signUpData.user.id, name, code, username:user, dept_id:DEPT_ID_BY_NAME[dept]||null, role:'employee', status:'pending'
+  });
+  await supabase.auth.signOut();
+  if(profErr){ m.textContent='Lỗi tạo hồ sơ: '+profErr.message; m.style.color='var(--danger)'; return; }
   m.textContent='Đăng ký thành công! Tài khoản đang chờ Admin duyệt.'; m.style.color='var(--solder)';
   ['rg-name','rg-code','rg-user','rg-pass'].forEach(id=>document.getElementById(id).value='');
 }
-function logout(){
+async function logout(){
+  await supabase.auth.signOut();
   SESSION=null;
   document.getElementById('app').classList.remove('active');
   document.getElementById('login-screen').style.display='flex';
@@ -801,7 +866,11 @@ function renderNotifBell(open){
   p.innerHTML = mine.length? mine.slice().reverse().map(n=>`
     <div class="notif-item ${n.read?'':'unread'}">${n.text}<div class="t">${n.time}</div></div>
   `).join('') : `<div class="notif-item">Không có thông báo.</div>`;
-  if(open) mine.forEach(n=>n.read=true);
+  if(open){
+    const unreadIds=mine.filter(n=>!n.read).map(n=>n.id);
+    mine.forEach(n=>n.read=true);
+    if(unreadIds.length) supabase.from('notifs').update({read:true}).in('id',unreadIds).then(({error})=>{ if(error) console.error(error); });
+  }
 }
 
 /* ---------------- HOME / ORDERS ---------------- */
@@ -889,13 +958,16 @@ function openOrderDetail(code){
     ${editFields}
     ${genericNote}
     <table style="margin-top:10px"><thead><tr><th>Bản vẽ</th><th>Tên</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
-  `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:()=>{
-      o.name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
-      o.name_en=document.getElementById('ordNameEnEdit').value.trim();
-      o.name_ja=document.getElementById('ordNameJaEdit').value.trim();
-      o.priority=document.getElementById('ordPriorityEdit').value;
-      o.planDate=document.getElementById('ordDateEdit').value||o.planDate;
-      o.memo=document.getElementById('memoEdit').value;
+  `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:async ()=>{
+      const name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
+      const name_en=document.getElementById('ordNameEnEdit').value.trim();
+      const name_ja=document.getElementById('ordNameJaEdit').value.trim();
+      const priority=document.getElementById('ordPriorityEdit').value;
+      const planDate=document.getElementById('ordDateEdit').value||o.planDate;
+      const memo=document.getElementById('memoEdit').value;
+      const {error}=await supabase.from('jobs').update({name_vi,name_en,name_ja,priority,plan_date:planDate,memo}).eq('code',o.code);
+      if(error){ toast('Lỗi lưu đơn hàng: '+error.message,'err'); return; }
+      Object.assign(o,{name_vi,name_en,name_ja,priority,planDate,memo});
       closeModal(); renderHome(); toast('Đã cập nhật thông tin đơn hàng.','ok');
     }}] : [{label:'Đóng', onClick:closeModal}]);
 }
@@ -1030,10 +1102,13 @@ function assignRowManage(a){
     </td>
   </tr>`;
 }
-function reassignTask(id){
+async function reassignTask(id){
   const a=ASSIGNS.find(x=>x.id===id);
+  const {error}=await supabase.from('assigns').update({status:'sent', reject_reason:''}).eq('id',id);
+  if(error){ toast('Lỗi phân lại nhiệm vụ: '+error.message,'err'); return; }
   a.status='sent'; a.rejectReason=''; a.createdAt=nowStr();
-  NOTIFS.push({id:uid('nt'), user:a.to, text:`Nhiệm vụ đã được phân lại: "${a.content.slice(0,50)}${a.content.length>50?'…':''}"`, read:false, time:'Vừa xong'});
+  const {data:nRow, error:nErr}=await supabase.from('notifs').insert({user_id:a.to, text:`Nhiệm vụ đã được phân lại: "${a.content.slice(0,50)}${a.content.length>50?'…':''}"`}).select().single();
+  if(!nErr) NOTIFS.push(mapNotif(nRow));
   renderAssignManageTable(); updateAssignBadge();
   toast('Đã phân lại nhiệm vụ cho nhân viên.','ok');
 }
@@ -1058,7 +1133,7 @@ function assignCardEmployee(a,isPending){
     </div>
   </div>`;
 }
-function createAssign(){
+async function createAssign(){
   const dept=document.getElementById('asg-dept').value;
   const broadcast=document.getElementById('asg-broadcast').checked;
   const job=document.getElementById('asg-job').value;
@@ -1076,29 +1151,47 @@ function createAssign(){
     targets=[toSel.value];
   }
 
-  targets.forEach(to=>{
-    const a={id:uid('as'), content, by:SESSION.id, to, job, drawing, status:'sent', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:nowStr()};
-    ASSIGNS.push(a);
-    NOTIFS.push({id:uid('nt'), user:to, text:`Bạn có nhiệm vụ mới: "${content.slice(0,50)}${content.length>50?'…':''}"`, read:false, time:'Vừa xong'});
-  });
+  for(const to of targets){
+    const {data:aRow, error:aErr}=await supabase.from('assigns').insert({
+      content, by_user:SESSION.id, to_user:to, job_code:job||null, drawing_code:drawing||null, status:'sent'
+    }).select().single();
+    if(aErr){ toast('Lỗi tạo nhiệm vụ: '+aErr.message,'err'); continue; }
+    ASSIGNS.push({id:aRow.id, content, by:SESSION.id, to, job, drawing, status:'sent', rejectReason:'', comments:[], lastSeenBy:{}, createdAt:new Date(aRow.created_at).toLocaleString('vi-VN')});
+    const {data:nRow, error:nErr}=await supabase.from('notifs').insert({user_id:to, text:`Bạn có nhiệm vụ mới: "${content.slice(0,50)}${content.length>50?'…':''}"`}).select().single();
+    if(!nErr) NOTIFS.push(mapNotif(nRow));
+  }
   toast(targets.length>1?`Đã giao nhiệm vụ cho ${targets.length} nhân viên.`:'Đã phân nhiệm vụ.','ok');
   document.getElementById('asg-content').value='';
   renderAssignManageTable(); updateAssignBadge();
 }
-function respondAssign(id,action){
+async function respondAssign(id,action){
   const a=ASSIGNS.find(x=>x.id===id);
-  if(action==='accept'){ a.status='accepted'; toast('Đã nhận nhiệm vụ.','ok'); }
+  if(action==='accept'){
+    const {error}=await supabase.from('assigns').update({status:'accepted'}).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    a.status='accepted'; toast('Đã nhận nhiệm vụ.','ok');
+  }
   else if(action==='reject'){
     openModal('Lý do từ chối', `<div class="field"><label>Ghi rõ lý do</label><textarea id="rejReason" rows="3"></textarea></div>`,
-      [{label:'Xác nhận từ chối', primary:true, danger:true, onClick:()=>{
+      [{label:'Xác nhận từ chối', primary:true, danger:true, onClick:async ()=>{
         const r=document.getElementById('rejReason').value.trim();
         if(!r){toast('Cần nhập lý do.','err'); return;}
+        const {error}=await supabase.from('assigns').update({status:'rejected', reject_reason:r}).eq('id',id);
+        if(error){ toast('Lỗi: '+error.message,'err'); return; }
         a.status='rejected'; a.rejectReason=r; closeModal(); renderAssignBody(); toast('Đã từ chối nhiệm vụ.','ok'); updateAssignBadge();
       }}]);
     return;
   }
-  else if(action==='start'){ a.status='inprogress'; toast('Đã bắt đầu nhiệm vụ.','ok'); }
-  else if(action==='finish'){ a.status='done'; toast('Đã hoàn thành nhiệm vụ!','ok'); }
+  else if(action==='start'){
+    const {error}=await supabase.from('assigns').update({status:'inprogress'}).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    a.status='inprogress'; toast('Đã bắt đầu nhiệm vụ.','ok');
+  }
+  else if(action==='finish'){
+    const {error}=await supabase.from('assigns').update({status:'done'}).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    a.status='done'; toast('Đã hoàn thành nhiệm vụ!','ok');
+  }
   renderAssignBody(); updateAssignBadge();
 }
 function openAssignChat(id){
@@ -1107,6 +1200,8 @@ function openAssignChat(id){
   a.lastSeenBy[SESSION.id]=a.comments.length;
   updateAssignBadge();
   if(assignTab==='manage') renderAssignManageTable(); else renderAssignBody();
+  supabase.from('assign_last_seen').upsert({assign_id:id, user_id:SESSION.id, seen_count:a.comments.length}, {onConflict:'assign_id,user_id'})
+    .then(({error})=>{ if(error) console.error(error); });
   const msgs=a.comments.map(c=>`<div class="chat-msg"><b>${c.by}:</b> ${c.text}<span class="t">${c.time}</span></div>`).join('');
   openModal('Trao đổi nhiệm vụ', `
     <p style="font-size:12.5px;color:var(--text-dim)">${a.content}</p>
@@ -1116,16 +1211,23 @@ function openAssignChat(id){
       <button class="btn btn-primary btn-sm" onclick="sendChat('${id}')">Gửi</button>
     </div>`, []);
 }
-function sendChat(id){
+async function sendChat(id){
   const a=ASSIGNS.find(x=>x.id===id);
   const inp=document.getElementById('chatInput');
   if(!inp.value.trim()) return;
-  a.comments.push({by:SESSION.name, text:inp.value.trim(), time:new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
+  const text=inp.value.trim();
+  const {data:cRow, error:cErr}=await supabase.from('assign_comments').insert({assign_id:id, by_user:SESSION.id, text}).select().single();
+  if(cErr){ toast('Lỗi gửi tin nhắn: '+cErr.message,'err'); return; }
+  a.comments.push({by:SESSION.name, text, time:new Date(cRow.created_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})});
   if(!a.lastSeenBy) a.lastSeenBy={};
   a.lastSeenBy[SESSION.id]=a.comments.length; // người vừa gửi coi như đã đọc hết
+  await supabase.from('assign_last_seen').upsert({assign_id:id, user_id:SESSION.id, seen_count:a.comments.length}, {onConflict:'assign_id,user_id'});
   // gửi thông báo có tin nhắn mới cho phía còn lại
   const other = a.by===SESSION.id ? a.to : a.by;
-  if(other) NOTIFS.push({id:uid('nt'), user:other, text:`Có tin nhắn mới trong nhiệm vụ: "${a.content.slice(0,40)}${a.content.length>40?'…':''}"`, read:false, time:'Vừa xong'});
+  if(other){
+    const {data:nRow, error:nErr}=await supabase.from('notifs').insert({user_id:other, text:`Có tin nhắn mới trong nhiệm vụ: "${a.content.slice(0,40)}${a.content.length>40?'…':''}"`}).select().single();
+    if(!nErr) NOTIFS.push(mapNotif(nRow));
+  }
   openAssignChat(id);
 }
 
@@ -1175,9 +1277,28 @@ function renderShift(){
       : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
     </div>`;
 }
-function pauseLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='paused'; l.pausedAt=Date.now(); renderShift(); toast('Đã tạm dừng.','ok'); }
-function resumeLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='running'; if(l.pausedAt){ l.pausedMs+=(Date.now()-l.pausedAt); } renderShift(); toast('Tiếp tục thực hiện.','ok'); }
-function finishLog(id){ const l=TIMELOGS.find(x=>x.id===id); l.status='done'; l.end=Date.now(); renderShift(); toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok'); }
+async function pauseLog(id){
+  const l=TIMELOGS.find(x=>x.id===id);
+  const pausedAt=Date.now();
+  const {error}=await supabase.from('timelogs').update({status:'paused', paused_at:new Date(pausedAt).toISOString()}).eq('id',id);
+  if(error){ toast('Lỗi: '+error.message,'err'); return; }
+  l.status='paused'; l.pausedAt=pausedAt; renderShift(); toast('Đã tạm dừng.','ok');
+}
+async function resumeLog(id){
+  const l=TIMELOGS.find(x=>x.id===id);
+  const addedMs = l.pausedAt? (Date.now()-l.pausedAt) : 0;
+  const newPausedMs = l.pausedMs+addedMs;
+  const {error}=await supabase.from('timelogs').update({status:'running', paused_ms:newPausedMs, paused_at:null}).eq('id',id);
+  if(error){ toast('Lỗi: '+error.message,'err'); return; }
+  l.status='running'; l.pausedMs=newPausedMs; l.pausedAt=null; renderShift(); toast('Tiếp tục thực hiện.','ok');
+}
+async function finishLog(id){
+  const l=TIMELOGS.find(x=>x.id===id);
+  const end=Date.now();
+  const {error}=await supabase.from('timelogs').update({status:'done', end_at:new Date(end).toISOString()}).eq('id',id);
+  if(error){ toast('Lỗi: '+error.message,'err'); return; }
+  l.status='done'; l.end=end; renderShift(); toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok');
+}
 
 function openAddTask(){
   scanBuffer=[];
@@ -1227,7 +1348,7 @@ function filterManualDrawings(){
   sel.innerHTML=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q))
     .map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')+`<option value="">— để trống —</option>`;
 }
-function submitAddTask(){
+async function submitAddTask(){
   const isQr = !document.getElementById('addTab-qr').classList.contains('hidden');
   let codes=[], job='', stage='', name='';
   if(isQr){
@@ -1245,7 +1366,17 @@ function submitAddTask(){
     const d=DRAWINGS.find(x=>x.code===dc);
     name=d?d.name:'(không chọn bản vẽ)';
   }
-  const log={id:uid('tl'), user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stage, start:Date.now(), pausedMs:0, end:null, status:'running'};
+  const start=Date.now();
+  const {data:lRow, error:lErr}=await supabase.from('timelogs').insert({
+    user_id:SESSION.id, job_code:job||null, drawing_name:name, dept_id:DEPT_ID_BY_NAME[SESSION.dept]||null,
+    stage, start_at:new Date(start).toISOString(), status:'running'
+  }).select().single();
+  if(lErr){ toast('Lỗi bắt đầu tác vụ: '+lErr.message,'err'); return; }
+  if(codes.length){
+    const {error:tdErr}=await supabase.from('timelog_drawings').insert(codes.map(code=>({timelog_id:lRow.id, drawing_code:code})));
+    if(tdErr) console.error(tdErr);
+  }
+  const log={id:lRow.id, user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stage, start, pausedMs:0, end:null, status:'running'};
   TIMELOGS.push(log);
   closeModal(); renderShift();
   toast(codes.length>1?`Đã bắt đầu tác vụ gộp ${codes.length} bản vẽ.`:'Đã bắt đầu tác vụ.','ok');
@@ -2020,7 +2151,7 @@ function renderVersionRows(){
 function updateVersionRow(i,key,val){ drawFormVersions[i][key]=val; }
 function addVersionRow(){ drawFormVersions.push({version:'', issueDate:new Date().toISOString().slice(0,10)}); renderVersionRows(); }
 function removeVersionRow(i){ drawFormVersions.splice(i,1); renderVersionRows(); }
-function saveDrawingForm(editingCode){
+async function saveDrawingForm(editingCode){
   const code=document.getElementById('nd-code').value.trim();
   const name=document.getElementById('nd-name').value.trim();
   const job=document.getElementById('nd-job').value;
@@ -2028,6 +2159,13 @@ function saveDrawingForm(editingCode){
   if(!code){ toast('Nhập mã bản vẽ.','err'); return; }
   const versions = drawFormVersions.filter(v=>v.version.trim()).map(v=>({version:v.version.trim(), issueDate:v.issueDate}));
   if(!versions.length){ toast('Cần ít nhất 1 phiên bản.','err'); return; }
+
+  const {error:dErr}=await supabase.from('drawings').upsert({code, name, job_code:job||null, qty});
+  if(dErr){ toast('Lỗi lưu bản vẽ: '+dErr.message,'err'); return; }
+  await supabase.from('drawing_versions').delete().eq('drawing_code',code);
+  const {error:vErr}=await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+  if(vErr){ toast('Lỗi lưu phiên bản: '+vErr.message,'err'); return; }
+
   const idx=DRAWINGS.findIndex(d=>d.code===code);
   if(idx>-1){ DRAWINGS[idx]={...DRAWINGS[idx], name, job, qty, versions}; }
   else { DRAWINGS.push({code,name,job,qty,versions}); }
@@ -2056,7 +2194,7 @@ function downloadDrawingTemplate(){
 }
 function importDrawingsExcel(input){
   const file=input.files[0]; if(!file) return;
-  const applyRows=(rawRows)=>{
+  const applyRows=async (rawRows)=>{
     let added=0, updated=0;
     const grouped={};
     rawRows.forEach(r=>{
@@ -2067,15 +2205,31 @@ function importDrawingsExcel(input){
       if(r.job) grouped[r.code].job=r.job;
       if(r.qty) grouped[r.code].qty=r.qty;
     });
-    Object.keys(grouped).forEach(code=>{
+    for(const code of Object.keys(grouped)){
       const g=grouped[code];
       const hasHistory=TIMELOGS.some(l=>l.drawingCodes.includes(code));
       const idx=DRAWINGS.findIndex(d=>d.code===code);
       if(idx>-1){
-        if(!hasHistory){ DRAWINGS[idx]={...DRAWINGS[idx], name:g.name||DRAWINGS[idx].name, job:g.job||DRAWINGS[idx].job, qty:g.qty||DRAWINGS[idx].qty, versions:g.versions.length?g.versions:DRAWINGS[idx].versions}; updated++; }
-        else { g.versions.forEach(v=>{ if(!DRAWINGS[idx].versions.some(ev=>ev.version===v.version)) DRAWINGS[idx].versions.push(v); }); updated++; }
-      } else { DRAWINGS.push({code, name:g.name||'', job:g.job||'', qty:g.qty||0, versions:g.versions}); added++; }
-    });
+        if(!hasHistory){
+          const name=g.name||DRAWINGS[idx].name, job=g.job||DRAWINGS[idx].job, qty=g.qty||DRAWINGS[idx].qty;
+          const versions=g.versions.length?g.versions:DRAWINGS[idx].versions;
+          await supabase.from('drawings').update({name, job_code:job||null, qty}).eq('code',code);
+          await supabase.from('drawing_versions').delete().eq('drawing_code',code);
+          await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+          DRAWINGS[idx]={...DRAWINGS[idx], name, job, qty, versions};
+        } else {
+          const newOnes=g.versions.filter(v=>!DRAWINGS[idx].versions.some(ev=>ev.version===v.version));
+          if(newOnes.length) await supabase.from('drawing_versions').insert(newOnes.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+          newOnes.forEach(v=>DRAWINGS[idx].versions.push(v));
+        }
+        updated++;
+      } else {
+        await supabase.from('drawings').insert({code, name:g.name||'', job_code:g.job||null, qty:g.qty||0});
+        await supabase.from('drawing_versions').insert(g.versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+        DRAWINGS.push({code, name:g.name||'', job:g.job||'', qty:g.qty||0, versions:g.versions});
+        added++;
+      }
+    }
     renderMasterBody();
     toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ.`,'ok');
   };
@@ -2143,7 +2297,7 @@ function openJobForm(code){
     <div class="field"><label>Memo</label><textarea id="jf-memo" rows="2">${existing?(existing.memo||''):''}</textarea></div>
   `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>saveJobForm(!!existing)}]);
 }
-function saveJobForm(isEdit){
+async function saveJobForm(isEdit){
   const code=document.getElementById('jf-code').value.trim();
   if(!code){toast('Nhập mã Job.','err'); return;}
   const name_vi=document.getElementById('jf-name-vi').value.trim();
@@ -2152,6 +2306,8 @@ function saveJobForm(isEdit){
   const priority=document.getElementById('jf-priority').value;
   const planDate=document.getElementById('jf-date').value;
   const memo=document.getElementById('jf-memo').value;
+  const {error}=await supabase.from('jobs').upsert({code, name_vi, name_en, name_ja, priority, plan_date:planDate||null, memo});
+  if(error){ toast('Lỗi lưu Job: '+error.message,'err'); return; }
   const idx=ORDERS.findIndex(o=>o.code===code);
   if(idx>-1){ ORDERS[idx]={...ORDERS[idx], name_vi, name_en, name_ja, priority, planDate, memo}; }
   else { ORDERS.push({code, name_vi, name_en, name_ja, priority, planDate, memo}); }
@@ -2161,7 +2317,11 @@ function saveJobForm(isEdit){
 function deleteJobConfirm(code){
   const hasDrawings = DRAWINGS.some(d=>d.job===code);
   openModal('Xoá Job '+code, `<p style="font-size:13px">Bạn có chắc muốn xoá Job này?</p>${hasDrawings?`<p style="font-size:12.5px;color:var(--danger)">⚠ Job này đang có bản vẽ liên kết trong Master. Xoá Job sẽ không xoá các bản vẽ đó, nhưng chúng sẽ mất liên kết đúng khi lọc theo Job.</p>`:''}`,
-   [{label:t('delete'), primary:true, danger:true, onClick:()=>{ ORDERS=ORDERS.filter(o=>o.code!==code); closeModal(); renderMasterBody(); toast('Đã xoá Job.','ok'); }}]);
+   [{label:t('delete'), primary:true, danger:true, onClick:async ()=>{
+      const {error}=await supabase.from('jobs').delete().eq('code',code);
+      if(error){ toast('Lỗi xoá Job: '+error.message,'err'); return; }
+      ORDERS=ORDERS.filter(o=>o.code!==code); closeModal(); renderMasterBody(); toast('Đã xoá Job.','ok');
+    }}]);
 }
 function downloadJobTemplate(){
   const header=['Ma Job','Ten (Tieng Viet)','Ten (English)','Ten (Japanese)','Ngay can giao (YYYY-MM-DD)','Uu tien (high/medium/low)','Memo'];
@@ -2182,15 +2342,17 @@ function downloadJobTemplate(){
 }
 function importJobsExcel(input){
   const file=input.files[0]; if(!file) return;
-  const applyRows=(rows)=>{
+  const applyRows=async (rows)=>{
     let added=0, updated=0;
-    rows.forEach(r=>{
-      if(!r.code) return;
+    for(const r of rows){
+      if(!r.code) continue;
       const idx=ORDERS.findIndex(o=>o.code===r.code);
       const data={code:r.code, name_vi:r.name_vi||'', name_en:r.name_en||'', name_ja:r.name_ja||'', planDate:r.planDate||'', priority:r.priority||'medium', memo:r.memo||''};
-      if(idx>-1){ ORDERS[idx]={...ORDERS[idx], ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))}; updated++; }
-      else { ORDERS.push(data); added++; }
-    });
+      const merged = idx>-1 ? {...ORDERS[idx], ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))} : data;
+      const {error}=await supabase.from('jobs').upsert({code:merged.code, name_vi:merged.name_vi, name_en:merged.name_en, name_ja:merged.name_ja, plan_date:merged.planDate||null, priority:merged.priority, memo:merged.memo});
+      if(error){ console.error(error); continue; }
+      if(idx>-1){ ORDERS[idx]=merged; updated++; } else { ORDERS.push(merged); added++; }
+    }
     renderMasterBody();
     toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job.`,'ok');
   };
@@ -2219,44 +2381,55 @@ function importJobsExcel(input){
   }
 }
 
-function addDept(){
+async function addDept(){
   const inp=document.getElementById('newDeptName');
   const v=inp.value.trim();
   if(!v){ toast('Nhập tên bộ phận.','err'); return; }
   if(DEPTS.includes(v)){ toast('Bộ phận này đã tồn tại.','err'); return; }
+  const {data,error}=await supabase.from('depts').insert({name:v}).select().single();
+  if(error){ toast('Lỗi thêm bộ phận: '+error.message,'err'); return; }
   DEPTS.push(v);
+  DEPT_NAME_BY_ID[data.id]=v; DEPT_ID_BY_NAME[v]=data.id;
   STAGE_MASTER[v]=[];
   renderMasterBody();
   toast('Đã thêm bộ phận "'+v+'".','ok');
 }
-function addStage(dept){
+async function addStage(dept){
   const inp=document.getElementById('newStage-'+dept);
   const v=inp.value.trim(); if(!v) return;
+  const {error}=await supabase.from('stages').insert({dept_id:DEPT_ID_BY_NAME[dept], name:v, sort_order:(STAGE_MASTER[dept]||[]).length});
+  if(error){ toast('Lỗi thêm công đoạn: '+error.message,'err'); return; }
   STAGE_MASTER[dept].push(v); renderMasterBody(); toast('Đã thêm công đoạn.','ok');
 }
-function removeStage(dept,i){ STAGE_MASTER[dept].splice(i,1); renderMasterBody(); }
-function approveUser(id){ const u=USERS.find(x=>x.id===id); u.status='active'; renderMasterBody(); toast('Đã duyệt tài khoản '+u.name,'ok'); }
-function rejectUser(id){ USERS=USERS.filter(x=>x.id!==id); renderMasterBody(); toast('Đã từ chối đăng ký.','ok'); }
-function toggleLock(id){ const u=USERS.find(x=>x.id===id); u.status = u.status==='active'?'locked':'active'; renderMasterBody(); toast('Đã cập nhật trạng thái tài khoản.','ok'); }
+async function removeStage(dept,i){
+  const name=STAGE_MASTER[dept][i];
+  const {error}=await supabase.from('stages').delete().eq('dept_id',DEPT_ID_BY_NAME[dept]).eq('name',name);
+  if(error){ toast('Lỗi xoá công đoạn: '+error.message,'err'); return; }
+  STAGE_MASTER[dept].splice(i,1); renderMasterBody();
+}
+async function approveUser(id){
+  const u=USERS.find(x=>x.id===id);
+  const {error}=await supabase.from('profiles').update({status:'active'}).eq('id',id);
+  if(error){ toast('Lỗi duyệt tài khoản: '+error.message,'err'); return; }
+  u.status='active'; renderMasterBody(); toast('Đã duyệt tài khoản '+u.name,'ok');
+}
+async function rejectUser(id){
+  const {error}=await supabase.from('profiles').delete().eq('id',id);
+  if(error){ toast('Lỗi từ chối đăng ký: '+error.message,'err'); return; }
+  USERS=USERS.filter(x=>x.id!==id); renderMasterBody(); toast('Đã từ chối đăng ký.','ok');
+}
+async function toggleLock(id){
+  const u=USERS.find(x=>x.id===id);
+  const newStatus = u.status==='active'?'locked':'active';
+  const {error}=await supabase.from('profiles').update({status:newStatus}).eq('id',id);
+  if(error){ toast('Lỗi cập nhật trạng thái: '+error.message,'err'); return; }
+  u.status=newStatus; renderMasterBody(); toast('Đã cập nhật trạng thái tài khoản.','ok');
+}
 function openAddUser(){
   openModal('Thêm người dùng', `
-    <div class="grid-cols g2">
-      <div class="field"><label>Họ tên</label><input id="au-name"></div>
-      <div class="field"><label>Mã NV</label><input id="au-code"></div>
-    </div>
-    <div class="grid-cols g2">
-      <div class="field"><label>Bộ phận</label><select id="au-dept">${DEPTS.map(d=>`<option>${d}</option>`).join('')}</select></div>
-      <div class="field"><label>Vai trò</label><select id="au-role"><option value="employee">Nhân viên</option><option value="manager">Quản lý</option><option value="admin">Admin</option></select></div>
-    </div>
-    <div class="grid-cols g2">
-      <div class="field"><label>Tên đăng nhập</label><input id="au-user"></div>
-      <div class="field"><label>Mật khẩu</label><input id="au-pass" value="123"></div>
-    </div>`, [{label:'Thêm', primary:true, onClick:()=>{
-      const username=document.getElementById('au-user').value.trim();
-      if(!username){toast('Nhập tên đăng nhập.','err'); return;}
-      USERS.push({id:uid('u'), name:document.getElementById('au-name').value, code:document.getElementById('au-code').value, dept:document.getElementById('au-dept').value, role:document.getElementById('au-role').value, username, password:document.getElementById('au-pass').value||'123', status:'active'});
-      closeModal(); renderMasterBody(); renderDemoAccounts(); toast('Đã thêm người dùng.','ok');
-    }}]);
+    <p style="font-size:13px">Vì hệ thống dùng xác thực thật, Admin không thể tạo tài khoản kèm mật khẩu trực tiếp tại đây.</p>
+    <p style="font-size:13px">Người dùng mới cần tự <b>đăng ký</b> ở màn hình đăng nhập (link "Đăng ký tài khoản mới"), sau đó Admin vào đây để <b>duyệt</b> tài khoản đang chờ (mục "Tài khoản chờ duyệt" phía trên).</p>
+  `, [{label:t('close'), onClick:closeModal}]);
 }
 
 /* ---------------- Generic Modal ---------------- */
@@ -2282,7 +2455,7 @@ function openModal(title, bodyHtml, actions){
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
 
 /* ---------------- Init ---------------- */
-renderDemoAccounts();
+loadDeptsPublic();
 document.addEventListener('click', (e)=>{
   const panel=document.getElementById('notifPanel');
   if(panel && !panel.classList.contains('hidden')){
