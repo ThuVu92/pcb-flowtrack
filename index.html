@@ -493,6 +493,7 @@ function fmtDur(ms){
   let m=Math.floor(s/60); s%=60;
   return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
 }
+function fmtMoney(n){ return n.toLocaleString('vi-VN',{maximumFractionDigits:0}); }
 function stripDiacritics(str){
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();
 }
@@ -1945,7 +1946,9 @@ function buildDailySeries(logs, dim){
     const dur=(l.end||Date.now())-l.start-l.pausedMs;
     if(!dim){ bump('Tổng', day, dur); return; }
     if(dim.key==='job'){
-      if(dim.values.includes(l.job)) bump(l.job||'—', day, dur);
+      const v=l.job||'—'; if(dim.values.includes(v)) bump(v, day, dur);
+    } else if(dim.key==='dept'){
+      const v=l.dept||'—'; if(dim.values.includes(v)) bump(v, day, dur);
     } else if(dim.key==='user'){
       if(dim.values.includes(l.user)) bump(getUserName(l.user), day, dur);
     } else if(dim.key==='drawing'){
@@ -1961,17 +1964,44 @@ function buildDailySeries(logs, dim){
   const series=Object.keys(seriesMap).map(name=>({name, data:days.map(d=>seriesMap[name][d]||0)}));
   return {days, series};
 }
+/** Toàn bộ giá trị khác nhau của 1 chiều (job/dept/user/drawing/stage) xuất
+    hiện trong danh sách bản ghi đã lọc — dùng để nhóm báo cáo chi phí theo
+    ĐÚNG chiều đó (khác với buildDailySeries ở Dashboard vốn chỉ tách theo
+    những giá trị đang được CHỌN trong bộ lọc). */
+function distinctDimValues(logs, dimKey){
+  const set=new Set();
+  logs.forEach(l=>{
+    if(dimKey==='job') set.add(l.job||'—');
+    else if(dimKey==='dept') set.add(l.dept||'—');
+    else if(dimKey==='user') set.add(l.user);
+    else if(dimKey==='drawing') l.drawingCodes.forEach(c=>set.add(c));
+    else if(dimKey==='stage') (l.stages&&l.stages.length?l.stages:['—']).forEach(s=>set.add(s));
+  });
+  return Array.from(set);
+}
+/** Giới hạn còn tối đa `n` mục có tổng cao nhất, gộp phần còn lại vào 1 mục
+    "Khác" — tránh biểu đồ vỡ layout khi nhóm theo bản vẽ/nhân viên có hàng
+    trăm giá trị. Bảng chi tiết (không qua hàm này) vẫn hiển thị đầy đủ. */
+function topNWithOthers(items, n, getVal){
+  const sorted=items.slice().sort((a,b)=>getVal(b)-getVal(a));
+  if(sorted.length<=n) return sorted;
+  const top=sorted.slice(0,n-1);
+  const rest=sorted.slice(n-1);
+  const othersVal=rest.reduce((s,x)=>s+getVal(x),0);
+  return [...top, {name:'Khác', __isOthers:true, value:othersVal, data: rest[0]&&rest[0].data ? rest[0].data.map((_,i)=>rest.reduce((s,x)=>s+x.data[i],0)) : undefined}];
+}
 const DASH_CHART_COLORS=['#c9833f','#e0b34d','#4caf82','#5b8dd9','#d9628f','#8f7fe0','#5fbfc0','#c95f5f'];
-function renderDailyChartSVG(days, series){
+function renderDailyChartSVG(days, series, yFormat){
+  yFormat = yFormat || (v=>(v/3600000).toFixed(1)+'h');
   if(!days.length || !series.length) return `<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`;
-  const W=760, H=230, padL=48, padR=14, padT=14, padB=30;
+  const W=760, H=230, padL=58, padR=14, padT=14, padB=30;
   const plotW=W-padL-padR, plotH=H-padT-padB;
   const maxMs=Math.max(1, ...series.flatMap(s=>s.data));
   const x=(i)=> days.length>1 ? padL+(i/(days.length-1))*plotW : padL+plotW/2;
   const y=(v)=> padT+plotH-(v/maxMs)*plotH;
   const gridLines=[0,0.25,0.5,0.75,1].map(fr=>{
     const yy=padT+plotH-fr*plotH;
-    return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--border)" stroke-width="1"/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="10" fill="var(--text-mute)">${(fr*maxMs/3600000).toFixed(1)}h</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--border)" stroke-width="1"/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="10" fill="var(--text-mute)">${yFormat(fr*maxMs)}</text>`;
   }).join('');
   const step=Math.max(1, Math.ceil(days.length/10));
   const xLabels=days.map((d,i)=> i%step!==0 ? '' : `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--text-mute)">${d.slice(5)}</text>`).join('');
@@ -1984,9 +2014,22 @@ function renderDailyChartSVG(days, series){
   const legend=series.map((s,idx)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11.5px;color:var(--text-dim)"><span style="width:10px;height:10px;border-radius:2px;background:${DASH_CHART_COLORS[idx%DASH_CHART_COLORS.length]};display:inline-block"></span>${s.name}</span>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:230px">${gridLines}${xLabels}${lines}</svg><div style="margin-top:6px">${legend}</div>`;
 }
+function renderGroupBarChartHTML(items, formatVal){
+  const max=Math.max(1, ...items.map(x=>x.value));
+  return items.map((x,idx)=>{
+    const h=Math.max(6,(x.value/max)*130);
+    const color=DASH_CHART_COLORS[idx%DASH_CHART_COLORS.length];
+    return `<div class="bar-col"><div class="bar-val">${formatVal(x.value)}</div><div class="bar" style="height:${h}px;background:${color}"></div><div class="bar-lbl">${x.name}</div></div>`;
+  }).join('');
+}
 
 /* ---------------- Báo cáo chi phí (đơn giá/giờ x số giờ, theo bộ lọc Dashboard) ---------------- */
+const COST_GROUP_LABELS={user:'Nhân viên', job:'Job', dept:'Bộ phận', drawing:'Bản vẽ', stage:'Công đoạn'};
+let costGroupBy='user';
 function openCostReport(){
+  const groupBtns=Object.keys(COST_GROUP_LABELS).map(k=>
+    `<button type="button" class="btn btn-sm ${k===costGroupBy?'btn-primary':''}" onclick="setCostGroupBy('${k}')" id="costGroupBtn-${k}">${COST_GROUP_LABELS[k]}</button>`
+  ).join(' ');
   openModal('💰 Báo cáo chi phí', `
     <p style="font-size:12px;color:var(--text-mute);margin-top:0">Tính theo đúng các bản ghi đang được lọc ở Dashboard hiện tại (Job/nhân viên/bộ phận/bản vẽ/công đoạn/thời kỳ).</p>
     <div class="field"><label>Đơn giá / giờ</label><input type="number" id="costRate" min="0" step="1000" placeholder="vd: 50000"></div>
@@ -2000,8 +2043,15 @@ function openCostReport(){
       <div class="field hidden" id="costCurrencyOtherWrap"><label>Mã tiền tệ</label><input id="costCurrencyOther" placeholder="vd: KRW" maxlength="6"></div>
     </div>
     <div class="field hidden" id="costFxWrap"><label>Tỷ giá quy đổi sang VND (1 đơn vị = ? VND)</label><input type="number" id="costFx" min="0" step="1" placeholder="vd: 25000"></div>
+    <div class="field"><label>Báo cáo theo</label><div style="display:flex;gap:6px;flex-wrap:wrap" id="costGroupBtns">${groupBtns}</div></div>
     <div id="costResult"></div>
   `, [{label:'Tính báo cáo', primary:true, onClick:computeCostReport}, {label:'Đóng', onClick:closeModal}]);
+}
+function setCostGroupBy(k){
+  costGroupBy=k;
+  Object.keys(COST_GROUP_LABELS).forEach(key=>{
+    document.getElementById('costGroupBtn-'+key).classList.toggle('btn-primary', key===k);
+  });
 }
 function onCostCurrencyChange(){
   const v=document.getElementById('costCurrency').value;
@@ -2019,24 +2069,40 @@ function computeCostReport(){
     fx=Number(document.getElementById('costFx').value);
     if(!fx || fx<=0){ toast('Nhập tỷ giá quy đổi sang VND hợp lệ.','err'); return; }
   }
+  const dimKey=costGroupBy;
   const logs=filterDashLogs(getDashFilters());
-  const byUser={};
-  logs.forEach(l=>{
-    const dur=(l.end||Date.now())-l.start-l.pausedMs;
-    byUser[l.user]=(byUser[l.user]||0)+dur;
-  });
-  const fmtMoney=(n)=>n.toLocaleString('vi-VN',{maximumFractionDigits:0});
-  const rowsData=Object.keys(byUser).map(uid=>{
-    const hours=byUser[uid]/3600000;
-    return {name:getUserName(uid), hours, cost:hours*rate};
+  const values=distinctDimValues(logs, dimKey);
+  const {days, series}=buildDailySeries(logs, {key:dimKey, values});
+
+  const groupLabel=COST_GROUP_LABELS[dimKey];
+  const rowsData=series.map(s=>{
+    const ms=s.data.reduce((a,b)=>a+b,0);
+    const hours=ms/3600000;
+    return {name:s.name, hours, cost:hours*rate};
   }).sort((a,b)=>b.cost-a.cost);
   const totalHours=rowsData.reduce((s,r)=>s+r.hours,0), totalCost=rowsData.reduce((s,r)=>s+r.cost,0);
   const rowsHtml=rowsData.map(r=>`<tr><td>${r.name}</td><td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${fmtMoney(r.cost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(r.cost*fx)} VND</td>`:''}</tr>`).join('');
+
+  // Biểu đồ: giới hạn top 7 + "Khác" để không vỡ layout khi nhóm theo bản
+  // vẽ/nhân viên có rất nhiều giá trị — bảng chi tiết ở trên vẫn đầy đủ.
+  const capped=topNWithOthers(series.map(s=>({...s, value:s.data.reduce((a,b)=>a+b,0)})), 8, x=>x.value);
+  const barItems=capped.map(x=>({name:x.name, value:(x.value/3600000)*rate}));
+  const barChartHtml = barItems.length
+    ? `<div class="bar-chart">${renderGroupBarChartHTML(barItems, v=>fmtMoney(v)+' '+currency)}</div>`
+    : `<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`;
+  const trendSeries=capped.map(x=>({name:x.name, data:(x.data||days.map(()=>0)).map(ms=>(ms/3600000)*rate)}));
+  const trendChartHtml=renderDailyChartSVG(days, trendSeries, v=>fmtMoney(v));
+
   document.getElementById('costResult').innerHTML=`
-    <table style="margin-top:12px"><thead><tr><th>Nhân viên</th><th>Số giờ</th><th>Chi phí</th>${!isVnd?'<th>Quy đổi VND</th>':''}</tr></thead>
+    <table style="margin-top:12px"><thead><tr><th>${groupLabel}</th><th>Số giờ</th><th>Chi phí</th>${!isVnd?'<th>Quy đổi VND</th>':''}</tr></thead>
     <tbody>${rowsHtml||`<tr><td colspan="${isVnd?3:4}" style="color:var(--text-mute)">Không có dữ liệu phù hợp bộ lọc.</td></tr>`}</tbody>
     <tfoot><tr style="font-weight:600"><td>Tổng cộng</td><td class="mono">${totalHours.toFixed(2)}</td><td class="mono">${fmtMoney(totalCost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(totalCost*fx)} VND</td>`:''}</tr></tfoot>
-    </table>`;
+    </table>
+    <h4 style="margin:16px 0 6px;font-size:13px">Chi phí theo ${groupLabel.toLowerCase()}</h4>
+    ${barChartHtml}
+    <h4 style="margin:16px 0 6px;font-size:13px">Chi phí theo ngày</h4>
+    ${trendChartHtml}
+  `;
 }
 
 function renderDashboard(){
