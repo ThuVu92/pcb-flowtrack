@@ -2813,7 +2813,25 @@ function openModal(title, bodyHtml, actions){
 function closeModal(){ stopQrCamera(); document.getElementById('modalRoot').innerHTML=''; }
 
 /* ---------------- Init ---------------- */
-loadDeptsPublic();
+/** Tải lại trang không nên bắt đăng nhập lại nếu phiên đăng nhập (session)
+    của Supabase vẫn còn hiệu lực — kiểm tra trước, vào thẳng app nếu còn hợp lệ. */
+async function initSession(){
+  const {data:{session}}=await supabase.auth.getSession();
+  if(session && session.user){
+    const {data:profile, error:profErr}=await supabase.from('profiles').select('*').eq('id',session.user.id).single();
+    if(!profErr && profile && profile.status==='active'){
+      await loadCoreData();
+      SESSION=USERS.find(x=>x.id===session.user.id);
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').classList.add('active');
+      boot();
+      return;
+    }
+    await supabase.auth.signOut(); // tài khoản đã bị khoá/xoá kể từ lần đăng nhập trước
+  }
+  await loadDeptsPublic();
+}
+initSession();
 document.addEventListener('click', (e)=>{
   const panel=document.getElementById('notifPanel');
   if(panel && !panel.classList.contains('hidden')){
