@@ -542,6 +542,68 @@ function comboCloseAll(exceptId){
 document.addEventListener('click', (e)=>{
   if(!e.target.closest('.combo-wrap')) comboCloseAll();
 });
+
+/* ---------------- "Combo nhiều lựa chọn" — chọn nhiều mục, hiện dạng thẻ ----------------
+   Dùng cho những chỗ cần chọn NHIỀU giá trị cùng lúc (công đoạn, người nhận
+   nhiệm vụ, bộ lọc Dashboard…). Gõ để tìm/gợi ý dùng lại cơ chế combo ở trên;
+   khác biệt là chọn 1 mục sẽ THÊM vào danh sách đã chọn (hiện thành thẻ có
+   nút ✕ để bỏ) thay vì thay thế giá trị ô nhập. */
+let MULTI_COMBO={};
+function multiComboHTML(id, options, placeholder, config){
+  config=config||{};
+  MULTI_COMBO[id]={options:options||[], selected:[], onChange:config.onChange||null, allowCreate:config.allowCreate!==false};
+  return `<div class="combo-wrap">
+    <input id="${id}-input" placeholder="${placeholder||''}" autocomplete="off"
+      oninput="multiComboFilter('${id}')" onfocus="multiComboFilter('${id}')"
+      onkeydown="multiComboKeydown(event,'${id}')">
+    <div class="combo-list hidden" id="${id}-input-list"></div>
+    <div class="multi-chips" id="${id}-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+  </div>`;
+}
+function multiComboFilter(id){
+  const st=MULTI_COMBO[id]; if(!st) return;
+  const input=document.getElementById(id+'-input');
+  const q=input.value.trim();
+  const avail=st.options.filter(o=>!st.selected.includes(o.value));
+  const filtered=q? avail.filter(o=>matchesSearch(o.label,q)||matchesSearch(o.value,q)) : avail;
+  const list=document.getElementById(id+'-input-list');
+  comboCloseAll();
+  const addNewItem = (q && st.allowCreate)? `<div class="combo-item" onmousedown="multiComboAdd('${id}', ${JSON.stringify(q)})">➕ Thêm "${q}"</div>` : '';
+  list.innerHTML = (filtered.length? filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('') : '')
+    || addNewItem || `<div class="combo-item muted">Không có gợi ý khớp</div>`;
+  list.classList.remove('hidden');
+}
+function multiComboAdd(id, value){
+  const st=MULTI_COMBO[id]; if(!st || !value) return;
+  if(!st.selected.includes(value)) st.selected.push(value);
+  const input=document.getElementById(id+'-input'); if(input){ input.value=''; input.focus(); }
+  const list=document.getElementById(id+'-input-list'); if(list) list.classList.add('hidden');
+  renderMultiComboChips(id);
+  if(st.onChange) window[st.onChange]();
+}
+function multiComboRemove(id, value){
+  const st=MULTI_COMBO[id]; if(!st) return;
+  st.selected=st.selected.filter(v=>v!==value);
+  renderMultiComboChips(id);
+  if(st.onChange) window[st.onChange]();
+}
+function renderMultiComboChips(id){
+  const st=MULTI_COMBO[id]; if(!st) return;
+  const el=document.getElementById(id+'-chips'); if(!el) return;
+  el.innerHTML = st.selected.length? st.selected.map(v=>{
+    const opt=st.options.find(o=>o.value===v);
+    const label=opt?opt.label:v;
+    return `<span class="code-chip" style="display:inline-flex;align-items:center;gap:6px">${label}<span style="cursor:pointer;opacity:.75" onmousedown="multiComboRemove('${id}','${String(v).replace(/'/g,"\\'")}')">✕</span></span>`;
+  }).join('') : `<span style="font-size:11.5px;color:var(--text-mute)">Chưa chọn mục nào</span>`;
+}
+function multiComboValues(id){ return (MULTI_COMBO[id]||{selected:[]}).selected.slice(); }
+function multiComboKeydown(e,id){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const input=document.getElementById(id+'-input');
+    if(input.value.trim()) multiComboAdd(id, input.value.trim());
+  }
+}
 function toast(msg, type){
   const wrap=document.getElementById('toastWrap');
   const el=document.createElement('div');
@@ -732,9 +794,9 @@ function normalizePriority(v){
   const s=String(v||'').trim().toLowerCase();
   return ['high','medium','low'].includes(s) ? s : 'medium';
 }
-function mapTimelog(l, drawCodes){
+function mapTimelog(l, drawCodes, stages){
   return {id:l.id, user:l.user_id, job:l.job_code, drawingCodes:drawCodes||[], drawingName:l.drawing_name,
-    dept:DEPT_NAME_BY_ID[l.dept_id]||'', stage:l.stage, start:new Date(l.start_at).getTime(),
+    dept:DEPT_NAME_BY_ID[l.dept_id]||'', stages:(stages&&stages.length)?stages:[l.stage].filter(Boolean), start:new Date(l.start_at).getTime(),
     pausedMs:l.paused_ms||0, pausedAt:l.paused_at?new Date(l.paused_at).getTime():null,
     end:l.end_at?new Date(l.end_at).getTime():null, status:l.status};
 }
@@ -746,7 +808,7 @@ function mapNotif(n){
     Gọi lại sau khi đăng nhập và sau khi có thay đổi cần đồng bộ lại toàn bộ. */
 async function loadCoreData(){
   const [{data:depts}, {data:stages}, {data:profiles}, {data:jobs}, {data:drawings}, {data:versions},
-         {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:notifs},
+         {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:tlStages}, {data:notifs},
          {data:editReqs}]
     = await Promise.all([
       supabase.from('depts').select('*'),
@@ -760,6 +822,7 @@ async function loadCoreData(){
       supabase.from('assign_last_seen').select('*'),
       supabase.from('timelogs').select('*').order('start_at'),
       supabase.from('timelog_drawings').select('*'),
+      supabase.from('timelog_stages').select('*'),
       supabase.from('notifs').select('*').order('created_at'),
       supabase.from('edit_requests').select('*').order('created_at'),
     ]);
@@ -785,7 +848,9 @@ async function loadCoreData(){
 
   const tlDrawsByLog={};
   (tlDrawings||[]).forEach(r=>{ (tlDrawsByLog[r.timelog_id]=tlDrawsByLog[r.timelog_id]||[]).push(r.drawing_code); });
-  TIMELOGS=(timelogs||[]).map(l=>mapTimelog(l, tlDrawsByLog[l.id]));
+  const tlStagesByLog={};
+  (tlStages||[]).forEach(r=>{ (tlStagesByLog[r.timelog_id]=tlStagesByLog[r.timelog_id]||[]).push(r.stage); });
+  TIMELOGS=(timelogs||[]).map(l=>mapTimelog(l, tlDrawsByLog[l.id], tlStagesByLog[l.id]));
 
   const commentsByAssign={};
   (comments||[]).forEach(c=>{ (commentsByAssign[c.assign_id]=commentsByAssign[c.assign_id]||[]).push(c); });
@@ -919,13 +984,18 @@ function setupRealtime(){
       if(eventType==='DELETE'){ removeById(TIMELOGS, oldRow.id); }
       else{
         const existing=TIMELOGS.find(x=>x.id===row.id);
-        upsertById(TIMELOGS, mapTimelog(row, existing?existing.drawingCodes:[]));
+        upsertById(TIMELOGS, mapTimelog(row, existing?existing.drawingCodes:[], existing?existing.stages:null));
       }
       refreshAffectedView(['home','shift','dashboard']);
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'timelog_drawings'},({new:row})=>{
       const l=TIMELOGS.find(x=>x.id===row.timelog_id); if(!l) return;
       if(!l.drawingCodes.includes(row.drawing_code)) l.drawingCodes.push(row.drawing_code);
+      refreshAffectedView(['home','shift','dashboard']);
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'timelog_stages'},({new:row})=>{
+      const l=TIMELOGS.find(x=>x.id===row.timelog_id); if(!l) return;
+      if(!l.stages.includes(row.stage)) l.stages.push(row.stage);
       refreshAffectedView(['home','shift','dashboard']);
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'notifs'},({eventType,new:row,old:oldRow})=>{
@@ -1295,13 +1365,14 @@ function renderAssignBody(){
     body.innerHTML=`
       <div class="card">
         <h3 style="margin-top:0;font-size:14.5px">Tạo nhiệm vụ mới</h3>
-        <div class="grid-cols g2">
-          <div class="field"><label>Bộ phận</label><select id="asg-dept" onchange="refreshAssignTargets()"><option value="">— tất cả bộ phận —</option>${deptOpts}</select></div>
-          <div class="field" id="asg-to-wrap"><label>Chọn nhân viên</label><select id="asg-to"></select></div>
+        <div class="field"><label>Bộ phận (lọc gợi ý người nhận, tuỳ chọn)</label><select id="asg-dept" onchange="onAsgDeptChange()"><option value="">— tất cả bộ phận —</option>${deptOpts}</select></div>
+        <div class="field">
+          <label>Người nhận (chọn được nhiều người cùng lúc)</label>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <div style="flex:1">${multiComboHTML('asg-to', USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id).map(u=>({value:u.id, label:`${u.name} (${u.dept} · ${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]})`})), 'Gõ tên để tìm…', {allowCreate:false})}</div>
+            <button type="button" class="btn btn-sm" style="white-space:nowrap" onclick="addAllDeptToAssign()">+ Cả bộ phận</button>
+          </div>
         </div>
-        <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim);margin:-4px 0 12px">
-          <input type="checkbox" id="asg-broadcast" onchange="refreshAssignTargets()"> Giao cho tất cả nhân viên trong bộ phận đã chọn (không cần chọn từng người)
-        </label>
         <div class="grid-cols g2">
           <div class="field"><label>Liên kết Job (tuỳ chọn — để trống nếu áp dụng chung, không riêng job/bộ phận nào)</label><select id="asg-job"><option value="">— không có job cụ thể —</option>${jobOpts}</select></div>
           <div class="field"><label>Liên kết bản vẽ (tuỳ chọn)</label><select id="asg-drawing"><option value="">— không có bản vẽ cụ thể —</option>${drawOpts}</select></div>
@@ -1326,7 +1397,7 @@ function renderAssignBody(){
         </div>
         <div id="assignManageTableWrap"></div>
       </div>`;
-    refreshAssignTargets();
+    renderMultiComboChips('asg-to');
     renderAssignManageTable();
   } else {
     const mine=ASSIGNS.filter(a=>a.to===SESSION.id).slice().reverse();
@@ -1372,21 +1443,20 @@ function chatBtn(id, a){
   const unread=hasUnreadChat(a);
   return `<button class="btn btn-ghost btn-sm" style="position:relative" onclick="openAssignChat('${id}')">${icon('chat',14)} Trao đổi${a.comments.length?` (${a.comments.length})`:''}${unread?`<span style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface)"></span>`:''}</button>`;
 }
-function refreshAssignTargets(){
+function onAsgDeptChange(){
   const dept=document.getElementById('asg-dept').value;
-  const broadcast=document.getElementById('asg-broadcast').checked;
-  const wrap=document.getElementById('asg-to-wrap');
-  if(broadcast){
-    // Giao hàng loạt vẫn chỉ áp dụng cho nhân viên trong bộ phận (không gồm quản lý/admin).
-    const list=USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept));
-    wrap.innerHTML=`<label>Người nhận</label><p style="font-size:12.5px;color:var(--text-dim);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:9px 11px;margin:0">
-      Sẽ giao cho <b>${list.length}</b> nhân viên${dept?` thuộc bộ phận ${dept}`:' (tất cả bộ phận)'}.</p>`;
-  } else {
-    // Giao cho 1 người cụ thể: cho phép chọn bất kỳ user nào khác (kể cả quản lý), không chỉ nhân viên.
-    const list=USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id&&(!dept||u.dept===dept));
-    const roleLbl={admin:'Admin',manager:'Quản lý',employee:'Nhân viên'};
-    wrap.innerHTML=`<label>Chọn người nhận</label><select id="asg-to">${list.map(u=>`<option value="${u.id}">${u.name} (${u.dept} · ${roleLbl[u.role]})</option>`).join('')||'<option value="">— không có người phù hợp —</option>'}</select>`;
-  }
+  const roleLbl={admin:'Admin',manager:'Quản lý',employee:'Nhân viên'};
+  const list=USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id&&(!dept||u.dept===dept));
+  MULTI_COMBO['asg-to'].options=list.map(u=>({value:u.id, label:`${u.name} (${u.dept} · ${roleLbl[u.role]})`}));
+  multiComboFilter('asg-to');
+}
+function addAllDeptToAssign(){
+  const dept=document.getElementById('asg-dept').value;
+  const list=USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept));
+  if(!list.length){ toast('Không có nhân viên nào phù hợp.','err'); return; }
+  list.forEach(u=>{ if(!MULTI_COMBO['asg-to'].selected.includes(u.id)) MULTI_COMBO['asg-to'].selected.push(u.id); });
+  renderMultiComboChips('asg-to');
+  toast(`Đã thêm ${list.length} nhân viên${dept?' thuộc bộ phận '+dept:''}.`,'ok');
 }
 function assignRowManage(a){
   const emp=USERS.find(u=>u.id===a.to);
@@ -1433,22 +1503,13 @@ function assignCardEmployee(a,isPending){
   </div>`;
 }
 async function createAssign(){
-  const dept=document.getElementById('asg-dept').value;
-  const broadcast=document.getElementById('asg-broadcast').checked;
   const job=document.getElementById('asg-job').value;
   const drawing=document.getElementById('asg-drawing').value;
   const content=document.getElementById('asg-content').value.trim();
   if(!content){ toast('Nhập nội dung chỉ thị trước đã.','err'); return; }
 
-  let targets=[];
-  if(broadcast){
-    targets = USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept)).map(u=>u.id);
-    if(!targets.length){ toast('Không có nhân viên nào phù hợp để giao.','err'); return; }
-  } else {
-    const toSel=document.getElementById('asg-to');
-    if(!toSel || !toSel.value){ toast('Chọn nhân viên nhận nhiệm vụ.','err'); return; }
-    targets=[toSel.value];
-  }
+  const targets=multiComboValues('asg-to');
+  if(!targets.length){ toast('Chọn ít nhất 1 người nhận nhiệm vụ.','err'); return; }
 
   for(const to of targets){
     const {data:aRow, error:aErr}=await supabase.from('assigns').insert({
@@ -1459,8 +1520,9 @@ async function createAssign(){
     const {data:nRow, error:nErr}=await supabase.from('notifs').insert({user_id:to, text:`Bạn có nhiệm vụ mới: "${content.slice(0,50)}${content.length>50?'…':''}"`}).select().single();
     if(!nErr) NOTIFS.push(mapNotif(nRow));
   }
-  toast(targets.length>1?`Đã giao nhiệm vụ cho ${targets.length} nhân viên.`:'Đã phân nhiệm vụ.','ok');
+  toast(targets.length>1?`Đã giao nhiệm vụ cho ${targets.length} người.`:'Đã phân nhiệm vụ.','ok');
   document.getElementById('asg-content').value='';
+  MULTI_COMBO['asg-to'].selected=[]; renderMultiComboChips('asg-to');
   renderAssignManageTable(); updateAssignBadge();
 }
 async function respondAssign(id,action){
@@ -1544,7 +1606,7 @@ function renderShift(){
       <td class="mono">${l.job}</td>
       <td class="mono">${l.drawingCodes.join(', ')}</td>
       <td>${l.drawingName}</td>
-      <td>${l.stage}</td>
+      <td>${l.stages.join(', ')}</td>
       <td class="timer">${fmtDur(elapsed)}</td>
       <td>${l.status==='running'?`<button class="btn btn-sm" onclick="pauseLog('${l.id}')">⏸ Pause</button> <button class="btn btn-sm btn-solder" onclick="finishLog('${l.id}')">✓ Finish</button>`
         : l.status==='paused'?`<button class="btn btn-sm btn-primary" onclick="resumeLog('${l.id}')">▶ Resume</button>`
@@ -1626,8 +1688,8 @@ function openAddTask(){
       </div>
       <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} Quét mã này</button>
       <div id="scanList" style="margin:10px 0;font-size:12.5px;color:var(--text-dim)"></div>
-      <div class="field"><label>Công đoạn cho lô vừa quét</label>
-        ${comboHTML('qrStage', stageOpts, 'vd: Vẽ mạch, Mạ đồng…')}
+      <div class="field"><label>Công đoạn cho lô vừa quét (chọn được nhiều — thời gian sẽ chia đều)</label>
+        ${multiComboHTML('qrStage', stageOpts, 'vd: Vẽ mạch, Mạ đồng…')}
       </div>
       <p style="font-size:11.5px;color:var(--text-mute)">Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được <b>chia đều</b> cho các bản vẽ trong dòng.</p>
     </div>
@@ -1639,11 +1701,12 @@ function openAddTask(){
       <div class="field"><label>Bản vẽ</label>
         ${comboHTML('mnDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), '— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới')}
       </div>
-      <div class="field"><label>Công đoạn / công việc</label>
-        ${comboHTML('mnStage', stageOpts, 'vd: Vẽ mạch, Họp nhóm, Bảo trì máy…')}
+      <div class="field"><label>Công đoạn / công việc (chọn được nhiều — thời gian sẽ chia đều)</label>
+        ${multiComboHTML('mnStage', stageOpts, 'vd: Vẽ mạch, Họp nhóm, Bảo trì máy…')}
       </div>
     </div>
   `, [{label:'Bắt đầu (Start)', primary:true, onClick:submitAddTask}]);
+  renderMultiComboChips('qrStage'); renderMultiComboChips('mnStage');
 }
 function switchAddTab(t){
   document.getElementById('addTab-qr').classList.toggle('hidden', t!=='qr');
@@ -1658,15 +1721,13 @@ function addToScanBuffer(){
   addScannedCode(v);
 }
 function addScannedCode(code){
+  // Quét luôn được cho phép, kể cả khi bản vẽ này đang có việc dở — việc kiểm
+  // tra trùng thật sự (theo đúng cặp bản vẽ + công đoạn) chỉ chặn lúc bắt đầu,
+  // vì quét trước chọn công đoạn sau nên chưa biết công đoạn nào để so.
   if(!scanBuffer.includes(code)) scanBuffer.push(code);
   const el=document.getElementById('scanList');
   if(el) el.innerHTML='Đã quét: '+scanBuffer.map(c=>`<span class="code-chip">${c}</span>`).join(' ');
-  const active=findActiveTimelogFor(code);
-  if(active){
-    toast(`⚠ Bạn đang có phiên làm dở chưa hoàn thành với bản vẽ ${code} (công đoạn "${active.stage}"${active.status==='paused'?' · tạm dừng':''}).`, 'err');
-  } else {
-    toast('Đã quét '+code,'ok');
-  }
+  toast('Đã quét '+code,'ok');
 }
 
 /* ---------------- Quét QR bằng camera thật ---------------- */
@@ -1744,28 +1805,29 @@ function onQrDetected(text){
   addScannedCode(text);
 }
 /** Tìm phiên chấm công CHƯA XONG (đang làm/tạm dừng) của CHÍNH người đang
-    thao tác trên 1 mã bản vẽ — dùng để cảnh báo tự quét/bắt đầu trùng việc
-    đang dở của chính mình. Người khác vẫn làm chung bản vẽ đó bình thường,
-    không cảnh báo (2 người có thể cùng làm 1 bản vẽ cùng lúc). */
-function findActiveTimelogFor(code){
-  return TIMELOGS.find(l=>l.drawingCodes.includes(code) && l.user===SESSION.id && (l.status==='running'||l.status==='paused'));
+    thao tác, trên ĐÚNG 1 bản vẽ + 1 công đoạn cụ thể. Bản vẽ đang dở nhưng
+    khác công đoạn thì không tính là trùng (đang làm "Hàn" mà giờ bắt đầu
+    "Cắt" trên cùng bản vẽ là bình thường). Người khác làm cùng bản vẽ/công
+    đoạn đó cũng không tính là trùng (2 người có thể cùng làm 1 việc). */
+function findActiveTimelogForDrawingStage(code, stg){
+  return TIMELOGS.find(l=>l.drawingCodes.includes(code) && l.stages.includes(stg) && l.user===SESSION.id && (l.status==='running'||l.status==='paused'));
 }
 async function submitAddTask(){
   const isQr = !document.getElementById('addTab-qr').classList.contains('hidden');
-  let codes=[], job='', stage='', name='';
+  let codes=[], job='', stages=[], name='';
   if(isQr){
     if(!scanBuffer.length){ toast('Chưa quét mã bản vẽ nào.','err'); return; }
     codes=scanBuffer.slice();
-    stage=document.getElementById('qrStage').value.trim();
-    if(!stage){ toast('Nhập công đoạn cho lô vừa quét.','err'); return; }
+    stages=multiComboValues('qrStage');
+    if(!stages.length){ toast('Chọn ít nhất 1 công đoạn cho lô vừa quét.','err'); return; }
     const first=DRAWINGS.find(d=>d.code===codes[0]);
     job=first?first.job:'';
     name=codes.map(c=>{const d=DRAWINGS.find(x=>x.code===c); return d?d.name:c;}).join(', ');
   } else {
     const jobInput=document.getElementById('mnJob').value.trim();
     const drawInput=document.getElementById('mnDrawing').value.trim();
-    stage=document.getElementById('mnStage').value.trim();
-    if(!stage){ toast('Nhập công đoạn / công việc.','err'); return; }
+    stages=multiComboValues('mnStage');
+    if(!stages.length){ toast('Chọn ít nhất 1 công đoạn / công việc.','err'); return; }
     job=jobInput;
     if(job && !ORDERS.some(o=>o.code===job)){
       const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job}).select().single();
@@ -1786,35 +1848,39 @@ async function submitAddTask(){
     name=d?d.name:(drawInput||'(không chọn bản vẽ)');
   }
 
-  const conflicts=codes.map(code=>({code, log:findActiveTimelogFor(code)})).filter(x=>x.log);
+  // Kiểm tra trùng theo đúng cặp (bản vẽ, công đoạn) — chặn hẳn, không cho tiếp tục.
+  const conflicts=[];
+  codes.forEach(code=>stages.forEach(stg=>{
+    const log=findActiveTimelogForDrawingStage(code, stg);
+    if(log) conflicts.push({code, stg, log});
+  }));
   if(conflicts.length){
-    const lines=conflicts.map(({code,log})=>
-      `<li><b>${code}</b>: bạn đang làm dở công đoạn "${log.stage}"${log.status==='paused'?' (đang tạm dừng)':''} chưa hoàn thành</li>`
+    const lines=conflicts.map(({code,stg,log})=>
+      `<li><b>${code}</b> — công đoạn <b>${stg}</b>: bạn đang làm dở, chưa hoàn thành${log.status==='paused'?' (đang tạm dừng)':''}</li>`
     ).join('');
-    openModal('⚠ Cảnh báo: bạn đang làm dở bản vẽ này', `
-      <p style="font-size:13px">Bạn đã có phiên chấm công chưa hoàn thành trên các bản vẽ sau:</p>
+    openModal('⚠ Trùng công đoạn đang làm dở', `
+      <p style="font-size:13px">Không thể bắt đầu vì trùng với phiên chấm công chưa hoàn thành:</p>
       <ul style="font-size:12.5px;color:var(--text-dim);padding-left:18px;margin:8px 0">${lines}</ul>
-      <p style="font-size:12.5px;color:var(--text-mute)">Bạn vẫn có thể tiếp tục nếu đây là chủ ý (vd: bắt đầu thêm 1 công đoạn khác song song).</p>
-    `, [
-      {label:'Huỷ', onClick:closeModal},
-      {label:'Vẫn bắt đầu', primary:true, danger:true, onClick:()=>createTimelogNow(codes, job, stage, name)}
-    ]);
+      <p style="font-size:12.5px;color:var(--text-mute)">Hãy hoàn thành/tạm dừng phiên cũ trước, hoặc bỏ bớt công đoạn trùng rồi thử lại.</p>
+    `, [{label:'Đã hiểu', primary:true, onClick:closeModal}]);
     return;
   }
-  await createTimelogNow(codes, job, stage, name);
+  await createTimelogNow(codes, job, stages, name);
 }
-async function createTimelogNow(codes, job, stage, name){
+async function createTimelogNow(codes, job, stages, name){
   const start=Date.now();
   const {data:lRow, error:lErr}=await supabase.from('timelogs').insert({
     user_id:SESSION.id, job_code:job||null, drawing_name:name, dept_id:DEPT_ID_BY_NAME[SESSION.dept]||null,
-    stage, start_at:new Date(start).toISOString(), status:'running'
+    stage:stages[0]||null, start_at:new Date(start).toISOString(), status:'running'
   }).select().single();
   if(lErr){ toast('Lỗi bắt đầu tác vụ: '+lErr.message,'err'); return; }
   if(codes.length){
     const {error:tdErr}=await supabase.from('timelog_drawings').insert(codes.map(code=>({timelog_id:lRow.id, drawing_code:code})));
     if(tdErr) console.error(tdErr);
   }
-  const log={id:lRow.id, user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stage, start, pausedMs:0, end:null, status:'running'};
+  const {error:tsErr}=await supabase.from('timelog_stages').insert(stages.map(stg=>({timelog_id:lRow.id, stage:stg})));
+  if(tsErr) console.error(tsErr);
+  const log={id:lRow.id, user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stages, start, pausedMs:0, end:null, status:'running'};
   TIMELOGS.push(log);
   closeModal(); renderShift();
   toast(codes.length>1?`Đã bắt đầu tác vụ gộp ${codes.length} bản vẽ.`:'Đã bắt đầu tác vụ.','ok');
@@ -1829,10 +1895,10 @@ function renderDashboard(){
       <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
     </div>
     <div class="filter-bar">
-      ${comboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), 'Tất cả Job — gõ để tìm…', 'renderDashBody')}
-      ${comboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), 'Tất cả nhân viên — gõ để tìm…', 'renderDashBody')}
-      ${comboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), 'Tất cả bộ phận — gõ để tìm…', 'renderDashBody')}
-      ${comboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), 'Tất cả bản vẽ — gõ để tìm…', 'renderDashBody')}
+      <div style="min-width:200px">${multiComboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), 'Tất cả Job — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), 'Tất cả nhân viên — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), 'Tất cả bộ phận — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), 'Tất cả bản vẽ — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
       <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
       <select id="fPeriod" onchange="renderDashBody()">
         <option value="">Toàn bộ thời gian</option>
@@ -1845,12 +1911,13 @@ function renderDashboard(){
       <input type="date" id="fDateTo" class="hidden" onchange="renderDashBody()">
     </div>
     <div id="dashBody"></div>`;
+  ['fJob','fUser','fDept','fDrawing'].forEach(renderMultiComboChips);
   renderDashBody();
 }
 function renderDashBody(){
-  const fJob=document.getElementById('fJob').value, fUser=document.getElementById('fUser').value,
-        fDept=document.getElementById('fDept').value, fStatus=document.getElementById('fStatus').value,
-        fDrawing=document.getElementById('fDrawing').value, fPeriod=document.getElementById('fPeriod').value;
+  const fJobs=multiComboValues('fJob'), fUsers=multiComboValues('fUser'),
+        fDepts=multiComboValues('fDept'), fStatus=document.getElementById('fStatus').value,
+        fDrawings=multiComboValues('fDrawing'), fPeriod=document.getElementById('fPeriod').value;
 
   const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
   const isCustom=fPeriod==='custom';
@@ -1867,12 +1934,12 @@ function renderDashBody(){
   }
 
   // reset drawing-table page whenever a filter actually changes
-  const sig=JSON.stringify([fJob,fUser,fDept,fDrawing,fStatus,fPeriod,fromEl.value,toEl.value]);
+  const sig=JSON.stringify([fJobs,fUsers,fDepts,fDrawings,fStatus,fPeriod,fromEl.value,toEl.value]);
   if(sig!==dashDrawState.sig){ dashDrawState.page=1; dashDrawState.sig=sig; }
 
   let logs=TIMELOGS.filter(l=>
-    (!fJob||l.job===fJob) && (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
-    (!fStatus||l.status===fStatus) && (!fDrawing||l.drawingCodes.includes(fDrawing)) &&
+    (!fJobs.length||fJobs.includes(l.job)) && (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
+    (!fStatus||l.status===fStatus) && (!fDrawings.length||l.drawingCodes.some(c=>fDrawings.includes(c))) &&
     (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
   );
 
@@ -1882,9 +1949,12 @@ function renderDashBody(){
 
   const stageAgg={};
   logs.forEach(l=>{
-    const per=((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1);
-    if(!stageAgg[l.stage]) stageAgg[l.stage]={sum:0,n:0};
-    stageAgg[l.stage].sum+=per; stageAgg[l.stage].n++;
+    const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
+    const per=((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/stagesArr.length;
+    stagesArr.forEach(st=>{
+      if(!stageAgg[st]) stageAgg[st]={sum:0,n:0};
+      stageAgg[st].sum+=per; stageAgg[st].n++;
+    });
   });
   const stageKeys=Object.keys(stageAgg);
   const maxAvg=Math.max(1,...stageKeys.map(k=>stageAgg[k].sum/stageAgg[k].n));
@@ -1896,10 +1966,10 @@ function renderDashBody(){
 
   // ---- Toàn bộ bản vẽ theo Master (lọc theo Job nếu có chọn) — kể cả bản vẽ chưa từng làm ----
   const logsForDrawings = TIMELOGS.filter(l=>
-    (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
+    (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
     (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
   );
-  const scopedDrawings = (fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
+  const scopedDrawings = (fJobs.length? DRAWINGS.filter(d=>fJobs.includes(d.job)) : DRAWINGS.slice());
   const allDrawStats = scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
     const doneLogs=matching.filter(l=>l.status==='done');
@@ -1930,7 +2000,7 @@ function renderDashBody(){
   const jobDrawingsSection = `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0;font-size:14px">${fJob?`Toàn bộ bản vẽ của Job ${fJob}`:'Toàn bộ bản vẽ trong Master'} <span style="color:var(--text-mute);font-weight:400">(kể cả bản vẽ chưa từng thực hiện)</span></h3>
+        <h3 style="margin:0;font-size:14px">${fJobs.length?`Toàn bộ bản vẽ của Job ${fJobs.join(', ')}`:'Toàn bộ bản vẽ trong Master'} <span style="color:var(--text-mute);font-weight:400">(kể cả bản vẽ chưa từng thực hiện)</span></h3>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <select onchange="dashDrawStatusChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12.5px">
             <option value="" ${!dashDrawState.statusFilter?'selected':''}>Tất cả trạng thái</option>
@@ -1971,7 +2041,7 @@ function renderDashBody(){
   const rows=logs.slice().reverse().map(l=>{
     const u=USERS.find(x=>x.id===l.user);
     const dur=((l.end||Date.now())-l.start-l.pausedMs);
-    return `<tr><td class="mono">${l.job||'—'}</td><td>${u?u.name:'—'}</td><td>${l.dept}</td><td class="mono">${l.drawingCodes.join(', ')||'—'}</td><td>${l.stage}</td><td>${statusPill(l.status)}</td><td class="mono">${fmtDur(dur)}</td></tr>`;
+    return `<tr><td class="mono">${l.job||'—'}</td><td>${u?u.name:'—'}</td><td>${l.dept}</td><td class="mono">${l.drawingCodes.join(', ')||'—'}</td><td>${l.stages.join(', ')}</td><td>${statusPill(l.status)}</td><td class="mono">${fmtDur(dur)}</td></tr>`;
   }).join('');
 
   document.getElementById('dashBody').innerHTML=`
@@ -2000,9 +2070,9 @@ function dashDrawPageChange(delta){ dashDrawState.page+=delta; renderDashBody();
 function dashDrawPageSizeChange(v){ dashDrawState.pageSize = v==='all'?'all':Number(v); dashDrawState.page=1; renderDashBody(); }
 function dashDrawStatusChange(v){ dashDrawState.statusFilter=v; dashDrawState.page=1; renderDashBody(); }
 function exportDashboardReport(){
-  const fJob=document.getElementById('fJob').value, fUser=document.getElementById('fUser').value,
-        fDept=document.getElementById('fDept').value, fStatus=document.getElementById('fStatus').value,
-        fDrawing=document.getElementById('fDrawing').value, fPeriod=document.getElementById('fPeriod').value;
+  const fJobs=multiComboValues('fJob'), fUsers=multiComboValues('fUser'),
+        fDepts=multiComboValues('fDept'), fStatus=document.getElementById('fStatus').value,
+        fDrawings=multiComboValues('fDrawing'), fPeriod=document.getElementById('fPeriod').value;
   const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
   let rangeStart=null, rangeEnd=null; const dayMs=24*3600*1000;
   if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
@@ -2011,13 +2081,13 @@ function exportDashboardReport(){
   else if(fPeriod==='custom'){ if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0); if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999); }
 
   const logs=TIMELOGS.filter(l=>
-    (!fJob||l.job===fJob) && (!fUser||l.user===fUser) && (!fDept||l.dept===fDept) &&
-    (!fStatus||l.status===fStatus) && (!fDrawing||l.drawingCodes.includes(fDrawing)) &&
+    (!fJobs.length||fJobs.includes(l.job)) && (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
+    (!fStatus||l.status===fStatus) && (!fDrawings.length||l.drawingCodes.some(c=>fDrawings.includes(c))) &&
     (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
   );
   const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
-  const logsForDrawings = TIMELOGS.filter(l=>(!fUser||l.user===fUser)&&(!fDept||l.dept===fDept)&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
-  const scopedDrawings=(fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
+  const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
+  const scopedDrawings=(fJobs.length? DRAWINGS.filter(d=>fJobs.includes(d.job)) : DRAWINGS.slice());
   const drawStats=scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
     const doneLogs=matching.filter(l=>l.status==='done');
@@ -2034,10 +2104,10 @@ function exportDashboardReport(){
     ['Ngày xuất', nowStr()],
     [],
     ['Bộ lọc áp dụng'],
-    ['Job', fJob||'Tất cả'],
-    ['Nhân viên', fUser?(USERS.find(u=>u.id===fUser)||{}).name||'':'Tất cả'],
-    ['Bộ phận', fDept||'Tất cả'],
-    ['Bản vẽ', fDrawing||'Tất cả'],
+    ['Job', fJobs.length?fJobs.join(', '):'Tất cả'],
+    ['Nhân viên', fUsers.length?fUsers.map(id=>(USERS.find(u=>u.id===id)||{}).name||id).join(', '):'Tất cả'],
+    ['Bộ phận', fDepts.length?fDepts.join(', '):'Tất cả'],
+    ['Bản vẽ', fDrawings.length?fDrawings.join(', '):'Tất cả'],
     ['Trạng thái', fStatus||'Tất cả'],
     ['Thời kỳ', fPeriod||'Toàn bộ thời gian'],
     [],
@@ -2055,7 +2125,7 @@ function exportDashboardReport(){
       const u=USERS.find(x=>x.id===l.user);
       const dur=((l.end||Date.now())-l.start-l.pausedMs);
       const stMap={running:'Đang làm',paused:'Tạm dừng',done:'Hoàn thành'};
-      return [l.job||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stage, stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), l.end?new Date(l.end).toLocaleString('vi-VN'):'—', fmtDur(dur)];
+      return [l.job||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stages.join(', '), stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), l.end?new Date(l.end).toLocaleString('vi-VN'):'—', fmtDur(dur)];
     })];
 
   try{
