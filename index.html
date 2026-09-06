@@ -1812,7 +1812,23 @@ function onQrDetected(text){
 function findActiveTimelogForDrawingStage(code, stg){
   return TIMELOGS.find(l=>l.drawingCodes.includes(code) && l.stages.includes(stg) && l.user===SESSION.id && (l.status==='running'||l.status==='paused'));
 }
+let submittingTask=false;
 async function submitAddTask(){
+  // Chặn bấm Start 2 lần liên tiếp trong lúc đang xử lý (dễ xảy ra khi phải
+  // thao tác nhiều bước để chọn nhiều công đoạn rồi mới bấm) — nếu không sẽ
+  // tạo ra 2 tác vụ giống hệt nhau do submitAddTask chạy chồng lên nhau.
+  if(submittingTask) return;
+  submittingTask=true;
+  const startBtn=document.querySelector('#modalFoot .btn-primary');
+  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Đang xử lý…'; }
+  try{
+    await submitAddTaskInner();
+  } finally {
+    submittingTask=false;
+    if(startBtn){ startBtn.disabled=false; startBtn.textContent='Bắt đầu (Start)'; }
+  }
+}
+async function submitAddTaskInner(){
   const isQr = !document.getElementById('addTab-qr').classList.contains('hidden');
   let codes=[], job='', stages=[], name='';
   if(isQr){
