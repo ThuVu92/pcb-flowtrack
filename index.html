@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 :root{
   --bg:#0F1418; --bg-2:#141B21;
@@ -490,24 +492,10 @@ function icon(name,size){
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${(I[name]||'').split('M').filter(Boolean).map(d=>'<path d="M'+d+'"/>').join('')}</svg>`;
 }
-function pseudoQR(text, canvas){
-  const ctx=canvas.getContext('2d');
-  const n=17; canvas.width=canvas.height=170;
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,170,170);
-  ctx.fillStyle='#111';
-  let seed=0; for(let i=0;i<text.length;i++) seed=(seed*31+text.charCodeAt(i))>>>0;
-  function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967295; }
-  const cell=170/n;
-  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-    const inCorner=(x<4&&y<4)||(x>n-5&&y<4)||(x<4&&y>n-5);
-    if(inCorner) continue;
-    if(rnd()>0.55) ctx.fillRect(x*cell,y*cell,cell-1,cell-1);
-  }
-  [[0,0],[n-4,0],[0,n-4]].forEach(([cx,cy])=>{
-    ctx.fillStyle='#111'; ctx.fillRect(cx*cell,cy*cell,4*cell-2,4*cell-2);
-    ctx.fillStyle='#fff'; ctx.fillRect((cx+0.6)*cell,(cy+0.6)*cell,2.8*cell,2.8*cell);
-    ctx.fillStyle='#111'; ctx.fillRect((cx+1.2)*cell,(cy+1.2)*cell,1.6*cell,1.6*cell);
-  });
+/** Vẽ mã QR thật (quét được bằng camera điện thoại/máy quét) vào 1 <div>. */
+function renderRealQR(text, container){
+  container.innerHTML='';
+  new QRCode(container, {text, width:180, height:180, correctLevel:QRCode.CorrectLevel.M});
 }
 
 /* ---------------- Demo data (in-memory) ---------------- */
@@ -1358,7 +1346,13 @@ function openAddTask(){
       <button class="tab-btn" id="tab-manual" onclick="switchAddTab('manual')">Nhập thủ công</button>
     </div>
     <div id="addTab-qr">
-      <p style="font-size:12px;color:var(--text-mute)">Demo: gõ hoặc chọn mã bản vẽ để giả lập quét QR. Có thể quét liên tục nhiều bản vẽ.</p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="qrCamBtn" onclick="toggleQrCamera()">${icon('qr',14)} Bật camera quét</button>
+        <span style="font-size:11.5px;color:var(--text-mute)">Có thể quét liên tục nhiều bản vẽ. Không có camera? Chọn thủ công bên dưới.</span>
+      </div>
+      <div id="qrCamWrap" class="hidden" style="margin-bottom:10px">
+        <video id="qrVideo" playsinline muted style="width:100%;max-width:320px;border-radius:8px;background:#000;display:block"></video>
+      </div>
       <div class="field"><label>Mã bản vẽ (QR)</label>
         <select id="qrPick"><option value="">— chọn bản vẽ để giả lập quét —</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
       </div>
@@ -1382,13 +1376,70 @@ function switchAddTab(t){
   document.getElementById('addTab-manual').classList.toggle('hidden', t!=='manual');
   document.getElementById('tab-qr').classList.toggle('active', t==='qr');
   document.getElementById('tab-manual').classList.toggle('active', t==='manual');
+  if(t!=='qr') stopQrCamera();
 }
 function addToScanBuffer(){
   const v=document.getElementById('qrPick').value;
   if(!v){ toast('Chọn 1 bản vẽ để giả lập quét.','err'); return; }
-  if(!scanBuffer.includes(v)) scanBuffer.push(v);
-  document.getElementById('scanList').innerHTML='Đã quét: '+scanBuffer.map(c=>`<span class="code-chip">${c}</span>`).join(' ');
-  toast('Đã quét '+v,'ok');
+  addScannedCode(v);
+}
+function addScannedCode(code){
+  if(!scanBuffer.includes(code)) scanBuffer.push(code);
+  const el=document.getElementById('scanList');
+  if(el) el.innerHTML='Đã quét: '+scanBuffer.map(c=>`<span class="code-chip">${c}</span>`).join(' ');
+  toast('Đã quét '+code,'ok');
+}
+
+/* ---------------- Quét QR bằng camera thật ---------------- */
+let qrCamStream=null, qrCamRAF=null, qrLastCode='', qrLastCodeAt=0;
+async function toggleQrCamera(){
+  if(qrCamStream){ stopQrCamera(); return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast('Trình duyệt này không hỗ trợ camera. Dùng chọn thủ công bên dưới.','err'); return;
+  }
+  let stream;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  }catch(err){
+    toast('Không mở được camera ('+err.message+'). Kiểm tra đã cấp quyền camera cho trang chưa.','err'); return;
+  }
+  qrCamStream=stream;
+  const video=document.getElementById('qrVideo');
+  const wrap=document.getElementById('qrCamWrap');
+  const btn=document.getElementById('qrCamBtn');
+  if(!video||!wrap||!btn){ stopQrCamera(); return; } // modal đã đóng trong lúc chờ cấp quyền
+  video.srcObject=stream;
+  await video.play();
+  wrap.classList.remove('hidden');
+  btn.textContent='Tắt camera';
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const tick=()=>{
+    if(!qrCamStream) return;
+    if(video.readyState===video.HAVE_ENOUGH_DATA){
+      canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+      const result=jsQR(imgData.data, imgData.width, imgData.height);
+      if(result && result.data) onQrDetected(result.data);
+    }
+    qrCamRAF=requestAnimationFrame(tick);
+  };
+  qrCamRAF=requestAnimationFrame(tick);
+}
+function stopQrCamera(){
+  if(qrCamRAF) cancelAnimationFrame(qrCamRAF);
+  qrCamRAF=null;
+  if(qrCamStream){ qrCamStream.getTracks().forEach(tr=>tr.stop()); qrCamStream=null; }
+  const wrap=document.getElementById('qrCamWrap'); if(wrap) wrap.classList.add('hidden');
+  const btn=document.getElementById('qrCamBtn'); if(btn) btn.textContent='Bật camera quét';
+}
+function onQrDetected(text){
+  const now=Date.now();
+  if(text===qrLastCode && now-qrLastCodeAt<2000) return; // tránh quét lặp lại liên tục cùng 1 mã
+  qrLastCode=text; qrLastCodeAt=now;
+  if(!DRAWINGS.some(d=>d.code===text)){ toast('Mã QR không khớp bản vẽ nào trong hệ thống: '+text,'err'); return; }
+  addScannedCode(text);
 }
 function filterManualDrawings(){
   const q=document.getElementById('mnSearch').value;
@@ -2343,11 +2394,11 @@ function importDrawingsExcel(input){
 function openQrFor(code){
   openModal('Mã QR bản vẽ '+code, `
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-      <div class="qr-box" style="width:180px;height:180px"><canvas id="qrCanvas"></canvas></div>
+      <div class="qr-box" style="width:180px;height:180px" id="qrBox"></div>
       <div class="code-chip">${code}</div>
-      <p style="font-size:11.5px;color:var(--text-mute);text-align:center">Dán mã này lên phiếu/bản vẽ để nhân viên sản xuất quét khi bắt đầu công đoạn.</p>
+      <p style="font-size:11.5px;color:var(--text-mute);text-align:center">Mã QR thật — in ra dán lên phiếu/bản vẽ để quét bằng camera khi bắt đầu công đoạn.</p>
     </div>`, [{label:t('close'), onClick:closeModal}]);
-  setTimeout(()=>pseudoQR(code, document.getElementById('qrCanvas')),10);
+  setTimeout(()=>renderRealQR(code, document.getElementById('qrBox')),10);
 }
 
 /* ---- Master: Job ---- */
@@ -2604,7 +2655,7 @@ function openModal(title, bodyHtml, actions){
     foot.appendChild(b);
   });
 }
-function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function closeModal(){ stopQrCamera(); document.getElementById('modalRoot').innerHTML=''; }
 
 /* ---------------- Init ---------------- */
 loadDeptsPublic();
