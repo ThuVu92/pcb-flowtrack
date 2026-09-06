@@ -1946,6 +1946,8 @@ function buildDailySeries(logs, dim){
     if(!dim){ bump('Tổng', day, dur); return; }
     if(dim.key==='job'){
       if(dim.values.includes(l.job)) bump(l.job||'—', day, dur);
+    } else if(dim.key==='dept'){
+      if(dim.values.includes(l.dept)) bump(l.dept||'—', day, dur);
     } else if(dim.key==='user'){
       if(dim.values.includes(l.user)) bump(getUserName(l.user), day, dur);
     } else if(dim.key==='drawing'){
@@ -2108,6 +2110,7 @@ function renderDashBody(){
   if(fJobs.length>1) dashSplitDim={key:'job', values:fJobs};
   else if(fDrawings.length>1) dashSplitDim={key:'drawing', values:fDrawings};
   else if(fStages.length>1) dashSplitDim={key:'stage', values:fStages};
+  else if(fDepts.length>1) dashSplitDim={key:'dept', values:fDepts};
   else if(fUsers.length>1) dashSplitDim={key:'user', values:fUsers};
   const {days:dashDays, series:dashSeries}=buildDailySeries(logs, dashSplitDim);
   const dailyChartHtml=renderDailyChartSVG(dashDays, dashSeries);
@@ -2211,7 +2214,7 @@ function renderDashBody(){
     ${jobDrawingsSection}
     <div class="card">
       <h3 style="margin-top:0;font-size:14px">Biến động thời gian làm việc theo ngày</h3>
-      <p style="margin:0 0 6px;font-size:12px;color:var(--text-mute)">${dashSplitDim?`Tách riêng theo ${({job:'Job',drawing:'bản vẽ',stage:'công đoạn',user:'nhân viên'})[dashSplitDim.key]} đang chọn.`:'Chọn nhiều Job/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.'}</p>
+      <p style="margin:0 0 6px;font-size:12px;color:var(--text-mute)">${dashSplitDim?`Tách riêng theo ${({job:'Job',drawing:'bản vẽ',stage:'công đoạn',dept:'bộ phận',user:'nhân viên'})[dashSplitDim.key]} đang chọn.`:'Chọn nhiều Job/bộ phận/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.'}</p>
       ${dailyChartHtml}
     </div>
     <div class="card">
