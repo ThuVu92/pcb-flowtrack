@@ -530,6 +530,12 @@ const I18N = {
     purchasing_title:'Mua hàng', purchasing_sub:'Theo dõi yêu cầu mua hàng, khớp mã, PO và tình hình hàng về.',
     master_title:'Quản lý Master', master_sub:'Bản vẽ, Job, công đoạn chuẩn, người dùng & phân quyền — chỉ Admin chỉnh sửa.',
     lang_label:'Ngôn ngữ',
+    th_drawing:'Bản vẽ', th_drawing_code:'Mã BV', th_drawing_name:'Tên bản vẽ', th_name:'Tên',
+    th_worked_time:'Thời gian đã làm', th_content:'Nội dung', th_assigned_to:'Giao cho',
+    th_job_drawing:'Job/BV', th_job:'Job', th_stage:'Công đoạn', th_time:'Thời gian',
+    th_dept:'Bộ phận', th_employee:'Nhân viên', th_role:'Vai trò', th_emp_code:'Mã NV',
+    th_current_version:'Phiên bản hiện tại', th_issue_date:'Ngày phát hành', th_version:'Phiên bản',
+    th_job_code:'Mã Job', th_due_date:'Ngày cần giao',
   },
   en:{
     app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
@@ -550,6 +556,12 @@ const I18N = {
     purchasing_title:'Purchasing', purchasing_sub:'Track purchase requests, code matching, POs and incoming shipments.',
     master_title:'Master data', master_sub:'Drawings, Jobs, standard stages, users & permissions — Admin only.',
     lang_label:'Language',
+    th_drawing:'Drawing', th_drawing_code:'Drawing code', th_drawing_name:'Drawing name', th_name:'Name',
+    th_worked_time:'Time worked', th_content:'Content', th_assigned_to:'Assigned to',
+    th_job_drawing:'Job/Drawing', th_job:'Job', th_stage:'Stage', th_time:'Time',
+    th_dept:'Department', th_employee:'Employee', th_role:'Role', th_emp_code:'Employee code',
+    th_current_version:'Current version', th_issue_date:'Issue date', th_version:'Version',
+    th_job_code:'Job code', th_due_date:'Due date',
   },
   ja:{
     app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
@@ -570,6 +582,12 @@ const I18N = {
     purchasing_title:'購買', purchasing_sub:'購買依頼、コード照合、PO、入荷状況を管理。',
     master_title:'マスター管理', master_sub:'図面・受注・標準工程・ユーザー権限 — Admin専用。',
     lang_label:'言語',
+    th_drawing:'図面', th_drawing_code:'図面番号', th_drawing_name:'図面名', th_name:'名前',
+    th_worked_time:'作業時間', th_content:'内容', th_assigned_to:'担当者',
+    th_job_drawing:'受注/図面', th_job:'受注', th_stage:'工程', th_time:'時間',
+    th_dept:'部門', th_employee:'従業員', th_role:'役割', th_emp_code:'社員番号',
+    th_current_version:'現行版', th_issue_date:'発行日', th_version:'バージョン',
+    th_job_code:'受注番号', th_due_date:'納期',
   }
 };
 function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
@@ -998,7 +1016,7 @@ function openOrderDetail(code){
   openModal(`Chi tiết đơn hàng ${o.code}`, `
     ${editFields}
     ${genericNote}
-    <table style="margin-top:10px"><thead><tr><th>Bản vẽ</th><th>Tên</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
+    <table style="margin-top:10px"><thead><tr><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
   `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:async ()=>{
       const name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
       const name_en=document.getElementById('ordNameEnEdit').value.trim();
@@ -1103,7 +1121,7 @@ function renderAssignManageTable(){
     if(fSearch && !matchesSearch(a.content, fSearch)) return false;
     return true;
   });
-  wrap.innerHTML=`<table><thead><tr><th>Nội dung</th><th>Giao cho</th><th>Job/BV</th><th>Trạng thái</th><th></th></tr></thead>
+  wrap.innerHTML=`<table><thead><tr><th>${t('th_content')}</th><th>${t('th_assigned_to')}</th><th>${t('th_job_drawing')}</th><th>${t('col_status')}</th><th></th></tr></thead>
     <tbody>${list.map(a=>assignRowManage(a)).join('')||`<tr><td colspan="5" style="color:var(--text-mute)">Không có nhiệm vụ phù hợp bộ lọc.</td></tr>`}</tbody></table>`;
 }
 function statusBadge(s){
@@ -1306,19 +1324,19 @@ function renderShift(){
     ${unfinished.length?`
     <div class="card">
       <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Việc dở từ trước — bấm Resume để tiếp tục</h3>
-      <table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead>
+      <table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead>
       <tbody>${unfinished.map(rowHtml).join('')}</tbody></table>
     </div>`:''}
 
     <div class="card">
       <h3 style="margin-top:0;font-size:14px;color:var(--copper-hi)">Đang thực hiện</h3>
-      ${running.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
+      ${running.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
       : `<div class="empty-state">${icon('clock',30)}<p>Chưa có tác vụ nào đang chạy. Bấm "Thêm tác vụ" để bắt đầu.</p></div>`}
     </div>
 
     <div class="card">
       <h3 style="margin-top:0;font-size:14px">Đã hoàn thành hôm nay</h3>
-      ${doneToday.length?`<table><thead><tr><th>Job</th><th>Bản vẽ</th><th>Tên</th><th>Công đoạn</th><th>Thời gian</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
+      ${doneToday.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
       : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
     </div>`;
 }
@@ -1710,7 +1728,7 @@ function renderDashBody(){
           </select>
         </div>
       </div>
-      <table style="margin-top:10px"><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Trạng thái</th><th>Thời gian đã làm</th></tr></thead>
+      <table style="margin-top:10px"><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead>
       <tbody>${rowsJd||`<tr><td colspan="5" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
         <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">‹ Trước</button>
@@ -1743,7 +1761,7 @@ function renderDashBody(){
     </div>
     <div class="card scroll-x">
       <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3></div>
-      <table style="margin-top:10px"><thead><tr><th>Job</th><th>Nhân viên</th><th>Bộ phận</th><th>Bản vẽ</th><th>Công đoạn</th><th>Trạng thái</th><th>Thời gian</th></tr></thead>
+      <table style="margin-top:10px"><thead><tr><th>${t('th_job')}</th><th>${t('th_employee')}</th><th>${t('th_dept')}</th><th>${t('th_drawing')}</th><th>${t('th_stage')}</th><th>${t('col_status')}</th><th>${t('th_time')}</th></tr></thead>
       <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Không có dữ liệu.</td></tr>`}</tbody></table>
     </div>`;
 }
@@ -2300,7 +2318,7 @@ function renderMasterBody(){
           <h3 style="margin:0;font-size:14px">Danh sách người dùng</h3>
           <button class="btn btn-sm btn-primary" onclick="openAddUser()">${icon('plus',14)} Thêm người dùng</button>
         </div>
-        <table><thead><tr><th>Tên</th><th>Mã NV</th><th>Bộ phận</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+        <table><thead><tr><th>${t('th_name')}</th><th>${t('th_emp_code')}</th><th>${t('th_dept')}</th><th>${t('th_role')}</th><th>${t('col_status')}</th><th></th></tr></thead>
         <tbody>${USERS.filter(u=>u.status!=='pending').map(u=>`<tr>
           <td>${u.name}</td><td class="mono">${u.code}</td><td>${u.dept}</td>
           <td><span class="badge badge-info">${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]}</span></td>
@@ -2328,12 +2346,12 @@ function renderDrawingTable(){
       <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
     </td></tr>`;
   }).join('');
-  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Phiên bản hiện tại</th><th>Ngày phát hành</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
 }
 function openVersionHistory(code){
   const d=DRAWINGS.find(x=>x.code===code);
   openModal('Lịch sử phiên bản — '+code, `
-    <table><thead><tr><th>Phiên bản</th><th>Ngày phát hành</th></tr></thead>
+    <table><thead><tr><th>${t('th_version')}</th><th>${t('th_issue_date')}</th></tr></thead>
     <tbody>${d.versions.map(v=>`<tr><td class="mono">${v.version}</td><td class="mono">${v.issueDate||'—'}</td></tr>`).join('')}</tbody></table>
   `, [{label:t('close'), onClick:closeModal}]);
 }
@@ -2546,7 +2564,7 @@ function renderJobTable(){
     <td style="max-width:180px;font-size:12px;color:var(--text-mute)">${o.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openJobForm('${o.code}')">${t('edit')}</button>
     <button class="btn btn-ghost btn-sm" onclick="deleteJobConfirm('${o.code}')">${t('delete')}</button></td></tr>`).join('');
-  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>Mã Job</th><th>Tên</th><th>Ngày cần giao</th><th>Ưu tiên</th><th>Memo</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+  document.getElementById('jobTableWrap').innerHTML=`<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
 }
 function openJobForm(code){
   const existing = code? ORDERS.find(o=>o.code===code) : null;
