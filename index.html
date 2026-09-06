@@ -368,8 +368,11 @@ tr.row-click:hover td{background:var(--surface-2);}
         <div class="grid-cols g2">
           <div class="field"><label>Mã nhân viên</label><input id="rg-code" placeholder="NV0xx"></div>
           <div class="field"><label>Bộ phận</label>
-            <select id="rg-dept"></select>
+            <select id="rg-dept" onchange="document.getElementById('rg-dept-other').classList.toggle('hidden', this.value!=='__other__')"></select>
           </div>
+        </div>
+        <div class="field">
+          <input id="rg-dept-other" class="hidden" placeholder="Nhập tên bộ phận mới…">
         </div>
         <div class="field"><label>Tên đăng nhập</label><input id="rg-user" placeholder="vd: an.nv"></div>
         <div class="field"><label>Mật khẩu</label><input id="rg-pass" type="password"></div>
@@ -394,7 +397,8 @@ tr.row-click:hover td{background:var(--surface-2);}
         <div class="avatar" id="uAvatar">–</div>
         <div class="who"><b id="uName">–</b><span id="uMeta">–</span></div>
       </div>
-      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px;justify-content:flex-start" onclick="logout()">↩ Đăng xuất</button>
+      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:6px;justify-content:flex-start" onclick="openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
+      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:4px;justify-content:flex-start" onclick="logout()">↩ Đăng xuất</button>
     </div>
   </aside>
 
@@ -617,8 +621,23 @@ function mapJob(j){
   return {code:j.code, name_vi:j.name_vi, name_en:j.name_en, name_ja:j.name_ja, planDate:j.plan_date, priority:j.priority, memo:j.memo||''};
 }
 function mapDrawing(d, versions){
-  return {code:d.code, name:d.name, job:d.job_code, qty:d.qty,
+  return {code:d.code, name:d.name, job:d.job_code,
     versions:(versions&&versions.length)? versions.map(v=>({version:v.version, issueDate:v.issue_date})) : [{version:'-',issueDate:'-'}]};
+}
+/** Chuẩn hoá 1 ô ngày tháng đọc từ Excel thành chuỗi 'YYYY-MM-DD'.
+    Excel lưu ngày dưới dạng số serial hoặc Date tuỳ cách nhập/định dạng cột,
+    nên sheet_to_json có thể trả về Date, số, hoặc chuỗi — cần xử lý cả 3. */
+function excelDateToISO(v){
+  if(v===null||v===undefined||v==='') return '';
+  if(v instanceof Date && !isNaN(v)){
+    return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+  }
+  if(typeof v==='number'){
+    const ms=Math.round((v-25569)*86400000); // 25569 = số ngày từ mốc Excel (1899-12-30) đến 1970-01-01
+    const dt=new Date(ms);
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;
+  }
+  return String(v).trim();
 }
 function mapTimelog(l, drawCodes){
   return {id:l.id, user:l.user_id, job:l.job_code, drawingCodes:drawCodes||[], drawingName:l.drawing_name,
@@ -634,7 +653,8 @@ function mapNotif(n){
     Gọi lại sau khi đăng nhập và sau khi có thay đổi cần đồng bộ lại toàn bộ. */
 async function loadCoreData(){
   const [{data:depts}, {data:stages}, {data:profiles}, {data:jobs}, {data:drawings}, {data:versions},
-         {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:notifs}]
+         {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:notifs},
+         {data:editReqs}]
     = await Promise.all([
       supabase.from('depts').select('*'),
       supabase.from('stages').select('*').order('sort_order'),
@@ -648,6 +668,7 @@ async function loadCoreData(){
       supabase.from('timelogs').select('*').order('start_at'),
       supabase.from('timelog_drawings').select('*'),
       supabase.from('notifs').select('*').order('created_at'),
+      supabase.from('edit_requests').select('*').order('created_at'),
     ]);
 
   DEPT_NAME_BY_ID={}; DEPT_ID_BY_NAME={};
@@ -687,6 +708,8 @@ async function loadCoreData(){
   }));
 
   NOTIFS=(notifs||[]).map(mapNotif);
+
+  EDIT_REQUESTS=(editReqs||[]).map(r=>({id:r.id, userId:r.user_id, userName:nameById[r.user_id]||'—', message:r.message, status:r.status, createdAt:new Date(r.created_at).toLocaleString('vi-VN')}));
 }
 
 /* ---------------- Dữ liệu mẫu Mua hàng (chưa nối Supabase — giai đoạn kế tiếp) ---------------- */
@@ -713,6 +736,7 @@ let PURCHASE_ITEMS = [
 ];
 
 let NOTIFS = [];
+let EDIT_REQUESTS = [];
 
 /* ---------------- Session / State ---------------- */
 let SESSION=null;
@@ -725,11 +749,14 @@ async function showPane(name){
   });
   if(name==='register'){
     const sel=document.getElementById('rg-dept');
-    sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+    const otherOpt=`<option value="__other__">Khác (nhập tay)…</option>`;
+    sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('')+otherOpt;
     if(!DEPTS.length){
       await loadDeptsPublic();
-      sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('');
+      sel.innerHTML=DEPTS.map(d=>`<option>${d}</option>`).join('')+otherOpt;
     }
+    document.getElementById('rg-dept-other').classList.add('hidden');
+    document.getElementById('rg-dept-other').value='';
   }
 }
 /** Nạp danh sách bộ phận trước khi đăng nhập (màn hình đăng ký cần nó). */
@@ -769,22 +796,32 @@ function forgotFlow(mode){
 async function doRegister(){
   const name=document.getElementById('rg-name').value.trim();
   const code=document.getElementById('rg-code').value.trim();
-  const dept=document.getElementById('rg-dept').value;
+  const deptSel=document.getElementById('rg-dept').value;
+  const deptOther=document.getElementById('rg-dept-other').value.trim();
   const user=document.getElementById('rg-user').value.trim();
   const pass=document.getElementById('rg-pass').value;
   const m=document.getElementById('regMsg');
-  if(!name||!code||!user||!pass){ m.textContent='Vui lòng điền đầy đủ thông tin.'; m.style.color='var(--danger)'; return; }
+  if(deptSel==='__other__' && !deptOther){ m.textContent='Nhập tên bộ phận mới.'; m.style.color='var(--danger)'; return; }
+  const dept = deptSel==='__other__' ? deptOther : deptSel;
+  if(!name||!code||!user||!pass||!dept){ m.textContent='Vui lòng điền đầy đủ thông tin.'; m.style.color='var(--danger)'; return; }
   if(pass.length<6){ m.textContent='Mật khẩu cần ít nhất 6 ký tự.'; m.style.color='var(--danger)'; return; }
   m.textContent='Đang đăng ký…'; m.style.color='var(--text-dim)';
   const {data:signUpData, error:signUpErr}=await supabase.auth.signUp({email:user+AUTH_EMAIL_DOMAIN, password:pass});
   if(signUpErr){ m.textContent = /already|registered/i.test(signUpErr.message)?'Tên đăng nhập đã tồn tại.':'Lỗi đăng ký: '+signUpErr.message; m.style.color='var(--danger)'; return; }
+  let deptId=DEPT_ID_BY_NAME[dept];
+  if(!deptId){
+    const {data:newDept, error:deptErr}=await supabase.from('depts').insert({name:dept}).select().single();
+    if(deptErr){ m.textContent='Lỗi tạo bộ phận mới: '+deptErr.message; m.style.color='var(--danger)'; await supabase.auth.signOut(); return; }
+    deptId=newDept.id; DEPT_ID_BY_NAME[dept]=deptId; DEPT_NAME_BY_ID[deptId]=dept; DEPTS.push(dept);
+  }
   const {error:profErr}=await supabase.from('profiles').insert({
-    id:signUpData.user.id, name, code, username:user, dept_id:DEPT_ID_BY_NAME[dept]||null, role:'employee', status:'pending'
+    id:signUpData.user.id, name, code, username:user, dept_id:deptId, role:'employee', status:'pending'
   });
   await supabase.auth.signOut();
   if(profErr){ m.textContent='Lỗi tạo hồ sơ: '+profErr.message; m.style.color='var(--danger)'; return; }
   m.textContent='Đăng ký thành công! Tài khoản đang chờ Admin duyệt.'; m.style.color='var(--solder)';
-  ['rg-name','rg-code','rg-user','rg-pass'].forEach(id=>document.getElementById(id).value='');
+  ['rg-name','rg-code','rg-user','rg-pass','rg-dept-other'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('rg-dept-other').classList.add('hidden');
 }
 async function logout(){
   await supabase.auth.signOut();
@@ -1081,12 +1118,16 @@ function refreshAssignTargets(){
   const dept=document.getElementById('asg-dept').value;
   const broadcast=document.getElementById('asg-broadcast').checked;
   const wrap=document.getElementById('asg-to-wrap');
-  const list=USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept));
   if(broadcast){
+    // Giao hàng loạt vẫn chỉ áp dụng cho nhân viên trong bộ phận (không gồm quản lý/admin).
+    const list=USERS.filter(u=>u.status==='active'&&u.role==='employee'&&(!dept||u.dept===dept));
     wrap.innerHTML=`<label>Người nhận</label><p style="font-size:12.5px;color:var(--text-dim);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:9px 11px;margin:0">
       Sẽ giao cho <b>${list.length}</b> nhân viên${dept?` thuộc bộ phận ${dept}`:' (tất cả bộ phận)'}.</p>`;
   } else {
-    wrap.innerHTML=`<label>Chọn nhân viên</label><select id="asg-to">${list.map(u=>`<option value="${u.id}">${u.name} (${u.dept})</option>`).join('')||'<option value="">— không có nhân viên —</option>'}</select>`;
+    // Giao cho 1 người cụ thể: cho phép chọn bất kỳ user nào khác (kể cả quản lý), không chỉ nhân viên.
+    const list=USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id&&(!dept||u.dept===dept));
+    const roleLbl={admin:'Admin',manager:'Quản lý',employee:'Nhân viên'};
+    wrap.innerHTML=`<label>Chọn người nhận</label><select id="asg-to">${list.map(u=>`<option value="${u.id}">${u.name} (${u.dept} · ${roleLbl[u.role]})</option>`).join('')||'<option value="">— không có người phù hợp —</option>'}</select>`;
   }
 }
 function assignRowManage(a){
@@ -1383,7 +1424,7 @@ async function submitAddTask(){
 }
 
 /* ---------------- DASHBOARD ---------------- */
-let dashDrawState={page:1, pageSize:10, sig:''};
+let dashDrawState={page:1, pageSize:10, sig:'', statusFilter:''};
 function renderDashboard(){
   document.getElementById('viewRoot').innerHTML=`
     <div class="view-head">
@@ -1462,7 +1503,7 @@ function renderDashBody(){
     (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
   );
   const scopedDrawings = (fJob? DRAWINGS.filter(d=>d.job===fJob) : DRAWINGS.slice());
-  const drawStats = scopedDrawings.map(d=>{
+  const allDrawStats = scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
     const doneD=matching.some(l=>l.status==='done');
     const started=matching.length>0;
@@ -1470,10 +1511,11 @@ function renderDashBody(){
     const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1),0);
     return {d, state, dMs};
   });
-  const cntTotalD=drawStats.length, cntDone=drawStats.filter(x=>x.state==='done').length,
-        cntProgress=drawStats.filter(x=>x.state==='progress').length, cntIdle=drawStats.filter(x=>x.state==='idle').length;
-  const jobTotalMs=drawStats.reduce((s,x)=>s+x.dMs,0);
+  const cntTotalD=allDrawStats.length, cntDone=allDrawStats.filter(x=>x.state==='done').length,
+        cntProgress=allDrawStats.filter(x=>x.state==='progress').length, cntIdle=allDrawStats.filter(x=>x.state==='idle').length;
+  const jobTotalMs=allDrawStats.reduce((s,x)=>s+x.dMs,0);
 
+  const drawStats = dashDrawState.statusFilter? allDrawStats.filter(x=>x.state===dashDrawState.statusFilter) : allDrawStats;
   const pageSize = dashDrawState.pageSize==='all' ? drawStats.length||1 : dashDrawState.pageSize;
   const pageCount = Math.max(1, Math.ceil(drawStats.length/pageSize));
   if(dashDrawState.page>pageCount) dashDrawState.page=pageCount;
@@ -1489,13 +1531,21 @@ function renderDashBody(){
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <h3 style="margin:0;font-size:14px">${fJob?`Toàn bộ bản vẽ của Job ${fJob}`:'Toàn bộ bản vẽ trong Master'} <span style="color:var(--text-mute);font-weight:400">(kể cả bản vẽ chưa từng thực hiện)</span></h3>
-        <div style="font-size:12.5px;color:var(--text-dim)">Tổng thời gian đã làm: <b class="mono" style="color:var(--copper-hi)">${fmtDur(jobTotalMs)}</b></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select onchange="dashDrawStatusChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12.5px">
+            <option value="" ${!dashDrawState.statusFilter?'selected':''}>Tất cả trạng thái</option>
+            <option value="idle" ${dashDrawState.statusFilter==='idle'?'selected':''}>Chưa làm</option>
+            <option value="progress" ${dashDrawState.statusFilter==='progress'?'selected':''}>Đang làm</option>
+            <option value="done" ${dashDrawState.statusFilter==='done'?'selected':''}>Đã hoàn thành</option>
+          </select>
+          <div style="font-size:12.5px;color:var(--text-dim)">Tổng thời gian đã làm: <b class="mono" style="color:var(--copper-hi)">${fmtDur(jobTotalMs)}</b></div>
+        </div>
       </div>
       <div class="grid-cols g4" style="margin-top:12px">
-        <div class="stat-card"><div class="num">${cntTotalD}</div><div class="lbl">Tổng số bản vẽ</div></div>
-        <div class="stat-card accent-amber"><div class="num">${cntProgress}</div><div class="lbl">Đang làm</div></div>
-        <div class="stat-card accent-solder"><div class="num">${cntDone}</div><div class="lbl">Đã hoàn thành</div></div>
-        <div class="stat-card accent-danger"><div class="num">${cntIdle}</div><div class="lbl">Chưa làm</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="dashDrawStatusChange('')"><div class="num">${cntTotalD}</div><div class="lbl">Tổng số bản vẽ</div></div>
+        <div class="stat-card accent-amber" style="cursor:pointer" onclick="dashDrawStatusChange('progress')"><div class="num">${cntProgress}</div><div class="lbl">Đang làm</div></div>
+        <div class="stat-card accent-solder" style="cursor:pointer" onclick="dashDrawStatusChange('done')"><div class="num">${cntDone}</div><div class="lbl">Đã hoàn thành</div></div>
+        <div class="stat-card accent-danger" style="cursor:pointer" onclick="dashDrawStatusChange('idle')"><div class="num">${cntIdle}</div><div class="lbl">Chưa làm</div></div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;color:var(--text-mute)">Hiển thị ${drawStats.length?startIdx+1:0}–${Math.min(startIdx+pageSize,drawStats.length)} / ${drawStats.length} bản vẽ</div>
@@ -1548,6 +1598,7 @@ function renderDashBody(){
 }
 function dashDrawPageChange(delta){ dashDrawState.page+=delta; renderDashBody(); }
 function dashDrawPageSizeChange(v){ dashDrawState.pageSize = v==='all'?'all':Number(v); dashDrawState.page=1; renderDashBody(); }
+function dashDrawStatusChange(v){ dashDrawState.statusFilter=v; dashDrawState.page=1; renderDashBody(); }
 function exportDashboardReport(){
   const fJob=document.getElementById('fJob').value, fUser=document.getElementById('fUser').value,
         fDept=document.getElementById('fDept').value, fStatus=document.getElementById('fStatus').value,
@@ -2073,7 +2124,18 @@ function renderMasterBody(){
       </div>`).join('')}</div>`;
   } else {
     const pendingUsers=USERS.filter(u=>u.status==='pending');
+    const pendingRequests=EDIT_REQUESTS.filter(r=>r.status==='pending');
     body.innerHTML=`
+      ${pendingRequests.length?`<div class="card" style="border-color:var(--info)">
+        <h3 style="margin-top:0;font-size:14px;color:var(--info)">Yêu cầu chỉnh sửa tài khoản (${pendingRequests.length})</h3>
+        ${pendingRequests.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-soft)">
+          <div><span style="font-size:13px"><b>${r.userName}</b> · ${r.createdAt}</span><div style="font-size:12.5px;color:var(--text-dim);margin-top:2px">${r.message}</div></div>
+          <div style="display:flex;gap:6px;white-space:nowrap">
+            <button class="btn btn-sm" onclick="openEditUserByRequest('${r.userId}')">Sửa tài khoản</button>
+            <button class="btn btn-sm btn-ghost" onclick="resolveEditRequest('${r.id}')">Đã xử lý</button>
+          </div>
+        </div>`).join('')}
+      </div>`:''}
       ${pendingUsers.length?`<div class="card" style="border-color:var(--amber)">
         <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Tài khoản chờ duyệt (${pendingUsers.length})</h3>
         ${pendingUsers.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-soft)">
@@ -2091,7 +2153,11 @@ function renderMasterBody(){
           <td>${u.name}</td><td class="mono">${u.code}</td><td>${u.dept}</td>
           <td><span class="badge badge-info">${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]}</span></td>
           <td>${u.status==='active'?'<span class="badge badge-done">Hoạt động</span>':'<span class="badge badge-danger">Đã khoá</span>'}</td>
-          <td><button class="btn btn-ghost btn-sm" onclick="toggleLock('${u.id}')">${u.status==='active'?'Khoá':'Mở khoá'}</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openEditUser('${u.id}')">Sửa</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleLock('${u.id}')">${u.status==='active'?'Khoá':'Mở khoá'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteUserConfirm('${u.id}')">Xoá</button>
+          </td>
         </tr>`).join('')}</tbody></table>
       </div>`;
   }
@@ -2103,14 +2169,14 @@ function renderDrawingTable(){
   const rows=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q)).map(d=>{
     const lv=latestVersion(d);
     return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
-    <td class="mono">${lv.version}</td><td class="mono">${lv.issueDate}</td><td class="mono">${d.qty}</td>
+    <td class="mono">${lv.version}</td><td class="mono">${lv.issueDate}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-ghost btn-sm" onclick="openVersionHistory('${d.code}')">🕘 Lịch sử</button>
       <button class="btn btn-ghost btn-sm" onclick="openDrawingForm('${d.code}')">${t('edit')}</button>
       <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
     </td></tr>`;
   }).join('');
-  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Phiên bản hiện tại</th><th>Ngày phát hành</th><th>SL</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+  document.getElementById('drawingTableWrap').innerHTML=`<table><thead><tr><th>Mã BV</th><th>Tên bản vẽ</th><th>Job</th><th>Phiên bản hiện tại</th><th>Ngày phát hành</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
 }
 function openVersionHistory(code){
   const d=DRAWINGS.find(x=>x.code===code);
@@ -2130,7 +2196,6 @@ function openDrawingForm(code){
       <div class="field"><label>Job</label><select id="nd-job">${jobOpts}</select></div>
     </div>
     <div class="field"><label>Tên bản vẽ</label><input id="nd-name" value="${existing?existing.name.replace(/"/g,'&quot;'):''}"></div>
-    <div class="field"><label>Số lượng</label><input id="nd-qty" type="number" value="${existing?existing.qty:0}"></div>
     <div class="field">
       <label>Phiên bản &amp; ngày phát hành (dòng cuối = phiên bản hiện hành)</label>
       <div id="versionRows"></div>
@@ -2155,33 +2220,32 @@ async function saveDrawingForm(editingCode){
   const code=document.getElementById('nd-code').value.trim();
   const name=document.getElementById('nd-name').value.trim();
   const job=document.getElementById('nd-job').value;
-  const qty=Number(document.getElementById('nd-qty').value)||0;
   if(!code){ toast('Nhập mã bản vẽ.','err'); return; }
   const versions = drawFormVersions.filter(v=>v.version.trim()).map(v=>({version:v.version.trim(), issueDate:v.issueDate}));
   if(!versions.length){ toast('Cần ít nhất 1 phiên bản.','err'); return; }
 
-  const {error:dErr}=await supabase.from('drawings').upsert({code, name, job_code:job||null, qty});
+  const {error:dErr}=await supabase.from('drawings').upsert({code, name, job_code:job||null});
   if(dErr){ toast('Lỗi lưu bản vẽ: '+dErr.message,'err'); return; }
   await supabase.from('drawing_versions').delete().eq('drawing_code',code);
   const {error:vErr}=await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
   if(vErr){ toast('Lỗi lưu phiên bản: '+vErr.message,'err'); return; }
 
   const idx=DRAWINGS.findIndex(d=>d.code===code);
-  if(idx>-1){ DRAWINGS[idx]={...DRAWINGS[idx], name, job, qty, versions}; }
-  else { DRAWINGS.push({code,name,job,qty,versions}); }
+  if(idx>-1){ DRAWINGS[idx]={...DRAWINGS[idx], name, job, versions}; }
+  else { DRAWINGS.push({code,name,job,versions}); }
   closeModal(); renderMasterBody();
   toast(editingCode?'Đã cập nhật bản vẽ.':'Đã thêm bản vẽ.', 'ok');
 }
 function downloadDrawingTemplate(){
-  const header=['Ma Job','Ma ban ve','Ten ban ve','Phien ban','Ngay phat hanh (YYYY-MM-DD)','So luong'];
+  const header=['Ma Job','Ma ban ve','Ten ban ve','Phien ban','Ngay phat hanh (YYYY-MM-DD)'];
   const sample=[
-    ['JOB-2026-014','BV-2001','Mach vi du Rev A','A','2026-09-01', 100],
-    ['JOB-2026-014','BV-2001','Mach vi du Rev B','B','2026-09-10', 100],
+    ['JOB-2026-014','BV-2001','Mach vi du Rev A','A','2026-09-01'],
+    ['JOB-2026-014','BV-2001','Mach vi du Rev B','B','2026-09-10'],
   ];
   try{
     const wb=XLSX.utils.book_new();
     const ws=XLSX.utils.aoa_to_sheet([header, ...sample]);
-    ws['!cols']=[{wch:16},{wch:14},{wch:26},{wch:10},{wch:24},{wch:10}];
+    ws['!cols']=[{wch:16},{wch:14},{wch:26},{wch:10},{wch:24}];
     XLSX.utils.book_append_sheet(wb, ws, 'Template Ban ve');
     XLSX.writeFile(wb,'Template_BanVe.xlsx');
     toast('Đã tải template bản vẽ.','ok');
@@ -2195,64 +2259,76 @@ function downloadDrawingTemplate(){
 function importDrawingsExcel(input){
   const file=input.files[0]; if(!file) return;
   const applyRows=async (rawRows)=>{
-    let added=0, updated=0;
+    let added=0, updated=0, failed=0;
     const grouped={};
     rawRows.forEach(r=>{
       if(!r.code) return;
-      if(!grouped[r.code]) grouped[r.code]={job:r.job||'', name:r.name||'', qty:r.qty||0, versions:[]};
+      if(!grouped[r.code]) grouped[r.code]={job:r.job||'', name:r.name||'', versions:[]};
       grouped[r.code].versions.push({version:r.version||'A', issueDate:r.issueDate||''});
       if(r.name) grouped[r.code].name=r.name;
       if(r.job) grouped[r.code].job=r.job;
-      if(r.qty) grouped[r.code].qty=r.qty;
     });
     for(const code of Object.keys(grouped)){
       const g=grouped[code];
+      if(g.job && !ORDERS.some(o=>o.code===g.job)){
+        console.error(`Bỏ qua bản vẽ ${code}: Job "${g.job}" chưa tồn tại trong Master → Job.`);
+        failed++; continue;
+      }
       const hasHistory=TIMELOGS.some(l=>l.drawingCodes.includes(code));
       const idx=DRAWINGS.findIndex(d=>d.code===code);
       if(idx>-1){
         if(!hasHistory){
-          const name=g.name||DRAWINGS[idx].name, job=g.job||DRAWINGS[idx].job, qty=g.qty||DRAWINGS[idx].qty;
+          const name=g.name||DRAWINGS[idx].name, job=g.job||DRAWINGS[idx].job;
           const versions=g.versions.length?g.versions:DRAWINGS[idx].versions;
-          await supabase.from('drawings').update({name, job_code:job||null, qty}).eq('code',code);
+          const {error:e1}=await supabase.from('drawings').update({name, job_code:job||null}).eq('code',code);
+          if(e1){ console.error(e1); failed++; continue; }
           await supabase.from('drawing_versions').delete().eq('drawing_code',code);
-          await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
-          DRAWINGS[idx]={...DRAWINGS[idx], name, job, qty, versions};
+          const {error:e2}=await supabase.from('drawing_versions').insert(versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+          if(e2){ console.error(e2); failed++; continue; }
+          DRAWINGS[idx]={...DRAWINGS[idx], name, job, versions};
         } else {
           const newOnes=g.versions.filter(v=>!DRAWINGS[idx].versions.some(ev=>ev.version===v.version));
-          if(newOnes.length) await supabase.from('drawing_versions').insert(newOnes.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+          if(newOnes.length){
+            const {error:e3}=await supabase.from('drawing_versions').insert(newOnes.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+            if(e3){ console.error(e3); failed++; continue; }
+          }
           newOnes.forEach(v=>DRAWINGS[idx].versions.push(v));
         }
         updated++;
       } else {
-        await supabase.from('drawings').insert({code, name:g.name||'', job_code:g.job||null, qty:g.qty||0});
-        await supabase.from('drawing_versions').insert(g.versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
-        DRAWINGS.push({code, name:g.name||'', job:g.job||'', qty:g.qty||0, versions:g.versions});
+        const {error:e4}=await supabase.from('drawings').insert({code, name:g.name||'', job_code:g.job||null});
+        if(e4){ console.error(e4); failed++; continue; }
+        const {error:e5}=await supabase.from('drawing_versions').insert(g.versions.map(v=>({drawing_code:code, version:v.version, issue_date:v.issueDate||null})));
+        if(e5){ console.error(e5); failed++; continue; }
+        DRAWINGS.push({code, name:g.name||'', job:g.job||'', versions:g.versions});
         added++;
       }
     }
     renderMasterBody();
-    toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ.`,'ok');
+    const failMsg = failed? `, lỗi ${failed} dòng (mở Console trình duyệt để xem chi tiết — thường do Job chưa tồn tại trong Master → Job)` : '';
+    toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ${failMsg}.`, failed?'err':'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){
     const reader=new FileReader();
     reader.onload=e=>{
       const lines=e.target.result.split(/\r?\n/).filter(Boolean);
-      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {job:c[0],code:c[1],name:c[2],version:c[3]||'A',issueDate:c[4]||'',qty:Number(c[5])||0};}));
+      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {job:c[0],code:c[1],name:c[2],version:c[3]||'A',issueDate:excelDateToISO(c[4])};}))
+        .catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
     };
     reader.readAsText(file);
   } else {
     const reader=new FileReader();
     reader.onload=e=>{
       try{
-        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array', cellDates:true});
         let rows=[];
         wb.SheetNames.forEach(sn=>{
           const json=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});
-          json.slice(1).forEach(r=>{ if(r[1]) rows.push({job:r[0]||'', code:String(r[1]), name:r[2]||'', version:r[3]||'A', issueDate:r[4]||'', qty:Number(r[5])||0}); });
+          json.slice(1).forEach(r=>{ if(r[1]) rows.push({job:String(r[0]||'').trim(), code:String(r[1]).trim(), name:r[2]||'', version:r[3]||'A', issueDate:excelDateToISO(r[4])}); });
         });
-        applyRows(rows);
-      }catch(err){ toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
+        applyRows(rows).catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
+      }catch(err){ console.error(err); toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
     };
     reader.readAsArrayBuffer(file);
   }
@@ -2343,39 +2419,41 @@ function downloadJobTemplate(){
 function importJobsExcel(input){
   const file=input.files[0]; if(!file) return;
   const applyRows=async (rows)=>{
-    let added=0, updated=0;
+    let added=0, updated=0, failed=0;
     for(const r of rows){
       if(!r.code) continue;
       const idx=ORDERS.findIndex(o=>o.code===r.code);
       const data={code:r.code, name_vi:r.name_vi||'', name_en:r.name_en||'', name_ja:r.name_ja||'', planDate:r.planDate||'', priority:r.priority||'medium', memo:r.memo||''};
       const merged = idx>-1 ? {...ORDERS[idx], ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))} : data;
       const {error}=await supabase.from('jobs').upsert({code:merged.code, name_vi:merged.name_vi, name_en:merged.name_en, name_ja:merged.name_ja, plan_date:merged.planDate||null, priority:merged.priority, memo:merged.memo});
-      if(error){ console.error(error); continue; }
+      if(error){ console.error(error); failed++; continue; }
       if(idx>-1){ ORDERS[idx]=merged; updated++; } else { ORDERS.push(merged); added++; }
     }
     renderMasterBody();
-    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job.`,'ok');
+    const failMsg = failed? `, lỗi ${failed} dòng (mở Console trình duyệt để xem chi tiết)` : '';
+    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job${failMsg}.`, failed?'err':'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){
     const reader=new FileReader();
     reader.onload=e=>{
       const lines=e.target.result.split(/\r?\n/).filter(Boolean);
-      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {code:c[0],name_vi:c[1],name_en:c[2],name_ja:c[3],planDate:c[4],priority:c[5],memo:c[6]};}));
+      applyRows(lines.slice(1).map(l=>{const c=l.split(','); return {code:c[0],name_vi:c[1],name_en:c[2],name_ja:c[3],planDate:excelDateToISO(c[4]),priority:c[5],memo:c[6]};}))
+        .catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
     };
     reader.readAsText(file);
   } else {
     const reader=new FileReader();
     reader.onload=e=>{
       try{
-        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array', cellDates:true});
         let rows=[];
         wb.SheetNames.forEach(sn=>{
           const json=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1});
-          json.slice(1).forEach(r=>{ if(r[0]) rows.push({code:String(r[0]), name_vi:r[1]||'', name_en:r[2]||'', name_ja:r[3]||'', planDate:r[4]||'', priority:r[5]||'medium', memo:r[6]||''}); });
+          json.slice(1).forEach(r=>{ if(r[0]) rows.push({code:String(r[0]), name_vi:r[1]||'', name_en:r[2]||'', name_ja:r[3]||'', planDate:excelDateToISO(r[4]), priority:r[5]||'medium', memo:r[6]||''}); });
         });
-        applyRows(rows);
-      }catch(err){ toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
+        applyRows(rows).catch(err=>{ console.error(err); toast('Lỗi khi nhập: '+err.message,'err'); });
+      }catch(err){ console.error(err); toast('Không đọc được Excel — thử lại khi có kết nối mạng, hoặc dùng .csv.','err'); }
     };
     reader.readAsArrayBuffer(file);
   }
@@ -2424,6 +2502,73 @@ async function toggleLock(id){
   const {error}=await supabase.from('profiles').update({status:newStatus}).eq('id',id);
   if(error){ toast('Lỗi cập nhật trạng thái: '+error.message,'err'); return; }
   u.status=newStatus; renderMasterBody(); toast('Đã cập nhật trạng thái tài khoản.','ok');
+}
+function openEditUser(id){
+  const u=USERS.find(x=>x.id===id);
+  if(!u) return;
+  openModal('Sửa người dùng — '+u.name, `
+    <div class="grid-cols g2">
+      <div class="field"><label>Họ tên</label><input id="eu-name" value="${u.name.replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Mã NV</label><input id="eu-code" value="${u.code.replace(/"/g,'&quot;')}"></div>
+    </div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Bộ phận</label><select id="eu-dept">${DEPTS.map(d=>`<option ${d===u.dept?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="field"><label>Vai trò</label><select id="eu-role">
+        <option value="employee" ${u.role==='employee'?'selected':''}>Nhân viên</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>Quản lý</option>
+        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+      </select></div>
+    </div>
+  `, [{label:t('save'), primary:true, onClick:()=>saveEditUser(id)}]);
+}
+async function saveEditUser(id){
+  const u=USERS.find(x=>x.id===id);
+  const name=document.getElementById('eu-name').value.trim();
+  const code=document.getElementById('eu-code').value.trim();
+  const dept=document.getElementById('eu-dept').value;
+  const role=document.getElementById('eu-role').value;
+  if(!name||!code){ toast('Nhập đầy đủ họ tên và mã nhân viên.','err'); return; }
+  const {error}=await supabase.from('profiles').update({name, code, dept_id:DEPT_ID_BY_NAME[dept]||null, role}).eq('id',id);
+  if(error){ toast('Lỗi cập nhật người dùng: '+error.message,'err'); return; }
+  Object.assign(u,{name,code,dept,role});
+  if(SESSION && SESSION.id===id) Object.assign(SESSION,{name,code,dept,role});
+  closeModal(); renderMasterBody(); toast('Đã cập nhật thông tin người dùng.','ok');
+}
+function deleteUserConfirm(id){
+  const u=USERS.find(x=>x.id===id);
+  if(!u) return;
+  openModal('Xoá người dùng — '+u.name, `<p style="font-size:13px">Bạn có chắc muốn xoá tài khoản này? Hành động này không thể hoàn tác.</p>`,
+    [{label:t('delete'), primary:true, danger:true, onClick:async ()=>{
+      const {error}=await supabase.from('profiles').delete().eq('id',id);
+      if(error){
+        const msg = /foreign key|violates/i.test(error.message)
+          ? 'Không thể xoá vì tài khoản này đã có dữ liệu liên quan (nhiệm vụ/chấm công). Dùng chức năng "Khoá" thay thế.'
+          : 'Lỗi xoá người dùng: '+error.message;
+        toast(msg,'err'); return;
+      }
+      USERS=USERS.filter(x=>x.id!==id); closeModal(); renderMasterBody(); toast('Đã xoá người dùng.','ok');
+    }}]);
+}
+function openEditUserByRequest(userId){ openEditUser(userId); }
+function openEditRequestForm(){
+  openModal('Gửi yêu cầu chỉnh sửa tài khoản', `
+    <p style="font-size:12.5px;color:var(--text-dim)">Mô tả thông tin bạn muốn Admin chỉnh sửa (tên, mã NV, bộ phận, vai trò…). Admin sẽ xem và cập nhật giúp bạn.</p>
+    <div class="field"><textarea id="er-message" rows="4" placeholder="Vd: Đổi bộ phận của tôi sang Kho…"></textarea></div>
+  `, [{label:'Gửi yêu cầu', primary:true, onClick:submitEditRequest}]);
+}
+async function submitEditRequest(){
+  const msg=document.getElementById('er-message').value.trim();
+  if(!msg){ toast('Nhập nội dung yêu cầu.','err'); return; }
+  const {data,error}=await supabase.from('edit_requests').insert({user_id:SESSION.id, message:msg}).select().single();
+  if(error){ toast('Lỗi gửi yêu cầu: '+error.message,'err'); return; }
+  EDIT_REQUESTS.push({id:data.id, userId:SESSION.id, userName:SESSION.name, message:msg, status:'pending', createdAt:new Date(data.created_at).toLocaleString('vi-VN')});
+  closeModal(); toast('Đã gửi yêu cầu tới Admin.','ok');
+}
+async function resolveEditRequest(id){
+  const {error}=await supabase.from('edit_requests').update({status:'done'}).eq('id',id);
+  if(error){ toast('Lỗi cập nhật yêu cầu: '+error.message,'err'); return; }
+  const r=EDIT_REQUESTS.find(x=>x.id===id); if(r) r.status='done';
+  renderMasterBody(); toast('Đã đánh dấu xử lý yêu cầu.','ok');
 }
 function openAddUser(){
   openModal('Thêm người dùng', `
