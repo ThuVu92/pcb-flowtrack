@@ -1904,17 +1904,156 @@ async function createTimelogNow(codes, job, stages, name){
 
 /* ---------------- DASHBOARD ---------------- */
 let dashDrawState={page:1, pageSize:10, sig:'', statusFilter:''};
+/** Đọc toàn bộ trạng thái bộ lọc Dashboard hiện tại từ DOM — dùng chung cho
+    renderDashBody(), exportDashboardReport(), biểu đồ theo ngày và báo cáo
+    chi phí, để tất cả luôn khớp đúng 1 bộ lọc đang hiển thị. */
+function getDashFilters(){
+  const fJobs=multiComboValues('fJob'), fUsers=multiComboValues('fUser'),
+        fDepts=multiComboValues('fDept'), fDrawings=multiComboValues('fDrawing'),
+        fStages=multiComboValues('fStage'),
+        fStatus=document.getElementById('fStatus').value, fPeriod=document.getElementById('fPeriod').value;
+  const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
+  let rangeStart=null, rangeEnd=null; const dayMs=24*3600*1000;
+  if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
+  else if(fPeriod==='7d'){ rangeStart=Date.now()-7*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='30d'){ rangeStart=Date.now()-30*dayMs; rangeEnd=Date.now(); }
+  else if(fPeriod==='custom'){ if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0); if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999); }
+  return {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd,fromEl,toEl};
+}
+function filterDashLogs(f){
+  return TIMELOGS.filter(l=>
+    (!f.fJobs.length||f.fJobs.includes(l.job)) && (!f.fUsers.length||f.fUsers.includes(l.user)) && (!f.fDepts.length||f.fDepts.includes(l.dept)) &&
+    (!f.fStatus||l.status===f.fStatus) && (!f.fDrawings.length||l.drawingCodes.some(c=>f.fDrawings.includes(c))) &&
+    (!f.fStages.length||l.stages.some(s=>f.fStages.includes(s))) &&
+    (f.rangeStart===null||l.start>=f.rangeStart) && (f.rangeEnd===null||l.start<=f.rangeEnd)
+  );
+}
+function allStageOptions(){
+  return Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i);
+}
+
+/** Gom các bản ghi (đã lọc theo bộ lọc Dashboard) thành tổng thời gian theo
+    từng NGÀY, tách thành nhiều đường nếu dim!=null (vd: đang chọn nhiều Job
+    thì mỗi Job 1 đường). Bản ghi gộp nhiều bản vẽ/công đoạn được chia đều
+    thời gian, giống cách tính "Thời gian trung bình mỗi công đoạn" ở trên. */
+function buildDailySeries(logs, dim){
+  const dayKey=(ms)=>{ const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const seriesMap={}, dayset=new Set();
+  const bump=(name, day, ms)=>{ seriesMap[name]=seriesMap[name]||{}; seriesMap[name][day]=(seriesMap[name][day]||0)+ms; };
+  logs.forEach(l=>{
+    const day=dayKey(l.start); dayset.add(day);
+    const dur=(l.end||Date.now())-l.start-l.pausedMs;
+    if(!dim){ bump('Tổng', day, dur); return; }
+    if(dim.key==='job'){
+      if(dim.values.includes(l.job)) bump(l.job||'—', day, dur);
+    } else if(dim.key==='user'){
+      if(dim.values.includes(l.user)) bump(getUserName(l.user), day, dur);
+    } else if(dim.key==='drawing'){
+      const per=dur/(l.drawingCodes.length||1);
+      l.drawingCodes.filter(c=>dim.values.includes(c)).forEach(c=>bump(c, day, per));
+    } else if(dim.key==='stage'){
+      const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
+      const per=dur/stagesArr.length;
+      stagesArr.filter(s=>dim.values.includes(s)).forEach(s=>bump(s, day, per));
+    }
+  });
+  const days=Array.from(dayset).sort();
+  const series=Object.keys(seriesMap).map(name=>({name, data:days.map(d=>seriesMap[name][d]||0)}));
+  return {days, series};
+}
+const DASH_CHART_COLORS=['#c9833f','#e0b34d','#4caf82','#5b8dd9','#d9628f','#8f7fe0','#5fbfc0','#c95f5f'];
+function renderDailyChartSVG(days, series){
+  if(!days.length || !series.length) return `<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`;
+  const W=760, H=230, padL=48, padR=14, padT=14, padB=30;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const maxMs=Math.max(1, ...series.flatMap(s=>s.data));
+  const x=(i)=> days.length>1 ? padL+(i/(days.length-1))*plotW : padL+plotW/2;
+  const y=(v)=> padT+plotH-(v/maxMs)*plotH;
+  const gridLines=[0,0.25,0.5,0.75,1].map(fr=>{
+    const yy=padT+plotH-fr*plotH;
+    return `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--border)" stroke-width="1"/><text x="${padL-6}" y="${yy+3}" text-anchor="end" font-size="10" fill="var(--text-mute)">${(fr*maxMs/3600000).toFixed(1)}h</text>`;
+  }).join('');
+  const step=Math.max(1, Math.ceil(days.length/10));
+  const xLabels=days.map((d,i)=> i%step!==0 ? '' : `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--text-mute)">${d.slice(5)}</text>`).join('');
+  const lines=series.map((s,idx)=>{
+    const color=DASH_CHART_COLORS[idx%DASH_CHART_COLORS.length];
+    const pts=s.data.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
+    const dots=s.data.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="2.5" fill="${color}"/>`).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}`;
+  }).join('');
+  const legend=series.map((s,idx)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11.5px;color:var(--text-dim)"><span style="width:10px;height:10px;border-radius:2px;background:${DASH_CHART_COLORS[idx%DASH_CHART_COLORS.length]};display:inline-block"></span>${s.name}</span>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:230px">${gridLines}${xLabels}${lines}</svg><div style="margin-top:6px">${legend}</div>`;
+}
+
+/* ---------------- Báo cáo chi phí (đơn giá/giờ x số giờ, theo bộ lọc Dashboard) ---------------- */
+function openCostReport(){
+  openModal('💰 Báo cáo chi phí', `
+    <p style="font-size:12px;color:var(--text-mute);margin-top:0">Tính theo đúng các bản ghi đang được lọc ở Dashboard hiện tại (Job/nhân viên/bộ phận/bản vẽ/công đoạn/thời kỳ).</p>
+    <div class="field"><label>Đơn giá / giờ</label><input type="number" id="costRate" min="0" step="1000" placeholder="vd: 50000"></div>
+    <div class="grid-cols g2">
+      <div class="field"><label>Đơn vị tiền tệ</label>
+        <select id="costCurrency" onchange="onCostCurrencyChange()">
+          <option value="VND">VND</option><option value="USD">USD</option><option value="JPY">JPY</option>
+          <option value="EUR">EUR</option><option value="CNY">CNY</option><option value="OTHER">Khác…</option>
+        </select>
+      </div>
+      <div class="field hidden" id="costCurrencyOtherWrap"><label>Mã tiền tệ</label><input id="costCurrencyOther" placeholder="vd: KRW" maxlength="6"></div>
+    </div>
+    <div class="field hidden" id="costFxWrap"><label>Tỷ giá quy đổi sang VND (1 đơn vị = ? VND)</label><input type="number" id="costFx" min="0" step="1" placeholder="vd: 25000"></div>
+    <div id="costResult"></div>
+  `, [{label:'Tính báo cáo', primary:true, onClick:computeCostReport}, {label:'Đóng', onClick:closeModal}]);
+}
+function onCostCurrencyChange(){
+  const v=document.getElementById('costCurrency').value;
+  document.getElementById('costCurrencyOtherWrap').classList.toggle('hidden', v!=='OTHER');
+  document.getElementById('costFxWrap').classList.toggle('hidden', v==='VND');
+}
+function computeCostReport(){
+  const rate=Number(document.getElementById('costRate').value);
+  if(!rate || rate<=0){ toast('Nhập đơn giá/giờ hợp lệ.','err'); return; }
+  let currency=document.getElementById('costCurrency').value;
+  if(currency==='OTHER') currency=(document.getElementById('costCurrencyOther').value||'').trim().toUpperCase()||'KHÁC';
+  const isVnd = currency==='VND';
+  let fx=1;
+  if(!isVnd){
+    fx=Number(document.getElementById('costFx').value);
+    if(!fx || fx<=0){ toast('Nhập tỷ giá quy đổi sang VND hợp lệ.','err'); return; }
+  }
+  const logs=filterDashLogs(getDashFilters());
+  const byUser={};
+  logs.forEach(l=>{
+    const dur=(l.end||Date.now())-l.start-l.pausedMs;
+    byUser[l.user]=(byUser[l.user]||0)+dur;
+  });
+  const fmtMoney=(n)=>n.toLocaleString('vi-VN',{maximumFractionDigits:0});
+  const rowsData=Object.keys(byUser).map(uid=>{
+    const hours=byUser[uid]/3600000;
+    return {name:getUserName(uid), hours, cost:hours*rate};
+  }).sort((a,b)=>b.cost-a.cost);
+  const totalHours=rowsData.reduce((s,r)=>s+r.hours,0), totalCost=rowsData.reduce((s,r)=>s+r.cost,0);
+  const rowsHtml=rowsData.map(r=>`<tr><td>${r.name}</td><td class="mono">${r.hours.toFixed(2)}</td><td class="mono">${fmtMoney(r.cost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(r.cost*fx)} VND</td>`:''}</tr>`).join('');
+  document.getElementById('costResult').innerHTML=`
+    <table style="margin-top:12px"><thead><tr><th>Nhân viên</th><th>Số giờ</th><th>Chi phí</th>${!isVnd?'<th>Quy đổi VND</th>':''}</tr></thead>
+    <tbody>${rowsHtml||`<tr><td colspan="${isVnd?3:4}" style="color:var(--text-mute)">Không có dữ liệu phù hợp bộ lọc.</td></tr>`}</tbody>
+    <tfoot><tr style="font-weight:600"><td>Tổng cộng</td><td class="mono">${totalHours.toFixed(2)}</td><td class="mono">${fmtMoney(totalCost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(totalCost*fx)} VND</td>`:''}</tr></tfoot>
+    </table>`;
+}
+
 function renderDashboard(){
   document.getElementById('viewRoot').innerHTML=`
     <div class="view-head">
       <div><h2>${t('dash_title')}</h2><p>${t('dash_sub')}</p></div>
-      <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="openCostReport()">💰 Báo cáo chi phí</button>
+        <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
+      </div>
     </div>
     <div class="filter-bar">
       <div style="min-width:200px">${multiComboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), 'Tất cả Job — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
       <div style="min-width:200px">${multiComboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), 'Tất cả nhân viên — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
       <div style="min-width:200px">${multiComboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), 'Tất cả bộ phận — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
       <div style="min-width:200px">${multiComboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), 'Tất cả bản vẽ — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fStage', allStageOptions().map(s=>({value:s, label:s})), 'Tất cả công đoạn — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
       <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
       <select id="fPeriod" onchange="renderDashBody()">
         <option value="">Toàn bộ thời gian</option>
@@ -1927,37 +2066,20 @@ function renderDashboard(){
       <input type="date" id="fDateTo" class="hidden" onchange="renderDashBody()">
     </div>
     <div id="dashBody"></div>`;
-  ['fJob','fUser','fDept','fDrawing'].forEach(renderMultiComboChips);
+  ['fJob','fUser','fDept','fDrawing','fStage'].forEach(renderMultiComboChips);
   renderDashBody();
 }
 function renderDashBody(){
-  const fJobs=multiComboValues('fJob'), fUsers=multiComboValues('fUser'),
-        fDepts=multiComboValues('fDept'), fStatus=document.getElementById('fStatus').value,
-        fDrawings=multiComboValues('fDrawing'), fPeriod=document.getElementById('fPeriod').value;
-
-  const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
+  const f=getDashFilters();
+  const {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd,fromEl,toEl}=f;
   const isCustom=fPeriod==='custom';
   fromEl.classList.toggle('hidden', !isCustom); toEl.classList.toggle('hidden', !isCustom);
 
-  let rangeStart=null, rangeEnd=null;
-  const dayMs=24*3600*1000;
-  if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
-  else if(fPeriod==='7d'){ rangeStart=Date.now()-7*dayMs; rangeEnd=Date.now(); }
-  else if(fPeriod==='30d'){ rangeStart=Date.now()-30*dayMs; rangeEnd=Date.now(); }
-  else if(fPeriod==='custom'){
-    if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0);
-    if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999);
-  }
-
   // reset drawing-table page whenever a filter actually changes
-  const sig=JSON.stringify([fJobs,fUsers,fDepts,fDrawings,fStatus,fPeriod,fromEl.value,toEl.value]);
+  const sig=JSON.stringify([fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,fromEl.value,toEl.value]);
   if(sig!==dashDrawState.sig){ dashDrawState.page=1; dashDrawState.sig=sig; }
 
-  let logs=TIMELOGS.filter(l=>
-    (!fJobs.length||fJobs.includes(l.job)) && (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
-    (!fStatus||l.status===fStatus) && (!fDrawings.length||l.drawingCodes.some(c=>fDrawings.includes(c))) &&
-    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
-  );
+  let logs=filterDashLogs(f);
 
   const total=logs.length, running=logs.filter(l=>l.status==='running').length, done=logs.filter(l=>l.status==='done').length;
   const overdue=ASSIGNS.filter(a=>a.status!=='done'&&a.status!=='rejected').length;
@@ -1979,6 +2101,16 @@ function renderDashBody(){
     const h=Math.max(6,(avg/maxAvg)*130);
     return `<div class="bar-col"><div class="bar-val">${fmtDur(avg)}</div><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${k}</div></div>`;
   }).join('');
+
+  // ---- Biểu đồ thời gian làm việc theo ngày — tách riêng theo Job/bản vẽ/
+  // công đoạn/nhân viên nếu bộ lọc tương ứng đang chọn nhiều hơn 1 mục ----
+  let dashSplitDim=null;
+  if(fJobs.length>1) dashSplitDim={key:'job', values:fJobs};
+  else if(fDrawings.length>1) dashSplitDim={key:'drawing', values:fDrawings};
+  else if(fStages.length>1) dashSplitDim={key:'stage', values:fStages};
+  else if(fUsers.length>1) dashSplitDim={key:'user', values:fUsers};
+  const {days:dashDays, series:dashSeries}=buildDailySeries(logs, dashSplitDim);
+  const dailyChartHtml=renderDailyChartSVG(dashDays, dashSeries);
 
   // ---- Toàn bộ bản vẽ theo Master (lọc theo Job nếu có chọn) — kể cả bản vẽ chưa từng làm ----
   const logsForDrawings = TIMELOGS.filter(l=>
@@ -2073,6 +2205,11 @@ function renderDashBody(){
     </div>
     ${jobDrawingsSection}
     <div class="card">
+      <h3 style="margin-top:0;font-size:14px">Biến động thời gian làm việc theo ngày</h3>
+      <p style="margin:0 0 6px;font-size:12px;color:var(--text-mute)">${dashSplitDim?`Tách riêng theo ${({job:'Job',drawing:'bản vẽ',stage:'công đoạn',user:'nhân viên'})[dashSplitDim.key]} đang chọn.`:'Chọn nhiều Job/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.'}</p>
+      ${dailyChartHtml}
+    </div>
+    <div class="card">
       <h3 style="margin-top:0;font-size:14px">Thời gian trung bình mỗi công đoạn</h3>
       ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`}
     </div>
@@ -2086,21 +2223,9 @@ function dashDrawPageChange(delta){ dashDrawState.page+=delta; renderDashBody();
 function dashDrawPageSizeChange(v){ dashDrawState.pageSize = v==='all'?'all':Number(v); dashDrawState.page=1; renderDashBody(); }
 function dashDrawStatusChange(v){ dashDrawState.statusFilter=v; dashDrawState.page=1; renderDashBody(); }
 function exportDashboardReport(){
-  const fJobs=multiComboValues('fJob'), fUsers=multiComboValues('fUser'),
-        fDepts=multiComboValues('fDept'), fStatus=document.getElementById('fStatus').value,
-        fDrawings=multiComboValues('fDrawing'), fPeriod=document.getElementById('fPeriod').value;
-  const fromEl=document.getElementById('fDateFrom'), toEl=document.getElementById('fDateTo');
-  let rangeStart=null, rangeEnd=null; const dayMs=24*3600*1000;
-  if(fPeriod==='today'){ rangeStart=new Date().setHours(0,0,0,0); rangeEnd=Date.now(); }
-  else if(fPeriod==='7d'){ rangeStart=Date.now()-7*dayMs; rangeEnd=Date.now(); }
-  else if(fPeriod==='30d'){ rangeStart=Date.now()-30*dayMs; rangeEnd=Date.now(); }
-  else if(fPeriod==='custom'){ if(fromEl.value) rangeStart=new Date(fromEl.value).setHours(0,0,0,0); if(toEl.value) rangeEnd=new Date(toEl.value).setHours(23,59,59,999); }
-
-  const logs=TIMELOGS.filter(l=>
-    (!fJobs.length||fJobs.includes(l.job)) && (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
-    (!fStatus||l.status===fStatus) && (!fDrawings.length||l.drawingCodes.some(c=>fDrawings.includes(c))) &&
-    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
-  );
+  const f=getDashFilters();
+  const {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd}=f;
+  const logs=filterDashLogs(f);
   const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
   const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
   const scopedDrawings=(fJobs.length? DRAWINGS.filter(d=>fJobs.includes(d.job)) : DRAWINGS.slice());
@@ -2124,6 +2249,7 @@ function exportDashboardReport(){
     ['Nhân viên', fUsers.length?fUsers.map(id=>(USERS.find(u=>u.id===id)||{}).name||id).join(', '):'Tất cả'],
     ['Bộ phận', fDepts.length?fDepts.join(', '):'Tất cả'],
     ['Bản vẽ', fDrawings.length?fDrawings.join(', '):'Tất cả'],
+    ['Công đoạn', fStages.length?fStages.join(', '):'Tất cả'],
     ['Trạng thái', fStatus||'Tất cả'],
     ['Thời kỳ', fPeriod||'Toàn bộ thời gian'],
     [],
