@@ -1176,6 +1176,9 @@ function boot(){
   renderNotifBell();
   if(RUNNING_TICK) clearInterval(RUNNING_TICK);
   RUNNING_TICK=setInterval(()=>{ if(ACTIVE_VIEW==='shift') renderShift(); }, 1000);
+  loadOfflineQueue();
+  renderOfflineBadge();
+  if(OFFLINE_QUEUE.length) flushOfflineQueue();
 }
 function renderNav(){
   const items=navItemsFor(SESSION.role);
@@ -1604,7 +1607,7 @@ function renderShift(){
   const rowHtml=(l)=>{
     const elapsed=(l.end||Date.now())-l.start-l.pausedMs;
     return `<tr>
-      <td class="mono">${l.job}</td>
+      <td class="mono">${l.job}${l.offline?` <span class="badge badge-progress" title="Chưa gửi lên được do mất mạng — sẽ tự gửi khi có mạng lại">⏳ Chưa gửi</span>`:''}</td>
       <td class="mono">${l.drawingCodes.join(', ')}</td>
       <td>${l.drawingName}</td>
       <td>${l.stages.join(', ')}</td>
@@ -1639,27 +1642,140 @@ function renderShift(){
       : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
     </div>`;
 }
+/* ---------------- Hàng đợi offline (Start/Pause/Resume/Finish) ----------------
+   Chấm công trên xưởng hay gặp sóng yếu/mất mạng giữa chừng. Thay vì báo lỗi
+   và bắt nhân viên bấm lại (dễ quên/thao tác trùng), các hàm bên dưới CẬP
+   NHẬT GIAO DIỆN NGAY (lạc quan) rồi mới ghi lên Supabase; nếu việc ghi đó
+   thất bại vì THỰC SỰ mất mạng (fetch lỗi, không phải lỗi máy chủ/dữ liệu),
+   thao tác được lưu lại trong localStorage và tự gửi lại khi có mạng trở
+   lại (sự kiện 'online' của trình duyệt), theo đúng thứ tự đã bấm. */
+let OFFLINE_QUEUE=[], flushingOfflineQueue=false;
+function loadOfflineQueue(){
+  try{ OFFLINE_QUEUE=JSON.parse(localStorage.getItem('pcb_offline_queue')||'[]'); }catch(e){ OFFLINE_QUEUE=[]; }
+}
+function saveOfflineQueue(){
+  try{ localStorage.setItem('pcb_offline_queue', JSON.stringify(OFFLINE_QUEUE)); }catch(e){}
+  renderOfflineBadge();
+}
+function queueOfflineAction(entry){
+  OFFLINE_QUEUE.push(entry);
+  saveOfflineQueue();
+}
+/** fetch thất bại thật sự (mất mạng/DNS/CORS) sẽ khiến supabase-js NÉM lỗi
+    thay vì trả về {error} như lỗi máy chủ bình thường — dùng đặc điểm đó
+    để phân biệt "mất mạng, thử lại sau" với "lỗi thật, báo luôn cho biết". */
+function isNetworkError(err){
+  return err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(err&&err.message||''));
+}
+function renderOfflineBadge(){
+  let el=document.getElementById('offlineBadge');
+  if(!OFFLINE_QUEUE.length){ if(el) el.remove(); return; }
+  if(!el){
+    el=document.createElement('div');
+    el.id='offlineBadge';
+    el.style.cssText='position:fixed;bottom:78px;right:14px;z-index:500;background:var(--amber-bg);color:var(--amber);padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:pointer';
+    el.title='Bấm để thử đồng bộ ngay';
+    el.onclick=()=>flushOfflineQueue();
+    document.body.appendChild(el);
+  }
+  el.textContent=`⏳ Chưa đồng bộ (${OFFLINE_QUEUE.length})`;
+}
+/** Gửi lại lần lượt (đúng thứ tự) các thao tác đã lưu tạm. Với "start" bị
+    lưu tạm, phải tải lại dữ liệu mới nhất rồi KIỂM TRA TRÙNG CÔNG ĐOẠN LẠI
+    TỪ ĐẦU trước khi ghi thật — vì trong lúc máy này mất mạng, người khác
+    (hoặc chính máy khác của bạn) vẫn có thể đã thao tác trên server. */
+async function flushOfflineQueue(){
+  if(flushingOfflineQueue || !OFFLINE_QUEUE.length) return;
+  flushingOfflineQueue=true;
+  const idMap={};
+  let stoppedAt=OFFLINE_QUEUE.length;
+  for(let i=0;i<OFFLINE_QUEUE.length;i++){
+    const entry=OFFLINE_QUEUE[i];
+    try{
+      if(entry.type==='start'){
+        await loadCoreData();
+        const conflicts=[];
+        entry.drawingCodes.forEach(code=>entry.stages.forEach(stg=>{
+          if(findActiveTimelogForDrawingStage(code,stg)) conflicts.push(code+'/'+stg);
+        }));
+        if(conflicts.length){
+          toast(`⚠ Không đồng bộ được tác vụ đã lưu tạm vì trùng ${conflicts.join(', ')} với 1 bản ghi khác — bạn cần kiểm tra và nhập lại thủ công.`,'err');
+          const idx=TIMELOGS.findIndex(l=>l.id===entry.tempId);
+          if(idx>-1) TIMELOGS.splice(idx,1);
+          continue;
+        }
+        const {data:lRow, error}=await supabase.from('timelogs').insert(entry.insertRow).select().single();
+        if(error) throw error;
+        idMap[entry.tempId]=lRow.id;
+        if(entry.drawingCodes.length) await supabase.from('timelog_drawings').insert(entry.drawingCodes.map(code=>({timelog_id:lRow.id, drawing_code:code})));
+        if(entry.stages.length) await supabase.from('timelog_stages').insert(entry.stages.map(stg=>({timelog_id:lRow.id, stage:stg})));
+        const l=TIMELOGS.find(x=>x.id===entry.tempId);
+        if(l){ l.id=lRow.id; delete l.offline; }
+      } else if(entry.type==='update'){
+        const realId=idMap[entry.logId]||entry.logId;
+        if(String(realId).startsWith('temp-')) continue; // "start" tương ứng bị huỷ ở trên (trùng) — bỏ qua luôn bước này
+        const {error}=await supabase.from('timelogs').update(entry.update).eq('id', realId);
+        if(error) throw error;
+      }
+    }catch(err){
+      if(isNetworkError(err)){ stoppedAt=i; break; }
+      console.error(err);
+      toast('⚠ Lỗi đồng bộ 1 thao tác đã lưu tạm: '+err.message,'err');
+    }
+  }
+  OFFLINE_QUEUE=OFFLINE_QUEUE.slice(stoppedAt);
+  saveOfflineQueue();
+  flushingOfflineQueue=false;
+  if(!OFFLINE_QUEUE.length) toast('✅ Đã đồng bộ xong toàn bộ thao tác lưu tạm.','ok');
+  if(ACTIVE_VIEW==='shift') renderShift();
+}
+window.addEventListener('online', ()=>flushOfflineQueue());
+
 async function pauseLog(id){
   const l=TIMELOGS.find(x=>x.id===id);
   const pausedAt=Date.now();
-  const {error}=await supabase.from('timelogs').update({status:'paused', paused_at:new Date(pausedAt).toISOString()}).eq('id',id);
-  if(error){ toast('Lỗi: '+error.message,'err'); return; }
-  l.status='paused'; l.pausedAt=pausedAt; renderShift(); toast('Đã tạm dừng.','ok');
+  const update={status:'paused', paused_at:new Date(pausedAt).toISOString()};
+  l.status='paused'; l.pausedAt=pausedAt; renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  try{
+    const {error}=await supabase.from('timelogs').update(update).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    toast('Đã tạm dừng.','ok');
+  }catch(err){
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    else toast('Lỗi: '+err.message,'err');
+  }
 }
 async function resumeLog(id){
   const l=TIMELOGS.find(x=>x.id===id);
   const addedMs = l.pausedAt? (Date.now()-l.pausedAt) : 0;
   const newPausedMs = l.pausedMs+addedMs;
-  const {error}=await supabase.from('timelogs').update({status:'running', paused_ms:newPausedMs, paused_at:null}).eq('id',id);
-  if(error){ toast('Lỗi: '+error.message,'err'); return; }
-  l.status='running'; l.pausedMs=newPausedMs; l.pausedAt=null; renderShift(); toast('Tiếp tục thực hiện.','ok');
+  const update={status:'running', paused_ms:newPausedMs, paused_at:null};
+  l.status='running'; l.pausedMs=newPausedMs; l.pausedAt=null; renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  try{
+    const {error}=await supabase.from('timelogs').update(update).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    toast('Tiếp tục thực hiện.','ok');
+  }catch(err){
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    else toast('Lỗi: '+err.message,'err');
+  }
 }
 async function finishLog(id){
   const l=TIMELOGS.find(x=>x.id===id);
   const end=Date.now();
-  const {error}=await supabase.from('timelogs').update({status:'done', end_at:new Date(end).toISOString()}).eq('id',id);
-  if(error){ toast('Lỗi: '+error.message,'err'); return; }
-  l.status='done'; l.end=end; renderShift(); toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok');
+  const update={status:'done', end_at:new Date(end).toISOString()};
+  l.status='done'; l.end=end; renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  try{
+    const {error}=await supabase.from('timelogs').update(update).eq('id',id);
+    if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok');
+  }catch(err){
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    else toast('Lỗi: '+err.message,'err');
+  }
 }
 
 function openAddTask(){
@@ -1886,11 +2002,28 @@ async function submitAddTaskInner(){
 }
 async function createTimelogNow(codes, job, stages, name){
   const start=Date.now();
-  const {data:lRow, error:lErr}=await supabase.from('timelogs').insert({
+  const insertRow={
     user_id:SESSION.id, job_code:job||null, drawing_name:name, dept_id:DEPT_ID_BY_NAME[SESSION.dept]||null,
     stage:stages[0]||null, start_at:new Date(start).toISOString(), status:'running'
-  }).select().single();
-  if(lErr){ toast('Lỗi bắt đầu tác vụ: '+lErr.message,'err'); return; }
+  };
+  let lRow;
+  try{
+    const res=await supabase.from('timelogs').insert(insertRow).select().single();
+    if(res.error) throw res.error;
+    lRow=res.data;
+  }catch(err){
+    if(isNetworkError(err)){
+      const tempId='temp-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+      queueOfflineAction({type:'start', tempId, insertRow, drawingCodes:codes, stages});
+      const log={id:tempId, user:SESSION.id, job, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stages, start, pausedMs:0, end:null, status:'running', offline:true};
+      TIMELOGS.push(log);
+      closeModal(); renderShift();
+      toast('⏳ Mất mạng — đã lưu tạm tác vụ trên máy, sẽ tự gửi khi có mạng lại.','err');
+      return;
+    }
+    toast('Lỗi bắt đầu tác vụ: '+err.message,'err');
+    return;
+  }
   if(codes.length){
     const {error:tdErr}=await supabase.from('timelog_drawings').insert(codes.map(code=>({timelog_id:lRow.id, drawing_code:code})));
     if(tdErr) console.error(tdErr);
