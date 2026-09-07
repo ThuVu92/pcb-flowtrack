@@ -1472,11 +1472,14 @@ function renderAssignBody(){
       </div>`;
   }
 }
+let assignPageState={page:1, pageSize:20, sig:''};
 function renderAssignManageTable(){
   const wrap=document.getElementById('assignManageTableWrap'); if(!wrap) return;
   const fEmp=document.getElementById('asgF-emp').value, fDept=document.getElementById('asgF-dept').value,
         fStatus=document.getElementById('asgF-status').value, fJob=document.getElementById('asgF-job').value,
         fSearch=document.getElementById('asgF-search').value;
+  const sig=JSON.stringify([fEmp,fDept,fStatus,fJob,fSearch]);
+  if(sig!==assignPageState.sig){ assignPageState.page=1; assignPageState.sig=sig; }
   const list=ASSIGNS.slice().reverse().filter(a=>{
     const emp=USERS.find(u=>u.id===a.to);
     if(fEmp && a.to!==fEmp) return false;
@@ -1486,9 +1489,31 @@ function renderAssignManageTable(){
     if(fSearch && !matchesSearch(a.content, fSearch)) return false;
     return true;
   });
-  wrap.innerHTML=`<table><thead><tr><th>${t('th_content')}</th><th>${t('th_assigned_to')}</th><th>${t('th_job_drawing')}</th><th>${t('col_status')}</th><th></th></tr></thead>
-    <tbody>${list.map(a=>assignRowManage(a)).join('')||`<tr><td colspan="5" style="color:var(--text-mute)">Không có nhiệm vụ phù hợp bộ lọc.</td></tr>`}</tbody></table>`;
+  const pageSize = assignPageState.pageSize==='all' ? list.length||1 : assignPageState.pageSize;
+  const pageCount = Math.max(1, Math.ceil(list.length/pageSize));
+  if(assignPageState.page>pageCount) assignPageState.page=pageCount;
+  const startIdx=(assignPageState.page-1)*pageSize;
+  const pageItems=list.slice(startIdx, startIdx+pageSize);
+  wrap.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:12px;color:var(--text-mute)">Hiển thị ${list.length?startIdx+1:0}–${Math.min(startIdx+pageSize,list.length)} / ${list.length}</span>
+      <select onchange="assignPageSizeChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">
+        <option value="20" ${assignPageState.pageSize===20?'selected':''}>20</option>
+        <option value="50" ${assignPageState.pageSize===50?'selected':''}>50</option>
+        <option value="100" ${assignPageState.pageSize===100?'selected':''}>100</option>
+        <option value="all" ${assignPageState.pageSize==='all'?'selected':''}>Tất cả</option>
+      </select>
+    </div>
+    <table><thead><tr><th>${t('th_content')}</th><th>${t('th_assigned_to')}</th><th>${t('th_job_drawing')}</th><th>${t('col_status')}</th><th></th></tr></thead>
+    <tbody>${pageItems.map(a=>assignRowManage(a)).join('')||`<tr><td colspan="5" style="color:var(--text-mute)">Không có nhiệm vụ phù hợp bộ lọc.</td></tr>`}</tbody></table>
+    <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
+      <button class="btn btn-sm" ${assignPageState.page<=1?'disabled':''} onclick="assignPageChange(-1)">‹ Trước</button>
+      <span style="font-size:12.5px;color:var(--text-dim)">Trang ${assignPageState.page}/${pageCount}</span>
+      <button class="btn btn-sm" ${assignPageState.page>=pageCount?'disabled':''} onclick="assignPageChange(1)">Sau ›</button>
+    </div>`;
 }
+function assignPageChange(delta){ assignPageState.page+=delta; renderAssignManageTable(); }
+function assignPageSizeChange(v){ assignPageState.pageSize=v==='all'?'all':Number(v); assignPageState.page=1; renderAssignManageTable(); }
 function statusBadge(s){
   const map={sent:['Đã phân','badge-info'],accepted:['Đã nhận','badge-info'],inprogress:['Đang làm','badge-progress'],done:['Hoàn thành','badge-done'],rejected:['Từ chối','badge-danger']};
   const [lbl,cls]=map[s]||['—','badge-idle']; return `<span class="badge ${cls}">${lbl}</span>`;
@@ -2016,6 +2041,15 @@ async function submitAddTaskInner(){
     stages=multiComboValues('mnStage');
     if(!stages.length){ toast('Chọn ít nhất 1 công đoạn / công việc.','err'); return; }
     job=jobInput;
+    // Job và bản vẽ được chọn tách biệt nên dễ nhầm — nếu bản vẽ đã có sẵn
+    // trong Master và thuộc 1 Job khác với Job vừa chọn, chặn lại luôn thay
+    // vì âm thầm lưu sai (bản vẽ vẫn giữ đúng Job thật của nó trong Master,
+    // chỉ là bản ghi chấm công này bị gắn nhầm Job nếu cứ cho qua).
+    const existingDrawForCheck = drawInput ? DRAWINGS.find(d=>d.code===drawInput) : null;
+    if(existingDrawForCheck && existingDrawForCheck.job && job && existingDrawForCheck.job!==job){
+      toast(`⚠ Bản vẽ ${drawInput} thuộc Job ${existingDrawForCheck.job} (${getJobNameByCode(existingDrawForCheck.job)}), không phải Job ${job} bạn đang chọn — kiểm tra lại.`,'err');
+      return;
+    }
     if(job && !ORDERS.some(o=>o.code===job)){
       const {data:newJob, error:jobErr}=await supabase.from('jobs').insert({code:job, name_vi:job, needs_review:true}).select().single();
       if(jobErr){ toast('Lỗi tạo Job mới: '+jobErr.message,'err'); return; }
@@ -2092,6 +2126,7 @@ async function createTimelogNow(codes, job, stages, name){
 
 /* ---------------- DASHBOARD ---------------- */
 let dashDrawState={page:1, pageSize:10, sig:'', statusFilter:''};
+let dashLogState={page:1, pageSize:20, sig:''};
 /** Đọc toàn bộ trạng thái bộ lọc Dashboard hiện tại từ DOM — dùng chung cho
     renderDashBody(), exportDashboardReport(), biểu đồ theo ngày và báo cáo
     chi phí, để tất cả luôn khớp đúng 1 bộ lọc đang hiển thị. */
@@ -2328,9 +2363,10 @@ function renderDashBody(){
   const isCustom=fPeriod==='custom';
   fromEl.classList.toggle('hidden', !isCustom); toEl.classList.toggle('hidden', !isCustom);
 
-  // reset drawing-table page whenever a filter actually changes
+  // reset drawing-table / log-table page whenever a filter actually changes
   const sig=JSON.stringify([fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,fromEl.value,toEl.value]);
   if(sig!==dashDrawState.sig){ dashDrawState.page=1; dashDrawState.sig=sig; }
+  if(sig!==dashLogState.sig){ dashLogState.page=1; dashLogState.sig=sig; }
 
   let logs=filterDashLogs(f);
 
@@ -2445,7 +2481,12 @@ function renderDashBody(){
       </div>
     </div>`;
 
-  const rows=logs.slice().reverse().map(l=>{
+  const logsReversed=logs.slice().reverse();
+  const logPageSize = dashLogState.pageSize==='all' ? logsReversed.length||1 : dashLogState.pageSize;
+  const logPageCount = Math.max(1, Math.ceil(logsReversed.length/logPageSize));
+  if(dashLogState.page>logPageCount) dashLogState.page=logPageCount;
+  const logStartIdx=(dashLogState.page-1)*logPageSize;
+  const rows=logsReversed.slice(logStartIdx, logStartIdx+logPageSize).map(l=>{
     const u=USERS.find(x=>x.id===l.user);
     const dur=((l.end||Date.now())-l.start-l.pausedMs);
     return `<tr><td class="mono">${l.job||'—'}</td><td>${u?u.name:'—'}</td><td>${l.dept}</td><td class="mono">${l.drawingCodes.join(', ')||'—'}</td><td>${l.stages.join(', ')}</td><td>${statusPill(l.status)}</td><td class="mono">${fmtDur(dur)}</td></tr>`;
@@ -2473,14 +2514,32 @@ function renderDashBody(){
       ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`}
     </div>
     <div class="card scroll-x">
-      <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-mute)">Hiển thị ${logsReversed.length?logStartIdx+1:0}–${Math.min(logStartIdx+logPageSize,logsReversed.length)} / ${logsReversed.length}</span>
+          <select onchange="dashLogPageSizeChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">
+            <option value="20" ${dashLogState.pageSize===20?'selected':''}>20</option>
+            <option value="50" ${dashLogState.pageSize===50?'selected':''}>50</option>
+            <option value="100" ${dashLogState.pageSize===100?'selected':''}>100</option>
+            <option value="all" ${dashLogState.pageSize==='all'?'selected':''}>Tất cả</option>
+          </select>
+        </div>
+      </div>
       <table style="margin-top:10px"><thead><tr><th>${t('th_job')}</th><th>${t('th_employee')}</th><th>${t('th_dept')}</th><th>${t('th_drawing')}</th><th>${t('th_stage')}</th><th>${t('col_status')}</th><th>${t('th_time')}</th></tr></thead>
       <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Không có dữ liệu.</td></tr>`}</tbody></table>
+      <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
+        <button class="btn btn-sm" ${dashLogState.page<=1?'disabled':''} onclick="dashLogPageChange(-1)">‹ Trước</button>
+        <span style="font-size:12.5px;color:var(--text-dim)">Trang ${dashLogState.page}/${logPageCount}</span>
+        <button class="btn btn-sm" ${dashLogState.page>=logPageCount?'disabled':''} onclick="dashLogPageChange(1)">Sau ›</button>
+      </div>
     </div>`;
 }
 function dashDrawPageChange(delta){ dashDrawState.page+=delta; renderDashBody(); }
 function dashDrawPageSizeChange(v){ dashDrawState.pageSize = v==='all'?'all':Number(v); dashDrawState.page=1; renderDashBody(); }
 function dashDrawStatusChange(v){ dashDrawState.statusFilter=v; dashDrawState.page=1; renderDashBody(); }
+function dashLogPageChange(delta){ dashLogState.page+=delta; renderDashBody(); }
+function dashLogPageSizeChange(v){ dashLogState.pageSize=v==='all'?'all':Number(v); dashLogState.page=1; renderDashBody(); }
 function exportDashboardReport(){
   const f=getDashFilters();
   const {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd}=f;
@@ -2962,11 +3021,12 @@ function renderMasterBody(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
           <input id="dwSearch" placeholder="Tìm bản vẽ (có/không dấu)…" oninput="renderDrawingTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <button class="btn btn-sm btn-ghost" onclick="downloadDrawingTemplate()">⬇ Tải template</button>
-          <label class="btn btn-sm">⬆ Nhập Excel (nhiều sheet)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this)"></label>
+          <label class="btn btn-sm" title="Bản vẽ đã có trong Master: ghi đè tên/Job/phiên bản theo file (bản vẽ đã có thời gian làm việc thì chỉ thêm phiên bản mới, không xoá)">⬆ Cập nhật (ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'update')"></label>
+          <label class="btn btn-sm" title="Bản vẽ đã có trong Master: giữ nguyên tên/Job/phiên bản cũ, chỉ thêm phiên bản mới nếu file có phiên bản chưa từng có">⬆ Thêm mới (không ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'add')"></label>
           <button class="btn btn-sm btn-ghost" onclick="printAllDrawingQrs()">${icon('qr',14)} In phiếu QR</button>
           <button class="btn btn-sm btn-primary" onclick="openDrawingForm()">${icon('plus',14)} Thêm bản vẽ</button>
         </div>
-        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px">Nguyên tắc nhập: dữ liệu mới sẽ ghi đè theo mã bản vẽ, nhưng bản vẽ đã phát sinh thời gian làm việc sẽ không bị xoá. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.</p>
+        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px"><b>Cập nhật</b>: bản vẽ đã có sẽ bị ghi đè tên/Job/phiên bản theo file (riêng bản vẽ đã phát sinh thời gian làm việc thì không bị xoá phiên bản cũ, chỉ thêm mới). <b>Thêm mới</b>: bản vẽ đã có trong Master sẽ được giữ nguyên hoàn toàn, file chỉ có tác dụng thêm bản vẽ chưa từng có hoặc thêm phiên bản mới. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.</p>
         <div id="drawingTableWrap"></div>
       </div>`;
     renderDrawingTable();
@@ -2976,9 +3036,11 @@ function renderMasterBody(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <input id="jbSearch" placeholder="Tìm Job (có/không dấu)…" oninput="renderJobTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <button class="btn btn-sm btn-ghost" onclick="downloadJobTemplate()">⬇ Tải template</button>
-          <label class="btn btn-sm">⬆ Nhập Excel/CSV<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this)"></label>
+          <label class="btn btn-sm" title="Job đã có trong Master: ghi đè các trường có giá trị trong file">⬆ Cập nhật (ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'update')"></label>
+          <label class="btn btn-sm" title="Bỏ qua hoàn toàn Job đã có trong Master, chỉ thêm Job hoàn toàn mới">⬆ Thêm mới (không ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'add')"></label>
           <button class="btn btn-sm btn-primary" onclick="openJobForm()">${icon('plus',14)} Thêm Job</button>
         </div>
+        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px"><b>Cập nhật</b>: Job đã có sẽ bị ghi đè theo file. <b>Thêm mới</b>: Job đã có trong Master được giữ nguyên hoàn toàn, chỉ thêm Job chưa từng có.</p>
         <div id="jobTableWrap"></div>
       </div>`;
     renderJobTable();
@@ -3148,7 +3210,8 @@ function downloadDrawingTemplate(){
     toast('Không có mạng để tạo Excel — đã tải template CSV.','err');
   }
 }
-function importDrawingsExcel(input){
+function importDrawingsExcel(input, mode){
+  mode = mode || 'update'; // 'update': ghi đè bản vẽ đã có (như cũ) | 'add': chỉ thêm, không đụng vào bản vẽ đã có
   const file=input.files[0]; if(!file) return;
   /** Gộp toàn bộ thay đổi thành vài lệnh ghi hàng loạt (thay vì 2-3 lượt gọi
       mạng cho MỖI bản vẽ) — với danh sách vài trăm dòng, cách cũ chạy tuần
@@ -3178,17 +3241,21 @@ function importDrawingsExcel(input){
       const hasHistory=TIMELOGS.some(l=>l.drawingCodes.includes(code));
       const idx=DRAWINGS.findIndex(d=>d.code===code);
       if(idx>-1){
-        if(!hasHistory){
+        // Chế độ "Thêm mới" không bao giờ đụng vào tên/Job/phiên bản cũ của
+        // 1 bản vẽ đã có — kể cả khi chưa phát sinh thời gian làm việc. Chế
+        // độ "Cập nhật" giữ nguyên logic cũ: ghi đè hoàn toàn nếu chưa có
+        // lịch sử, chỉ thêm phiên bản mới nếu đã có (bảo vệ dữ liệu thật).
+        if(mode==='add' || hasHistory){
+          const newOnes=g.versions.filter(v=>!DRAWINGS[idx].versions.some(ev=>ev.version===v.version));
+          newOnes.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
+          localOps.push({type:'append', idx, newOnes});
+        } else {
           const name=g.name||DRAWINGS[idx].name, job=g.job||DRAWINGS[idx].job;
           const versions=g.versions.length?g.versions:DRAWINGS[idx].versions;
           toUpdateDrawings.push({code, name, job_code:job||null});
           toReplaceVersionCodes.push(code);
           versions.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
           localOps.push({type:'update', idx, name, job, versions});
-        } else {
-          const newOnes=g.versions.filter(v=>!DRAWINGS[idx].versions.some(ev=>ev.version===v.version));
-          newOnes.forEach(v=>toInsertVersions.push({drawing_code:code, version:v.version, issue_date:v.issueDate||null}));
-          localOps.push({type:'append', idx, newOnes});
         }
         updated++;
       } else {
@@ -3229,7 +3296,8 @@ function importDrawingsExcel(input){
     });
     renderMasterBody();
     const failMsg = failed? `, bỏ qua ${failed} dòng vì Job chưa có trong Master → Job (${failedCodes.slice(0,5).join(', ')}${failedCodes.length>5?', …':''})` : '';
-    toast(`Nhập Excel xong: thêm ${added}, cập nhật ${updated} bản vẽ${failMsg}.`, failed?'err':'ok');
+    const updatedLabel = mode==='add' ? `thêm phiên bản mới cho ${updated} bản vẽ đã có` : `cập nhật ${updated} bản vẽ`;
+    toast(`Nhập Excel xong: thêm mới ${added}, ${updatedLabel}${failMsg}.`, failed?'err':'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){
@@ -3394,21 +3462,24 @@ function downloadJobTemplate(){
     toast('Không có mạng để tạo Excel — đã tải template CSV.','err');
   }
 }
-function importJobsExcel(input){
+function importJobsExcel(input, mode){
+  mode = mode || 'update'; // 'update': ghi đè Job đã có (như cũ) | 'add': bỏ qua Job đã có, chỉ thêm Job mới
   const file=input.files[0]; if(!file) return;
   const applyRows=async (rows)=>{
     // Gộp thành 1 lệnh upsert hàng loạt thay vì 1 lượt gọi mạng/dòng — xem
     // giải thích chi tiết ở importDrawingsExcel (cùng vấn đề hiệu năng).
     const grouped={};
+    let skippedExisting=0;
     rows.forEach(r=>{
       if(!r.code) return;
       const existingIdx=ORDERS.findIndex(o=>o.code===r.code);
+      if(mode==='add' && existingIdx>-1){ skippedExisting++; return; } // "Thêm mới": không đụng vào Job đã có
       const base=grouped[r.code] || (existingIdx>-1 ? {...ORDERS[existingIdx]} : {code:r.code, name_vi:'', name_en:'', name_ja:'', planDate:'', priority:'medium', memo:''});
       const data={code:r.code, name_vi:r.name_vi||'', name_en:r.name_en||'', name_ja:r.name_ja||'', planDate:r.planDate||'', priority:r.priority||'medium', memo:r.memo||''};
       grouped[r.code]={...base, ...Object.fromEntries(Object.entries(data).filter(([k,v])=>v))};
     });
     const codes=Object.keys(grouped);
-    if(!codes.length){ toast('Không có dòng hợp lệ để nhập.','err'); return; }
+    if(!codes.length){ toast(mode==='add'?'Không có Job mới nào để thêm (tất cả đã có trong Master).':'Không có dòng hợp lệ để nhập.','err'); return; }
     const upsertRows=codes.map(c=>{
       const m=grouped[c];
       return {code:m.code, name_vi:m.name_vi, name_en:m.name_en, name_ja:m.name_ja, plan_date:m.planDate||null, priority:m.priority, memo:m.memo};
@@ -3421,7 +3492,8 @@ function importJobsExcel(input){
       if(idx>-1){ ORDERS[idx]=grouped[c]; updated++; } else { ORDERS.push(grouped[c]); added++; }
     });
     renderMasterBody();
-    toast(`Nhập xong: thêm ${added}, cập nhật ${updated} Job.`,'ok');
+    const skipMsg = skippedExisting? `, bỏ qua ${skippedExisting} Job đã có sẵn` : '';
+    toast(`Nhập xong: thêm mới ${added}${mode==='add'?'':`, cập nhật ${updated}`} Job${skipMsg}.`,'ok');
   };
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){
