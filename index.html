@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>PCB FlowTrack — Quản lý công đoạn sản xuất</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0F1418">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlowTrack">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1745,7 +1753,7 @@ function navItemsFor(role){
   ];
   base.push({id:'shift', label:t('nav_shift'), icon:'clock'});
   base.push({id:'dashboard', label:t('nav_dashboard'), icon:'chart'});
-  if(SESSION && SESSION.dept==='Mua hàng' || role==='manager' || role==='admin'){
+  if(role==='manager' || role==='admin'){
     base.push({id:'purchasing', label:t('nav_purchasing'), icon:'cart'});
   }
   if(role==='admin') base.push({id:'master', label:t('nav_master'), icon:'db'});
@@ -4240,6 +4248,9 @@ async function initSession(){
   await loadDeptsPublic();
 }
 initSession();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); });
+}
 document.addEventListener('click', (e)=>{
   ['notifPanel','userMenuPanel'].forEach(id=>{
     const panel=document.getElementById(id);
