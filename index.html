@@ -376,35 +376,35 @@ tr.row-click:hover td{background:var(--surface-2);}
       </div>
 
       <div id="pane-forgot" class="hidden">
-        <h2>Quên mật khẩu</h2>
-        <p class="sub">Chọn 1 trong 2 hình thức khôi phục.</p>
-        <div class="field"><label>Tên đăng nhập</label><input id="fp-user" placeholder="vd: thao.nv"></div>
+        <h2 id="forgotTitleTxt">Quên mật khẩu</h2>
+        <p class="sub" id="forgotSubTxt">Chọn 1 trong 2 hình thức khôi phục.</p>
+        <div class="field"><label id="lblFpUser">Tên đăng nhập</label><input id="fp-user" placeholder="vd: thao.nv"></div>
         <div class="grid-cols g2">
-          <button class="btn btn-block" onclick="forgotFlow('admin')">Yêu cầu Admin cấp lại</button>
-          <button class="btn btn-block" onclick="forgotFlow('email')">Gửi email khôi phục</button>
+          <button class="btn btn-block" id="btnForgotAdmin" onclick="forgotFlow('admin')">Yêu cầu Admin cấp lại</button>
+          <button class="btn btn-block" id="btnForgotEmail" onclick="forgotFlow('email')">Gửi email khôi phục</button>
         </div>
         <div class="err-msg" id="forgotMsg"></div>
-        <div class="login-links"><a onclick="showPane('login')">← Quay lại đăng nhập</a><span></span></div>
+        <div class="login-links"><a onclick="showPane('login')" id="backToLoginTxt1">← Quay lại đăng nhập</a><span></span></div>
       </div>
 
       <div id="pane-register" class="hidden">
-        <h2>Đăng ký tài khoản</h2>
-        <p class="sub">Tài khoản sẽ chờ Admin duyệt trước khi dùng được.</p>
-        <div class="field"><label>Họ tên</label><input id="rg-name" placeholder="Nguyễn Văn A"></div>
+        <h2 id="registerTitleTxt">Đăng ký tài khoản</h2>
+        <p class="sub" id="registerSubTxt">Tài khoản sẽ chờ Admin duyệt trước khi dùng được.</p>
+        <div class="field"><label id="lblRgName">Họ tên</label><input id="rg-name" placeholder="Nguyễn Văn A"></div>
         <div class="grid-cols g2">
-          <div class="field"><label>Mã nhân viên</label><input id="rg-code" placeholder="NV0xx"></div>
-          <div class="field"><label>Bộ phận</label>
+          <div class="field"><label id="lblRgCode">Mã nhân viên</label><input id="rg-code" placeholder="NV0xx"></div>
+          <div class="field"><label id="lblRgDept">Bộ phận</label>
             <select id="rg-dept" onchange="document.getElementById('rg-dept-other').classList.toggle('hidden', this.value!=='__other__')"></select>
           </div>
         </div>
         <div class="field">
           <input id="rg-dept-other" class="hidden" placeholder="Nhập tên bộ phận mới…">
         </div>
-        <div class="field"><label>Tên đăng nhập</label><input id="rg-user" placeholder="vd: an.nv"></div>
-        <div class="field"><label>Mật khẩu</label><input id="rg-pass" type="password"></div>
-        <button class="btn btn-primary btn-block" onclick="doRegister()">Gửi đăng ký</button>
+        <div class="field"><label id="lblRgUser">Tên đăng nhập</label><input id="rg-user" placeholder="vd: an.nv"></div>
+        <div class="field"><label id="lblRgPass">Mật khẩu</label><input id="rg-pass" type="password"></div>
+        <button class="btn btn-primary btn-block" id="btnSubmitRegister" onclick="doRegister()">Gửi đăng ký</button>
         <div class="err-msg" id="regMsg"></div>
-        <div class="login-links"><a onclick="showPane('login')">← Quay lại đăng nhập</a><span></span></div>
+        <div class="login-links"><a onclick="showPane('login')" id="backToLoginTxt2">← Quay lại đăng nhập</a><span></span></div>
       </div>
     </div>
   </div>
@@ -423,8 +423,8 @@ tr.row-click:hover td{background:var(--surface-2);}
         <div class="avatar" id="uAvatar">–</div>
         <div class="who"><b id="uName">–</b><span id="uMeta">–</span></div>
       </div>
-      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:6px;justify-content:flex-start" onclick="openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
-      <button class="btn btn-ghost btn-block btn-sm" style="margin-top:4px;justify-content:flex-start" onclick="logout()">↩ Đăng xuất</button>
+      <button class="btn btn-ghost btn-block btn-sm" id="sideEditReqBtn" style="margin-top:6px;justify-content:flex-start" onclick="openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
+      <button class="btn btn-ghost btn-block btn-sm" id="sideLogoutBtn" style="margin-top:4px;justify-content:flex-start" onclick="logout()">↩ Đăng xuất</button>
     </div>
   </aside>
 
@@ -451,8 +451,8 @@ tr.row-click:hover td{background:var(--surface-2);}
             <b id="umName" style="font-size:13px"></b>
             <div id="umMeta" style="font-size:11.5px;color:var(--text-mute);margin-top:2px"></div>
           </div>
-          <button class="btn btn-ghost btn-block btn-sm" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="closeUserMenu();openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
-          <button class="btn btn-ghost btn-block btn-sm" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="logout()">↩ Đăng xuất</button>
+          <button class="btn btn-ghost btn-block btn-sm" id="umEditReqBtn" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="closeUserMenu();openEditRequestForm()">✉ Gửi yêu cầu chỉnh sửa</button>
+          <button class="btn btn-ghost btn-block btn-sm" id="umLogoutBtn" style="justify-content:flex-start;border-radius:0;padding:10px 12px" onclick="logout()">↩ Đăng xuất</button>
         </div>
       </div>
     </div>
@@ -572,10 +572,10 @@ function comboFilter(id){
     list.innerHTML=filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="comboPick('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('');
   } else if(q){
     const sug=findFuzzySuggestion(q, opts);
-    list.innerHTML = (sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="comboPick('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ Có phải ý bạn là "${sug.label}"?</div>`:'')
-      + `<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+    list.innerHTML = (sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="comboPick('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ ${t('combo_fuzzy_q')} "${sug.label}"?</div>`:'')
+      + `<div class="combo-item muted">${t('combo_no_match_can_add')}</div>`;
   } else {
-    list.innerHTML=`<div class="combo-item muted">Không có gợi ý khớp — có thể gõ nội dung mới</div>`;
+    list.innerHTML=`<div class="combo-item muted">${t('combo_no_match_can_add')}</div>`;
   }
   list.classList.remove('hidden');
 }
@@ -621,10 +621,10 @@ function multiComboFilter(id){
     list.innerHTML=filtered.slice(0,80).map(o=>`<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(o.value).replace(/'/g,"\\'")}')">${o.label}</div>`).join('');
   } else if(q && st.allowCreate){
     const sug=findFuzzySuggestion(q, avail);
-    const sugHtml = sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="multiComboAdd('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ Có phải ý bạn là "${sug.label}"?</div>`:'';
-    list.innerHTML = sugHtml + `<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(q).replace(/'/g,"\\'")}')">➕ Thêm "${q}"</div>`;
+    const sugHtml = sug?`<div class="combo-item" style="color:var(--amber)" onmousedown="multiComboAdd('${id}','${String(sug.value).replace(/'/g,"\\'")}')">❓ ${t('combo_fuzzy_q')} "${sug.label}"?</div>`:'';
+    list.innerHTML = sugHtml + `<div class="combo-item" onmousedown="multiComboAdd('${id}','${String(q).replace(/'/g,"\\'")}')">➕ ${t('combo_add_prefix')} "${q}"</div>`;
   } else {
-    list.innerHTML=`<div class="combo-item muted">Không có gợi ý khớp</div>`;
+    list.innerHTML=`<div class="combo-item muted">${t('combo_no_match')}</div>`;
   }
   list.classList.remove('hidden');
 }
@@ -649,7 +649,7 @@ function renderMultiComboChips(id){
     const opt=st.options.find(o=>o.value===v);
     const label=opt?opt.label:v;
     return `<span class="code-chip" style="display:inline-flex;align-items:center;gap:6px">${label}<span style="cursor:pointer;opacity:.75" onmousedown="multiComboRemove('${id}','${String(v).replace(/'/g,"\\'")}')">✕</span></span>`;
-  }).join('') : `<span style="font-size:11.5px;color:var(--text-mute)">Chưa chọn mục nào</span>`;
+  }).join('') : `<span style="font-size:11.5px;color:var(--text-mute)">${t('combo_no_selection')}</span>`;
 }
 function multiComboValues(id){ return (MULTI_COMBO[id]||{selected:[]}).selected.slice(); }
 function multiComboKeydown(e,id){
@@ -701,12 +701,18 @@ const I18N = {
     login_title:'Đăng nhập', login_sub:'Nhập tài khoản nhân viên để truy cập hệ thống.',
     username:'Tên đăng nhập', password:'Mật khẩu', login_btn:'Đăng nhập',
     forgot_link:'Quên mật khẩu?', register_link:'Đăng ký tài khoản mới', demo_accounts:'Tài khoản demo — bấm để đăng nhập nhanh',
+    forgot_title:'Quên mật khẩu', forgot_sub:'Chọn 1 trong 2 hình thức khôi phục.',
+    btn_forgot_admin:'Yêu cầu Admin cấp lại', btn_forgot_email:'Gửi email khôi phục', link_back_to_login:'← Quay lại đăng nhập',
+    register_title:'Đăng ký tài khoản', register_sub:'Tài khoản sẽ chờ Admin duyệt trước khi dùng được.',
+    field_emp_code:'Mã nhân viên', field_dept:'Bộ phận', ph_dept_other:'Nhập tên bộ phận mới…',
+    btn_submit_register:'Gửi đăng ký', ph_username_example:'vd: thao.nv',
     nav_home:'Trang chủ', nav_assign:'Nhiệm vụ', nav_shift:'Ca làm việc', nav_dashboard:'Dashboard', nav_purchasing:'Mua hàng', nav_master:'Master',
     logout:'Đăng xuất',
     save:'Lưu', close:'Đóng', add:'Thêm', edit:'Sửa', delete:'Xoá', cancel:'Huỷ', search:'Tìm kiếm',
     home_title:'Tổng hợp đơn hàng', home_sub:'Tiến độ được tính tự động theo bản vẽ đã hoàn thành trong Master.',
     col_job:'Mã đơn', col_name:'Tên đơn hàng', col_plandate:'Ngày giao KH', col_progress:'Tiến độ', col_status:'Trạng thái', col_memo:'Memo', col_priority:'Ưu tiên',
     status_done:'Hoàn thành', status_progress:'Đang làm', status_idle:'Chưa bắt đầu',
+    status_paused:'Tạm dừng', status_sent:'Đã phân', status_accepted:'Đã nhận', status_rejected:'Từ chối',
     priority_high:'Cao', priority_medium:'Trung bình', priority_low:'Thấp',
     assign_title:'Nhiệm vụ', assign_sub:'Phân công, theo dõi và trao đổi về từng nhiệm vụ.',
     tab_manage:'Quản lý phân công', tab_mine:'Nhiệm vụ của tôi',
@@ -722,18 +728,189 @@ const I18N = {
     th_current_version:'Phiên bản hiện tại', th_issue_date:'Ngày phát hành', th_version:'Phiên bản',
     th_job_code:'Mã Job', th_due_date:'Ngày cần giao',
     th_started_at:'Bắt đầu lúc', th_finished_at:'Hoàn thành lúc',
+    purchase_po_only:'Chỉ có trên PO', purchase_no_need:'Đủ tồn kho', purchase_not_ordered:'Chưa lên PO',
+    purchase_ordered:'Đã lên PO, chưa về', purchase_partial:'Về một phần', purchase_complete:'Đã về đủ',
+    role_admin:'Admin', role_manager:'Quản lý', role_employee:'Nhân viên',
+    account_active:'Hoạt động', account_locked:'Đã khoá',
+    btn_pause:'Tạm dừng', btn_resume:'Tiếp tục', btn_finish:'Hoàn thành',
+    offline_pending:'Chưa đồng bộ', offline_pending_title:'Bấm để thử đồng bộ ngay',
+    offline_not_synced:'Chưa gửi', offline_not_synced_title:'Chưa gửi lên được do mất mạng — sẽ tự gửi khi có mạng lại',
+    shift_title:'Ca làm việc hôm nay', shift_sub:'Ghi nhận thời gian thực hiện theo từng bản vẽ / công đoạn.',
+    btn_add_task:'Thêm tác vụ',
+    shift_unfinished_title:'Việc dở từ trước — bấm Resume để tiếp tục',
+    shift_running_title:'Đang thực hiện', shift_done_title:'Đã hoàn thành hôm nay',
+    shift_empty_running:'Chưa có tác vụ nào đang chạy. Bấm "Thêm tác vụ" để bắt đầu.',
+    shift_empty_done:'Chưa hoàn thành tác vụ nào.',
+    assign_create_title:'Tạo nhiệm vụ mới',
+    assign_field_dept:'Bộ phận (lọc gợi ý người nhận, tuỳ chọn)', assign_dept_all_opt:'— tất cả bộ phận —',
+    assign_field_recipients:'Người nhận (chọn được nhiều người cùng lúc)', assign_type_to_search:'Gõ tên để tìm…',
+    assign_add_whole_dept:'+ Cả bộ phận',
+    assign_field_job:'Liên kết Job (tuỳ chọn — để trống nếu áp dụng chung, không riêng job/bộ phận nào)', assign_job_none_opt:'— không có job cụ thể —',
+    assign_field_drawing:'Liên kết bản vẽ (tuỳ chọn)', assign_drawing_none_opt:'— không có bản vẽ cụ thể —',
+    assign_field_content:'Nội dung chỉ thị', assign_content_placeholder:'Mô tả công việc cần thực hiện…',
+    btn_assign_task:'Phân nhiệm vụ', assign_list_title:'Danh sách đã phân',
+    filter_all_employees:'Tất cả nhân viên', filter_all_depts:'Tất cả bộ phận',
+    filter_all_status:'Tất cả trạng thái', filter_all_jobs:'Tất cả Job',
+    assign_search_placeholder:'Tìm theo nội dung…',
+    assign_pending_title:'Nhiệm vụ mới — cần phản hồi', assign_no_pending:'Không có nhiệm vụ chờ phản hồi.',
+    assign_accepted_title:'Nhiệm vụ đã nhận', assign_no_accepted:'Chưa có nhiệm vụ nào.',
+    label_reason:'Lý do', btn_reassign:'Phân lại', btn_accept:'Nhận', btn_reject:'Từ chối', btn_start:'Bắt đầu',
+    reject_reason_title:'Lý do từ chối', label_reason_detail:'Ghi rõ lý do', btn_confirm_reject:'Xác nhận từ chối',
+    add_task_title:'Thêm tác vụ mới', tab_scan_qr:'Quét QR', tab_manual_entry:'Nhập thủ công',
+    btn_enable_camera:'Bật camera quét', hint_scan_multiple:'Có thể quét liên tục nhiều bản vẽ. Không có camera? Chọn thủ công bên dưới.',
+    hint_qr_center:'Đưa mã QR vào giữa khung vuông để quét nhanh hơn.',
+    field_drawing_qr:'Mã bản vẽ (QR)', opt_simulate_scan:'— chọn bản vẽ để giả lập quét —', btn_scan_this_code:'Quét mã này',
+    field_stage_for_batch:'Công đoạn cho lô vừa quét (chọn được nhiều — thời gian sẽ chia đều)',
+    hint_scan_batch_merge:'Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được chia đều cho các bản vẽ trong dòng.',
+    hint_manual_entry:'Chọn từ danh sách có sẵn, hoặc gõ nội dung mới nếu không làm trên bản vẽ/Job cụ thể (vd: việc khác, họp, bảo trì…) — Job/bản vẽ gõ mới sẽ tự thêm vào Master.',
+    ph_job_combo:'— để trống nếu không có Job — gõ để tìm hoặc thêm mới', ph_drawing_combo:'— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới',
+    field_stage_multi:'Công đoạn / công việc (chọn được nhiều — thời gian sẽ chia đều)',
+    processing_ellipsis:'Đang xử lý…', btn_understood:'Đã hiểu',
+    conflict_stage_title:'⚠ Trùng công đoạn đang làm dở', conflict_stage_intro:'Không thể bắt đầu vì trùng với phiên chấm công chưa hoàn thành:',
+    conflict_stage_item_ongoing:'bạn đang làm dở, chưa hoàn thành', conflict_stage_item_paused:'(đang tạm dừng)',
+    conflict_stage_hint:'Hãy hoàn thành/tạm dừng phiên cũ trước, hoặc bỏ bớt công đoạn trùng rồi thử lại.',
+    btn_chat:'Trao đổi', assign_chat_title:'Trao đổi nhiệm vụ',
+    chat_no_messages:'Chưa có trao đổi nào.', chat_placeholder:'Nhập tin nhắn…', btn_send:'Gửi',
+    combo_fuzzy_q:'Có phải ý bạn là', combo_no_match:'Không có gợi ý khớp',
+    combo_no_match_can_add:'Không có gợi ý khớp — có thể gõ nội dung mới',
+    combo_add_prefix:'Thêm', combo_no_selection:'Chưa chọn mục nào',
+    order_generic_note_suffix:'tác vụ đã ghi nhận cho job này nhưng chưa gắn bản vẽ cụ thể (vẫn được tính là "Đang làm").',
+    order_generic_note_prefix:'⚠ Có',
+    order_name_vi:'Tên đơn hàng (Tiếng Việt)', order_plan_date:'Ngày giao kế hoạch',
+    order_name_en:'Tên đơn hàng (English)', order_name_ja:'Tên đơn hàng (日本語)',
+    order_priority_label:'Mức độ ưu tiên', order_memo_label:'Memo quản lý',
+    order_due_prefix:'Giao KH', order_memo_prefix:'Memo',
+    order_no_drawings:'Chưa có bản vẽ nào trong Master.', order_detail_title:'Chi tiết đơn hàng',
+    btn_save_changes:'Lưu thay đổi',
+    btn_cost_report:'💰 Báo cáo chi phí',
+    filter_job_ph:'Tất cả Job — gõ để tìm…', filter_emp_ph:'Tất cả nhân viên — gõ để tìm…',
+    filter_dept_ph:'Tất cả bộ phận — gõ để tìm…', filter_drawing_ph:'Tất cả bản vẽ — gõ để tìm…',
+    filter_stage_ph:'Tất cả công đoạn — gõ để tìm…',
+    period_all:'Toàn bộ thời gian', period_today:'Hôm nay', period_7d:'7 ngày qua', period_30d:'30 ngày qua', period_custom:'Tuỳ chọn khoảng ngày…',
+    dash_stat_total_records:'Tổng bản ghi công đoạn', dash_stat_running:'Đang thực hiện',
+    dash_stat_done:'Đã hoàn thành', dash_stat_overdue:'Nhiệm vụ chưa xong',
+    dash_total_time_title:'Tổng thời gian đã làm (theo bộ lọc hiện tại)',
+    dash_total_time_sub:'Tổng cộng thời gian của toàn bộ bản ghi đang được lọc bên dưới.',
+    dash_all_drawings_prefix:'Toàn bộ bản vẽ của Job', dash_all_drawings_master:'Toàn bộ bản vẽ trong Master',
+    dash_incl_never_done:'(kể cả bản vẽ chưa từng thực hiện)',
+    dash_total_worked_prefix:'Tổng thời gian đã làm', dash_stat_total_drawings:'Tổng số bản vẽ',
+    label_showing:'Hiển thị', unit_drawings:'bản vẽ', label_rows_per_page:'Số dòng/trang:', label_all:'Tất cả',
+    dash_no_matching_drawings:'Không có bản vẽ nào trong Master phù hợp bộ lọc.',
+    btn_prev:'‹ Trước', btn_next:'Sau ›', label_page:'Trang',
+    dash_daily_chart_title:'Biến động thời gian làm việc theo ngày',
+    dash_split_by_prefix:'Tách riêng theo', dash_split_by_suffix:'đang chọn.',
+    dash_split_hint:'Chọn nhiều Job/bộ phận/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.',
+    dash_avg_stage_title:'Thời gian trung bình mỗi công đoạn', dash_no_data:'Chưa có dữ liệu phù hợp bộ lọc.',
+    dash_detail_title:'Chi tiết bản ghi', dash_no_data_plain:'Không có dữ liệu.',
+    cost_report_hint:'Tính theo đúng các bản ghi đang được lọc ở Dashboard hiện tại (Job/nhân viên/bộ phận/bản vẽ/công đoạn/thời kỳ).',
+    cost_rate_label:'Đơn giá / giờ', cost_rate_ph:'vd: 50000',
+    cost_currency_label:'Đơn vị tiền tệ', cost_currency_other:'Khác…', cost_currency_code_label:'Mã tiền tệ',
+    cost_fx_label:'Tỷ giá quy đổi sang VND (1 đơn vị = ? VND)', cost_group_by_label:'Báo cáo theo',
+    cost_btn_compute:'Tính báo cáo', cost_th_hours:'Số giờ', cost_th_cost:'Chi phí', cost_th_vnd:'Quy đổi VND',
+    cost_total:'Tổng cộng', cost_by_group_title_prefix:'Chi phí theo', cost_by_day_title:'Chi phí theo ngày',
+    tab_drawings:'Bản vẽ', tab_jobs:'Job', tab_stages:'Công đoạn', tab_users:'Người dùng',
+    master_search_drawing_ph:'Tìm bản vẽ (có/không dấu)…', btn_download_template:'⬇ Tải template',
+    btn_update_overwrite:'⬆ Cập nhật (ghi đè)', btn_add_new_no_overwrite:'⬆ Thêm mới (không ghi đè)',
+    master_drawing_update_hint:'Bản vẽ đã có trong Master: ghi đè tên/Job/phiên bản theo file (bản vẽ đã có thời gian làm việc thì chỉ thêm phiên bản mới, không xoá)',
+    master_drawing_add_hint:'Bản vẽ đã có trong Master: giữ nguyên tên/Job/phiên bản cũ, chỉ thêm phiên bản mới nếu file có phiên bản chưa từng có',
+    btn_print_qr:'In phiếu QR', btn_add_drawing:'Thêm bản vẽ',
+    master_drawing_import_note:'<b>Cập nhật</b>: bản vẽ đã có sẽ bị ghi đè tên/Job/phiên bản theo file (riêng bản vẽ đã phát sinh thời gian làm việc thì không bị xoá phiên bản cũ, chỉ thêm mới). <b>Thêm mới</b>: bản vẽ đã có trong Master sẽ được giữ nguyên hoàn toàn, file chỉ có tác dụng thêm bản vẽ chưa từng có hoặc thêm phiên bản mới. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.',
+    master_search_job_ph:'Tìm Job (có/không dấu)…', btn_add_job:'Thêm Job',
+    master_job_import_note:'<b>Cập nhật</b>: Job đã có sẽ bị ghi đè theo file. <b>Thêm mới</b>: Job đã có trong Master được giữ nguyên hoàn toàn, chỉ thêm Job chưa từng có.',
+    master_job_update_hint:'Job đã có trong Master: ghi đè các trường có giá trị trong file',
+    master_job_add_hint:'Bỏ qua hoàn toàn Job đã có trong Master, chỉ thêm Job hoàn toàn mới',
+    master_orphan_stage_title_prefix:'⚠ Công đoạn ngoài danh sách',
+    master_orphan_stage_hint:'Nhân viên đã gõ tự do những tên công đoạn này khi chấm công (chưa từng thêm chính thức ở dưới) — có thể là trùng ý nhưng khác chữ với 1 công đoạn đã có (lỗi chính tả), hoặc là công đoạn mới thật sự cần thêm.',
+    master_orphan_count_suffix:'lần', btn_add_to_master:'+ Thêm vào Master',
+    master_add_dept_title:'Thêm bộ phận mới',
+    master_add_dept_hint:'Tạo thêm bộ phận để tuỳ chỉnh quản lý (vd: QC, Kho, Bảo trì…). Bộ phận mới sẽ xuất hiện ở đăng ký, phân quyền, phân công nhiệm vụ và dashboard.',
+    master_new_dept_ph:'Tên bộ phận mới…', btn_add_dept:'Thêm bộ phận', master_new_stage_ph:'Công đoạn mới…',
+    master_edit_requests_title_prefix:'Yêu cầu chỉnh sửa tài khoản', btn_edit_account:'Sửa tài khoản', btn_mark_resolved:'Đã xử lý',
+    master_pending_accounts_title_prefix:'Tài khoản chờ duyệt', btn_approve:'Duyệt',
+    master_user_list_title:'Danh sách người dùng', btn_add_user:'Thêm người dùng',
+    btn_lock:'Khoá', btn_unlock:'Mở khoá',
+    needs_review_badge_title:'Được tự tạo khi nhân viên gõ tự do trong Thêm tác vụ — chưa ai kiểm tra lại tên/chính tả',
+    needs_review_badge:'⚠ Cần rà soát', btn_mark_reviewed:'Đã xem xét',
+    btn_history:'🕘 Lịch sử', no_drawings_yet:'Chưa có bản vẽ nào.',
+    master_drawing_review_banner_prefix:'⚠', master_drawing_review_banner_suffix:'được tự tạo khi nhân viên gõ tự do, chưa được rà soát',
+    master_review_banner_hint:'Kiểm tra xem có bị trùng ý/lỗi chính tả với mục đã có không, sửa lại tên nếu cần rồi bấm "Đã xem xét".',
+    version_history_title:'Lịch sử phiên bản', edit_drawing_title:'Sửa bản vẽ', add_drawing_title:'Thêm bản vẽ mới',
+    qr_modal_title_prefix:'Mã QR bản vẽ', qr_modal_hint:'Mã QR thật — in ra dán lên phiếu/bản vẽ để quét bằng camera khi bắt đầu công đoạn.',
+    field_drawing_code:'Mã bản vẽ', field_drawing_name:'Tên bản vẽ',
+    field_version_and_date:'Phiên bản & ngày phát hành (dòng cuối = phiên bản hiện hành)',
+    btn_add_version:'Thêm phiên bản', version_ph:'Phiên bản (vd: A)',
+    no_jobs_yet:'Chưa có Job nào.', edit_job_title:'Sửa Job', add_job_title:'Thêm Job mới',
+    field_job_code:'Mã Job', field_due_date:'Ngày cần giao',
+    field_name_vi:'Tên (Tiếng Việt)', field_name_en:'Tên (English)', field_name_ja:'Tên (日本語)',
+    field_priority:'Mức độ ưu tiên', field_memo:'Memo',
+    edit_user_title_prefix:'Sửa người dùng', field_full_name:'Họ tên',
+    delete_user_title_prefix:'Xoá người dùng',
+    delete_user_confirm:'Bạn có chắc muốn xoá tài khoản này? Hành động này không thể hoàn tác.',
+    delete_job_title_prefix:'Xoá Job', delete_job_confirm:'Bạn có chắc muốn xoá Job này?',
+    delete_job_has_drawings_warn:'⚠ Job này đang có bản vẽ liên kết trong Master. Xoá Job sẽ không xoá các bản vẽ đó, nhưng chúng sẽ mất liên kết đúng khi lọc theo Job.',
+    err_enter_user_pass:'Nhập tên đăng nhập và mật khẩu.', msg_logging_in:'Đang đăng nhập…',
+    err_wrong_credentials:'Sai tên đăng nhập hoặc mật khẩu.', err_profile_not_found:'Không tìm thấy hồ sơ người dùng.',
+    err_account_pending:'Tài khoản đang chờ Admin duyệt.', err_account_locked:'Tài khoản đã bị khoá. Liên hệ Admin.',
+    err_enter_username_first:'Nhập tên đăng nhập trước đã.',
+    msg_forgot_admin_sent:'Đã gửi yêu cầu tới Admin — Admin sẽ cấp mật khẩu mới cho bạn.',
+    msg_forgot_email_unavailable:'Tính năng gửi email khôi phục chưa khả dụng — vui lòng liên hệ Admin để được cấp lại mật khẩu.',
+    err_enter_new_dept_name:'Nhập tên bộ phận mới.', err_fill_all_fields:'Vui lòng điền đầy đủ thông tin.',
+    err_password_min_len:'Mật khẩu cần ít nhất 6 ký tự.', msg_registering:'Đang đăng ký…',
+    err_username_taken:'Tên đăng nhập đã tồn tại.', err_register_prefix:'Lỗi đăng ký: ',
+    err_create_dept_prefix:'Lỗi tạo bộ phận mới: ', err_create_profile_prefix:'Lỗi tạo hồ sơ: ',
+    msg_register_success:'Đăng ký thành công! Tài khoản đang chờ Admin duyệt.',
+    edit_request_title:'Gửi yêu cầu chỉnh sửa tài khoản',
+    edit_request_hint:'Mô tả thông tin bạn muốn Admin chỉnh sửa (tên, mã NV, bộ phận, vai trò…). Admin sẽ xem và cập nhật giúp bạn.',
+    edit_request_ph:'Vd: Đổi bộ phận của tôi sang Kho…', btn_send_request:'Gửi yêu cầu',
+    menu_send_edit_request:'✉ Gửi yêu cầu chỉnh sửa', notif_empty:'Không có thông báo.',
+    add_user_title:'Thêm người dùng',
+    add_user_hint1:'Vì hệ thống dùng xác thực thật, Admin không thể tạo tài khoản kèm mật khẩu trực tiếp tại đây.',
+    add_user_hint2:'Người dùng mới cần tự <b>đăng ký</b> ở màn hình đăng nhập (link "Đăng ký tài khoản mới"), sau đó Admin vào đây để <b>duyệt</b> tài khoản đang chờ (mục "Tài khoản chờ duyệt" phía trên).',
+    btn_add_item_manual:'Thêm mặt hàng thủ công',
+    purchasing_alert_title_prefix:'⚠ Cảnh báo hàng chưa lên PO',
+    purchasing_th_item:'Mặt hàng', purchasing_th_qty_needed:'SL cần mua', purchasing_th_unit:'Đơn vị',
+    step1_title:'1. Tải file PR', step1_upload_label:'📄 Chọn file PR (.xlsx/.csv)',
+    step1_hint:'Tự nhận diện cột: Job, Tên hàng, Model, Maker, SL cần/tồn, ĐVT, ngày yêu cầu.',
+    step2_title:'2. Tải file Xcode', step2_upload_label:'📄 Chọn file Xcode (.xlsx/.csv)',
+    step2_ref_count_suffix:'mã tham chiếu', btn_rematch:'↻ Khớp lại',
+    step3_title:'3. Tải file PO (nhiều file)', step3_upload_label:'📄 Chọn 1+ file PO (.xlsx/.csv)',
+    step3_lines_read_suffix:'dòng PO đã đọc', btn_view_raw:'👁 Xem thô', btn_match_po:'↻ Khớp PO',
+    purchasing_list_title:'Danh sách mặt hàng cần mua (bấm 1 dòng để xem/sửa chi tiết)',
+    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
+    purchasing_th_buyer:'Người mua', purchasing_th_received_needed:'Đã về / Cần',
+    purchasing_empty:'Chưa có mặt hàng nào. Tải file PR hoặc thêm thủ công.', badge_po_only:'Chỉ trên PO',
+    purchasing_raw_po_title:'Dòng PO thô đã đọc (để đối chiếu minh bạch)',
+    purchasing_th_file:'File', purchasing_th_sheet:'Sheet', purchasing_th_po_desc:'Mô tả trên PO',
+    purchasing_th_po_number:'Số PO', purchasing_th_po_date:'Ngày PO', purchasing_th_po_name:'Tên trên PO',
+    purchasing_th_supplier:'NCC', purchasing_th_qty:'SL', purchasing_th_matched:'Đã khớp?',
+    purchasing_no_po_lines:'Chưa có dòng PO nào.',
+    pi_form_title_edit:'Chi tiết mặt hàng mua', pi_form_title_add:'Thêm mặt hàng mua thủ công',
+    opt_no_job:'— không —', field_item_name:'Tên mặt hàng', field_model:'Model', field_maker:'Maker',
+    field_unit:'Đơn vị tính', field_qty_needed:'SL cần', field_qty_stock:'SL tồn kho', field_qty_to_buy:'SL cần mua',
+    field_request_date:'Ngày yêu cầu', field_buyer:'Người được phân công mua', opt_no_buyer:'— chưa phân —',
+    xcode_match_title:'Kết quả khớp mã Xcode (tự động — chạy lại ở màn hình chính nếu cần)',
+    field_po_number:'Số PO', field_po_issue_date:'Ngày phát hành PO', field_po_name:'Tên trên PO',
+    field_supplier:'Nhà cung cấp', field_expected_date:'Ngày về dự kiến', field_actual_batches:'Các đợt hàng về thực tế',
+    btn_add_batch:'Thêm đợt', batch_total_prefix:'Tổng đã về:', batch_label:'Đợt',
+    ph_qty:'SL', ph_note:'Ghi chú', field_note:'Ghi chú',
   },
   en:{
     app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
     login_title:'Sign in', login_sub:'Enter your employee account to access the system.',
     username:'Username', password:'Password', login_btn:'Sign in',
     forgot_link:'Forgot password?', register_link:'Create new account', demo_accounts:'Demo accounts — click to sign in',
+    forgot_title:'Forgot password', forgot_sub:'Choose one of the two recovery options.',
+    btn_forgot_admin:'Ask Admin to reset', btn_forgot_email:'Send recovery email', link_back_to_login:'← Back to sign in',
+    register_title:'Create account', register_sub:'The account will wait for Admin approval before it can be used.',
+    field_emp_code:'Employee code', field_dept:'Department', ph_dept_other:'Enter new department name…',
+    btn_submit_register:'Submit registration', ph_username_example:'e.g. thao.nv',
     nav_home:'Home', nav_assign:'Tasks', nav_shift:'Shift', nav_dashboard:'Dashboard', nav_purchasing:'Purchasing', nav_master:'Master data',
     logout:'Log out',
     save:'Save', close:'Close', add:'Add', edit:'Edit', delete:'Delete', cancel:'Cancel', search:'Search',
     home_title:'Order overview', home_sub:'Progress is calculated automatically from drawings completed in Master.',
     col_job:'Order code', col_name:'Order name', col_plandate:'Due date', col_progress:'Progress', col_status:'Status', col_memo:'Memo', col_priority:'Priority',
     status_done:'Completed', status_progress:'In progress', status_idle:'Not started',
+    status_paused:'Paused', status_sent:'Sent', status_accepted:'Accepted', status_rejected:'Rejected',
     priority_high:'High', priority_medium:'Medium', priority_low:'Low',
     assign_title:'Tasks', assign_sub:'Assign, track and discuss each task.',
     tab_manage:'Manage assignments', tab_mine:'My tasks',
@@ -749,18 +926,189 @@ const I18N = {
     th_current_version:'Current version', th_issue_date:'Issue date', th_version:'Version',
     th_job_code:'Job code', th_due_date:'Due date',
     th_started_at:'Started at', th_finished_at:'Finished at',
+    purchase_po_only:'PO only', purchase_no_need:'Stock sufficient', purchase_not_ordered:'Not on PO yet',
+    purchase_ordered:'On PO, not received', purchase_partial:'Partially received', purchase_complete:'Fully received',
+    role_admin:'Admin', role_manager:'Manager', role_employee:'Employee',
+    account_active:'Active', account_locked:'Locked',
+    btn_pause:'Pause', btn_resume:'Resume', btn_finish:'Finish',
+    offline_pending:'Not synced', offline_pending_title:'Click to sync now',
+    offline_not_synced:'Not sent', offline_not_synced_title:'Could not send due to no connection — will retry automatically once back online',
+    shift_title:"Today's shift", shift_sub:'Track time worked per drawing / stage.',
+    btn_add_task:'Add task',
+    shift_unfinished_title:'Unfinished from before — click Resume to continue',
+    shift_running_title:'In progress', shift_done_title:'Completed today',
+    shift_empty_running:'No task running yet. Click "Add task" to start.',
+    shift_empty_done:'No task completed yet.',
+    assign_create_title:'Create new task',
+    assign_field_dept:'Department (filters recipient suggestions, optional)', assign_dept_all_opt:'— all departments —',
+    assign_field_recipients:'Recipients (select multiple at once)', assign_type_to_search:'Type a name to search…',
+    assign_add_whole_dept:'+ Whole department',
+    assign_field_job:'Linked Job (optional — leave blank if not specific to a job/department)', assign_job_none_opt:'— no specific job —',
+    assign_field_drawing:'Linked drawing (optional)', assign_drawing_none_opt:'— no specific drawing —',
+    assign_field_content:'Instructions', assign_content_placeholder:'Describe the work to be done…',
+    btn_assign_task:'Assign task', assign_list_title:'Assigned tasks',
+    filter_all_employees:'All employees', filter_all_depts:'All departments',
+    filter_all_status:'All statuses', filter_all_jobs:'All jobs',
+    assign_search_placeholder:'Search by content…',
+    assign_pending_title:'New tasks — awaiting response', assign_no_pending:'No task awaiting response.',
+    assign_accepted_title:'Accepted tasks', assign_no_accepted:'No task yet.',
+    label_reason:'Reason', btn_reassign:'Reassign', btn_accept:'Accept', btn_reject:'Reject', btn_start:'Start',
+    reject_reason_title:'Reason for rejection', label_reason_detail:'Specify the reason', btn_confirm_reject:'Confirm rejection',
+    add_task_title:'Add new task', tab_scan_qr:'Scan QR', tab_manual_entry:'Manual entry',
+    btn_enable_camera:'Enable scan camera', hint_scan_multiple:'You can scan multiple drawings in a row. No camera? Choose manually below.',
+    hint_qr_center:'Center the QR code in the square frame to scan faster.',
+    field_drawing_qr:'Drawing code (QR)', opt_simulate_scan:'— pick a drawing to simulate a scan —', btn_scan_this_code:'Scan this code',
+    field_stage_for_batch:'Stage for this scanned batch (select multiple — time will be split evenly)',
+    hint_scan_batch_merge:'If you scan several codes in a row before picking a stage, the drawings are merged into one row — the time logged later will be split evenly across the drawings in that row.',
+    hint_manual_entry:'Choose from the existing list, or type new content if this is not tied to a specific drawing/Job (e.g. other work, meeting, maintenance…) — a newly typed Job/drawing is automatically added to Master.',
+    ph_job_combo:'— leave blank if no Job — type to search or add new', ph_drawing_combo:'— leave blank if no drawing — type to search or add new',
+    field_stage_multi:'Stage / task (select multiple — time will be split evenly)',
+    processing_ellipsis:'Processing…', btn_understood:'Got it',
+    conflict_stage_title:'⚠ Overlapping stage already in progress', conflict_stage_intro:'Cannot start — it overlaps with an unfinished timelog:',
+    conflict_stage_item_ongoing:'you already have this in progress, not finished', conflict_stage_item_paused:'(paused)',
+    conflict_stage_hint:'Finish or pause the earlier session first, or remove the overlapping stage and try again.',
+    btn_chat:'Discuss', assign_chat_title:'Task discussion',
+    chat_no_messages:'No messages yet.', chat_placeholder:'Type a message…', btn_send:'Send',
+    combo_fuzzy_q:'Did you mean', combo_no_match:'No matching suggestion',
+    combo_no_match_can_add:'No matching suggestion — you can type a new one',
+    combo_add_prefix:'Add', combo_no_selection:'No item selected',
+    order_generic_note_suffix:"task(s) logged for this job without a specific drawing (still counted as \"In progress\").",
+    order_generic_note_prefix:'⚠ There are',
+    order_name_vi:'Order name (Vietnamese)', order_plan_date:'Planned delivery date',
+    order_name_en:'Order name (English)', order_name_ja:'Order name (日本語)',
+    order_priority_label:'Priority', order_memo_label:'Manager memo',
+    order_due_prefix:'Due', order_memo_prefix:'Memo',
+    order_no_drawings:'No drawing in Master yet.', order_detail_title:'Order details',
+    btn_save_changes:'Save changes',
+    btn_cost_report:'💰 Cost report',
+    filter_job_ph:'All jobs — type to search…', filter_emp_ph:'All employees — type to search…',
+    filter_dept_ph:'All departments — type to search…', filter_drawing_ph:'All drawings — type to search…',
+    filter_stage_ph:'All stages — type to search…',
+    period_all:'All time', period_today:'Today', period_7d:'Last 7 days', period_30d:'Last 30 days', period_custom:'Custom date range…',
+    dash_stat_total_records:'Total stage records', dash_stat_running:'In progress',
+    dash_stat_done:'Completed', dash_stat_overdue:'Tasks not yet done',
+    dash_total_time_title:'Total time worked (current filter)',
+    dash_total_time_sub:'Sum of time across all records filtered below.',
+    dash_all_drawings_prefix:'All drawings of Job', dash_all_drawings_master:'All drawings in Master',
+    dash_incl_never_done:'(including drawings never worked on)',
+    dash_total_worked_prefix:'Total time worked', dash_stat_total_drawings:'Total drawings',
+    label_showing:'Showing', unit_drawings:'drawings', label_rows_per_page:'Rows/page:', label_all:'All',
+    dash_no_matching_drawings:'No drawing in Master matches the filter.',
+    btn_prev:'‹ Prev', btn_next:'Next ›', label_page:'Page',
+    dash_daily_chart_title:'Time worked over days',
+    dash_split_by_prefix:'Split by', dash_split_by_suffix:'selected.',
+    dash_split_hint:'Select multiple Job/department/drawing/stage/employee in the filter above to compare them separately.',
+    dash_avg_stage_title:'Average time per stage', dash_no_data:'No data matching the filter.',
+    dash_detail_title:'Record details', dash_no_data_plain:'No data.',
+    cost_report_hint:'Calculated from the records currently filtered on the Dashboard (Job/employee/department/drawing/stage/period).',
+    cost_rate_label:'Hourly rate', cost_rate_ph:'e.g. 50000',
+    cost_currency_label:'Currency', cost_currency_other:'Other…', cost_currency_code_label:'Currency code',
+    cost_fx_label:'Exchange rate to VND (1 unit = ? VND)', cost_group_by_label:'Report by',
+    cost_btn_compute:'Calculate', cost_th_hours:'Hours', cost_th_cost:'Cost', cost_th_vnd:'VND equivalent',
+    cost_total:'Total', cost_by_group_title_prefix:'Cost by', cost_by_day_title:'Cost by day',
+    tab_drawings:'Drawings', tab_jobs:'Jobs', tab_stages:'Stages', tab_users:'Users',
+    master_search_drawing_ph:'Search drawing (with/without accents)…', btn_download_template:'⬇ Download template',
+    btn_update_overwrite:'⬆ Update (overwrite)', btn_add_new_no_overwrite:'⬆ Add new (no overwrite)',
+    master_drawing_update_hint:'Drawing already in Master: overwrites name/Job/versions from the file (a drawing with logged work time only gets new versions appended, nothing deleted)',
+    master_drawing_add_hint:'Drawing already in Master: keeps the existing name/Job/versions untouched, only appends a version from the file if not already present',
+    btn_print_qr:'Print QR sheet', btn_add_drawing:'Add drawing',
+    master_drawing_import_note:'<b>Update</b>: an existing drawing gets its name/Job/versions overwritten from the file (a drawing with logged work time keeps its versions, only new ones are appended). <b>Add new</b>: an existing drawing in Master is left completely untouched — the file only adds drawings that don\'t exist yet or appends new versions. Each drawing can have multiple versions, each with its own issue date — the Dashboard aggregates by drawing, not by version.',
+    master_search_job_ph:'Search job (with/without accents)…', btn_add_job:'Add job',
+    master_job_import_note:'<b>Update</b>: an existing job gets overwritten from the file. <b>Add new</b>: an existing job in Master is left completely untouched, only new jobs are added.',
+    master_job_update_hint:'Job already in Master: overwrites fields that have a value in the file',
+    master_job_add_hint:'Skips any job already in Master entirely, only adds genuinely new jobs',
+    master_orphan_stage_title_prefix:'⚠ Stages outside the list',
+    master_orphan_stage_hint:"Employees typed these stage names freely while logging time (never formally added below) — could be the same idea as an existing stage with a typo, or a genuinely new stage that should be added.",
+    master_orphan_count_suffix:'times', btn_add_to_master:'+ Add to Master',
+    master_add_dept_title:'Add new department',
+    master_add_dept_hint:'Create additional departments for custom management (e.g. QC, Warehouse, Maintenance…). New departments appear in registration, permissions, task assignment and the dashboard.',
+    master_new_dept_ph:'New department name…', btn_add_dept:'Add department', master_new_stage_ph:'New stage…',
+    master_edit_requests_title_prefix:'Account edit requests', btn_edit_account:'Edit account', btn_mark_resolved:'Resolved',
+    master_pending_accounts_title_prefix:'Accounts awaiting approval', btn_approve:'Approve',
+    master_user_list_title:'User list', btn_add_user:'Add user',
+    btn_lock:'Lock', btn_unlock:'Unlock',
+    needs_review_badge_title:'Auto-created when an employee typed it freely in Add Task — no one has checked the name/spelling yet',
+    needs_review_badge:'⚠ Needs review', btn_mark_reviewed:'Reviewed',
+    btn_history:'🕘 History', no_drawings_yet:'No drawing yet.',
+    master_drawing_review_banner_prefix:'⚠', master_drawing_review_banner_suffix:'auto-created from free text, not yet reviewed',
+    master_review_banner_hint:'Check whether it duplicates or misspells an existing item, fix the name if needed, then click "Reviewed".',
+    version_history_title:'Version history', edit_drawing_title:'Edit drawing', add_drawing_title:'Add new drawing',
+    qr_modal_title_prefix:'Drawing QR code', qr_modal_hint:'Real QR code — print and attach it to the drawing/traveler so it can be scanned with a camera when starting a stage.',
+    field_drawing_code:'Drawing code', field_drawing_name:'Drawing name',
+    field_version_and_date:'Version & issue date (last row = current version)',
+    btn_add_version:'Add version', version_ph:'Version (e.g. A)',
+    no_jobs_yet:'No job yet.', edit_job_title:'Edit job', add_job_title:'Add new job',
+    field_job_code:'Job code', field_due_date:'Due date',
+    field_name_vi:'Name (Vietnamese)', field_name_en:'Name (English)', field_name_ja:'Name (日本語)',
+    field_priority:'Priority', field_memo:'Memo',
+    edit_user_title_prefix:'Edit user', field_full_name:'Full name',
+    delete_user_title_prefix:'Delete user',
+    delete_user_confirm:'Are you sure you want to delete this account? This cannot be undone.',
+    delete_job_title_prefix:'Delete Job', delete_job_confirm:'Are you sure you want to delete this Job?',
+    delete_job_has_drawings_warn:'⚠ This Job has drawings linked to it in Master. Deleting the Job will not delete those drawings, but they will lose their correct link when filtering by Job.',
+    err_enter_user_pass:'Enter your username and password.', msg_logging_in:'Signing in…',
+    err_wrong_credentials:'Wrong username or password.', err_profile_not_found:'User profile not found.',
+    err_account_pending:'Account is awaiting Admin approval.', err_account_locked:'Account is locked. Contact Admin.',
+    err_enter_username_first:'Enter your username first.',
+    msg_forgot_admin_sent:'Request sent to Admin — the Admin will set a new password for you.',
+    msg_forgot_email_unavailable:'Email recovery is not available yet — please contact Admin to reset your password.',
+    err_enter_new_dept_name:'Enter the new department name.', err_fill_all_fields:'Please fill in all fields.',
+    err_password_min_len:'Password must be at least 6 characters.', msg_registering:'Registering…',
+    err_username_taken:'Username already exists.', err_register_prefix:'Registration error: ',
+    err_create_dept_prefix:'Error creating department: ', err_create_profile_prefix:'Error creating profile: ',
+    msg_register_success:'Registration successful! The account is awaiting Admin approval.',
+    edit_request_title:'Send account edit request',
+    edit_request_hint:'Describe what you want the Admin to change (name, employee code, department, role…). The Admin will review and update it for you.',
+    edit_request_ph:'e.g. Change my department to Warehouse…', btn_send_request:'Send request',
+    menu_send_edit_request:'✉ Send edit request', notif_empty:'No notifications.',
+    add_user_title:'Add user',
+    add_user_hint1:'Since the system uses real authentication, an Admin cannot create an account with a password directly here.',
+    add_user_hint2:'A new user must <b>register</b> themselves on the login screen ("Create new account" link), then an Admin comes here to <b>approve</b> the pending account (the "Accounts awaiting approval" section above).',
+    btn_add_item_manual:'Add item manually',
+    purchasing_alert_title_prefix:'⚠ Items not yet on a PO',
+    purchasing_th_item:'Item', purchasing_th_qty_needed:'Qty to buy', purchasing_th_unit:'Unit',
+    step1_title:'1. Upload PR file', step1_upload_label:'📄 Choose PR file (.xlsx/.csv)',
+    step1_hint:'Auto-detects columns: Job, Item name, Model, Maker, Qty needed/stock, Unit, request date.',
+    step2_title:'2. Upload Xcode file', step2_upload_label:'📄 Choose Xcode file (.xlsx/.csv)',
+    step2_ref_count_suffix:'reference codes', btn_rematch:'↻ Re-match',
+    step3_title:'3. Upload PO file(s)', step3_upload_label:'📄 Choose 1+ PO file(s) (.xlsx/.csv)',
+    step3_lines_read_suffix:'PO lines read', btn_view_raw:'👁 View raw', btn_match_po:'↻ Match POs',
+    purchasing_list_title:'Items to purchase (click a row to view/edit details)',
+    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
+    purchasing_th_buyer:'Buyer', purchasing_th_received_needed:'Received / Needed',
+    purchasing_empty:'No item yet. Upload a PR file or add one manually.', badge_po_only:'PO only',
+    purchasing_raw_po_title:'Raw PO lines read (for transparency)',
+    purchasing_th_file:'File', purchasing_th_sheet:'Sheet', purchasing_th_po_desc:'PO description',
+    purchasing_th_po_number:'PO number', purchasing_th_po_date:'PO date', purchasing_th_po_name:'PO name',
+    purchasing_th_supplier:'Supplier', purchasing_th_qty:'Qty', purchasing_th_matched:'Matched?',
+    purchasing_no_po_lines:'No PO line yet.',
+    pi_form_title_edit:'Item details', pi_form_title_add:'Add item manually',
+    opt_no_job:'— none —', field_item_name:'Item name', field_model:'Model', field_maker:'Maker',
+    field_unit:'Unit', field_qty_needed:'Qty needed', field_qty_stock:'Qty in stock', field_qty_to_buy:'Qty to buy',
+    field_request_date:'Request date', field_buyer:'Assigned buyer', opt_no_buyer:'— unassigned —',
+    xcode_match_title:'Xcode matching result (automatic — re-run on the main screen if needed)',
+    field_po_number:'PO number', field_po_issue_date:'PO issue date', field_po_name:'Name on PO',
+    field_supplier:'Supplier', field_expected_date:'Expected arrival date', field_actual_batches:'Actual received batches',
+    btn_add_batch:'Add batch', batch_total_prefix:'Total received:', batch_label:'Batch',
+    ph_qty:'Qty', ph_note:'Note', field_note:'Note',
   },
   ja:{
     app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
     login_title:'ログイン', login_sub:'従業員アカウントでシステムにアクセスしてください。',
     username:'ユーザー名', password:'パスワード', login_btn:'ログイン',
     forgot_link:'パスワードをお忘れですか？', register_link:'新規アカウント登録', demo_accounts:'デモアカウント — クリックしてログイン',
+    forgot_title:'パスワードをお忘れですか', forgot_sub:'2つの復旧方法のいずれかを選択してください。',
+    btn_forgot_admin:'管理者にリセットを依頼', btn_forgot_email:'復旧メールを送信', link_back_to_login:'← ログインに戻る',
+    register_title:'アカウント登録', register_sub:'アカウントは管理者の承認待ちになります。',
+    field_emp_code:'社員コード', field_dept:'部門', ph_dept_other:'新しい部門名を入力…',
+    btn_submit_register:'登録を送信', ph_username_example:'例：thao.nv',
     nav_home:'ホーム', nav_assign:'タスク', nav_shift:'シフト', nav_dashboard:'ダッシュボード', nav_purchasing:'購買', nav_master:'マスター',
     logout:'ログアウト',
     save:'保存', close:'閉じる', add:'追加', edit:'編集', delete:'削除', cancel:'キャンセル', search:'検索',
     home_title:'受注一覧', home_sub:'進捗はMasterで完了した図面から自動計算されます。',
     col_job:'受注番号', col_name:'受注名', col_plandate:'納期', col_progress:'進捗', col_status:'状態', col_memo:'メモ', col_priority:'優先度',
     status_done:'完了', status_progress:'進行中', status_idle:'未着手',
+    status_paused:'一時停止', status_sent:'割当済み', status_accepted:'受諾済み', status_rejected:'却下',
     priority_high:'高', priority_medium:'中', priority_low:'低',
     assign_title:'タスク', assign_sub:'タスクの割り当て・追跡・やり取り。',
     tab_manage:'割り当て管理', tab_mine:'自分のタスク',
@@ -776,6 +1124,171 @@ const I18N = {
     th_current_version:'現行版', th_issue_date:'発行日', th_version:'バージョン',
     th_job_code:'受注番号', th_due_date:'納期',
     th_started_at:'開始日時', th_finished_at:'完了日時',
+    purchase_po_only:'POのみ', purchase_no_need:'在庫十分', purchase_not_ordered:'未発注',
+    purchase_ordered:'発注済み・未入荷', purchase_partial:'一部入荷', purchase_complete:'入荷完了',
+    role_admin:'管理者', role_manager:'マネージャー', role_employee:'従業員',
+    account_active:'有効', account_locked:'ロック中',
+    btn_pause:'一時停止', btn_resume:'再開', btn_finish:'完了',
+    offline_pending:'未同期', offline_pending_title:'クリックして今すぐ同期',
+    offline_not_synced:'未送信', offline_not_synced_title:'通信できず未送信 — 接続が回復すると自動的に再送信されます',
+    shift_title:'本日のシフト', shift_sub:'図面・工程ごとの作業時間を記録します。',
+    btn_add_task:'タスク追加',
+    shift_unfinished_title:'未完了の作業 — Resumeで再開してください',
+    shift_running_title:'進行中', shift_done_title:'本日完了',
+    shift_empty_running:'実行中のタスクはありません。「タスク追加」で開始してください。',
+    shift_empty_done:'完了したタスクはまだありません。',
+    assign_create_title:'新規タスク作成',
+    assign_field_dept:'部門（担当者候補を絞り込み、任意）', assign_dept_all_opt:'— 全部門 —',
+    assign_field_recipients:'担当者（複数選択可）', assign_type_to_search:'名前を入力して検索…',
+    assign_add_whole_dept:'+ 部門全員',
+    assign_field_job:'関連受注（任意 — 特定の受注/部門でなければ空欄）', assign_job_none_opt:'— 特定の受注なし —',
+    assign_field_drawing:'関連図面（任意）', assign_drawing_none_opt:'— 特定の図面なし —',
+    assign_field_content:'指示内容', assign_content_placeholder:'実施する作業内容を記入…',
+    btn_assign_task:'タスク割り当て', assign_list_title:'割り当て済みタスク一覧',
+    filter_all_employees:'全従業員', filter_all_depts:'全部門',
+    filter_all_status:'全ステータス', filter_all_jobs:'全受注',
+    assign_search_placeholder:'内容で検索…',
+    assign_pending_title:'新規タスク — 応答待ち', assign_no_pending:'応答待ちのタスクはありません。',
+    assign_accepted_title:'受諾済みタスク', assign_no_accepted:'タスクはまだありません。',
+    label_reason:'理由', btn_reassign:'再割当', btn_accept:'受諾', btn_reject:'却下', btn_start:'開始',
+    reject_reason_title:'却下理由', label_reason_detail:'理由を記入してください', btn_confirm_reject:'却下を確定',
+    add_task_title:'新規タスク追加', tab_scan_qr:'QRスキャン', tab_manual_entry:'手動入力',
+    btn_enable_camera:'スキャン用カメラを起動', hint_scan_multiple:'複数の図面を連続でスキャンできます。カメラがない場合は下で手動選択してください。',
+    hint_qr_center:'QRコードを四角い枠の中央に合わせるとスキャンが速くなります。',
+    field_drawing_qr:'図面番号（QR）', opt_simulate_scan:'— スキャンをシミュレートする図面を選択 —', btn_scan_this_code:'このコードをスキャン',
+    field_stage_for_batch:'今スキャンしたバッチの工程（複数選択可 — 時間は均等に分配）',
+    hint_scan_batch_merge:'工程を選ぶ前に複数のコードを連続でスキャンすると、それらの図面は1行にまとめられます — 後で記録する時間はその行内の図面に均等に分配されます。',
+    hint_manual_entry:'既存のリストから選択するか、特定の図面/受注に紐づかない場合は新しい内容を入力してください（例：その他の作業、会議、メンテナンスなど）— 新しく入力した受注/図面は自動的にMasterへ追加されます。',
+    ph_job_combo:'— 受注がなければ空欄 — 入力して検索または新規追加', ph_drawing_combo:'— 図面がなければ空欄 — 入力して検索または新規追加',
+    field_stage_multi:'工程 / 作業内容（複数選択可 — 時間は均等に分配）',
+    processing_ellipsis:'処理中…', btn_understood:'了解',
+    conflict_stage_title:'⚠ 進行中の工程と重複', conflict_stage_intro:'未完了の記録と重複しているため開始できません：',
+    conflict_stage_item_ongoing:'すでに進行中で未完了です', conflict_stage_item_paused:'（一時停止中）',
+    conflict_stage_hint:'先に以前のセッションを完了/一時停止するか、重複する工程を外してから再度お試しください。',
+    btn_chat:'やり取り', assign_chat_title:'タスクのやり取り',
+    chat_no_messages:'まだやり取りはありません。', chat_placeholder:'メッセージを入力…', btn_send:'送信',
+    combo_fuzzy_q:'もしかして', combo_no_match:'一致する候補がありません',
+    combo_no_match_can_add:'一致する候補がありません — 新規入力できます',
+    combo_add_prefix:'追加', combo_no_selection:'選択項目なし',
+    order_generic_note_suffix:'件、特定の図面に紐付いていないタスクがこの受注に記録されています（「進行中」として扱われます）。',
+    order_generic_note_prefix:'⚠',
+    order_name_vi:'受注名（ベトナム語）', order_plan_date:'納期予定日',
+    order_name_en:'受注名（English）', order_name_ja:'受注名（日本語）',
+    order_priority_label:'優先度', order_memo_label:'管理者メモ',
+    order_due_prefix:'納期', order_memo_prefix:'メモ',
+    order_no_drawings:'Masterに図面がまだありません。', order_detail_title:'受注詳細',
+    btn_save_changes:'変更を保存',
+    btn_cost_report:'💰 コストレポート',
+    filter_job_ph:'全受注 — 入力して検索…', filter_emp_ph:'全従業員 — 入力して検索…',
+    filter_dept_ph:'全部門 — 入力して検索…', filter_drawing_ph:'全図面 — 入力して検索…',
+    filter_stage_ph:'全工程 — 入力して検索…',
+    period_all:'全期間', period_today:'本日', period_7d:'過去7日間', period_30d:'過去30日間', period_custom:'期間を指定…',
+    dash_stat_total_records:'工程記録数', dash_stat_running:'進行中',
+    dash_stat_done:'完了', dash_stat_overdue:'未完了タスク',
+    dash_total_time_title:'合計作業時間（現在の絞り込み）',
+    dash_total_time_sub:'下に表示中の全記録の合計時間。',
+    dash_all_drawings_prefix:'受注の全図面', dash_all_drawings_master:'Master内の全図面',
+    dash_incl_never_done:'（未着手の図面を含む）',
+    dash_total_worked_prefix:'合計作業時間', dash_stat_total_drawings:'図面総数',
+    label_showing:'表示中', unit_drawings:'件の図面', label_rows_per_page:'1ページの行数:', label_all:'すべて',
+    dash_no_matching_drawings:'絞り込み条件に一致するMasterの図面がありません。',
+    btn_prev:'‹ 前へ', btn_next:'次へ ›', label_page:'ページ',
+    dash_daily_chart_title:'日別作業時間の推移',
+    dash_split_by_prefix:'選択中の', dash_split_by_suffix:'ごとに分けて表示。',
+    dash_split_hint:'上の絞り込みでJob/部門/図面/工程/従業員を複数選択すると個別に比較できます。',
+    dash_avg_stage_title:'工程ごとの平均時間', dash_no_data:'絞り込み条件に一致するデータがありません。',
+    dash_detail_title:'記録の詳細', dash_no_data_plain:'データがありません。',
+    cost_report_hint:'現在Dashboardで絞り込まれている記録（受注/従業員/部門/図面/工程/期間）を対象に計算します。',
+    cost_rate_label:'時給単価', cost_rate_ph:'例: 50000',
+    cost_currency_label:'通貨', cost_currency_other:'その他…', cost_currency_code_label:'通貨コード',
+    cost_fx_label:'VND換算レート（1単位 = ? VND）', cost_group_by_label:'集計単位',
+    cost_btn_compute:'計算する', cost_th_hours:'時間', cost_th_cost:'コスト', cost_th_vnd:'VND換算',
+    cost_total:'合計', cost_by_group_title_prefix:'コスト —', cost_by_day_title:'日別コスト',
+    tab_drawings:'図面', tab_jobs:'受注', tab_stages:'工程', tab_users:'ユーザー',
+    master_search_drawing_ph:'図面を検索…', btn_download_template:'⬇ テンプレートDL',
+    btn_update_overwrite:'⬆ 更新（上書き）', btn_add_new_no_overwrite:'⬆ 新規追加（上書きなし）',
+    master_drawing_update_hint:'Masterに既存の図面: ファイルの内容で名前/受注/バージョンを上書き（作業時間が記録済みの図面はバージョンを追加するのみで削除しません）',
+    master_drawing_add_hint:'Masterに既存の図面: 既存の名前/受注/バージョンはそのまま保持し、ファイルに未登録のバージョンのみ追加します',
+    btn_print_qr:'QRシート印刷', btn_add_drawing:'図面追加',
+    master_drawing_import_note:'<b>更新</b>：既存の図面はファイルの内容で名前/受注/バージョンが上書きされます（作業時間が記録済みの図面はバージョンが追加されるのみで削除されません）。<b>新規追加</b>：Masterに既存の図面は一切変更されず、ファイルは未登録の図面の追加、またはバージョンの追加にのみ使われます。各図面は複数バージョンを持てて、それぞれ発行日があります — Dashboardはバージョン単位ではなく図面単位で集計します。',
+    master_search_job_ph:'受注を検索…', btn_add_job:'受注追加',
+    master_job_import_note:'<b>更新</b>：既存の受注はファイルの内容で上書きされます。<b>新規追加</b>：Masterに既存の受注は一切変更されず、新規の受注のみ追加されます。',
+    master_job_update_hint:'Masterに既存の受注: ファイルに値がある項目を上書きします',
+    master_job_add_hint:'Masterに既存の受注は一切変更せず、本当に新しい受注のみ追加します',
+    master_orphan_stage_title_prefix:'⚠ リスト外の工程',
+    master_orphan_stage_hint:'従業員が作業記録時に自由入力した工程名で、下のリストに正式登録されていないものです — 既存の工程と同じ意味の入力ミス（表記ゆれ）か、本当に新しい工程の可能性があります。',
+    master_orphan_count_suffix:'回', btn_add_to_master:'+ Masterに追加',
+    master_add_dept_title:'新規部門追加',
+    master_add_dept_hint:'管理用に部門を追加できます（例：QC、倉庫、保全…）。新しい部門は登録画面・権限・タスク割り当て・ダッシュボードに表示されます。',
+    master_new_dept_ph:'新しい部門名…', btn_add_dept:'部門追加', master_new_stage_ph:'新しい工程…',
+    master_edit_requests_title_prefix:'アカウント編集依頼', btn_edit_account:'アカウント編集', btn_mark_resolved:'対応済み',
+    master_pending_accounts_title_prefix:'承認待ちアカウント', btn_approve:'承認',
+    master_user_list_title:'ユーザー一覧', btn_add_user:'ユーザー追加',
+    btn_lock:'ロック', btn_unlock:'ロック解除',
+    needs_review_badge_title:'タスク追加画面で従業員が自由入力して自動作成されました — 名前・表記はまだ誰も確認していません',
+    needs_review_badge:'⚠ 要確認', btn_mark_reviewed:'確認済み',
+    btn_history:'🕘 履歴', no_drawings_yet:'図面はまだありません。',
+    master_drawing_review_banner_prefix:'⚠', master_drawing_review_banner_suffix:'自由入力で自動作成され、未確認です',
+    master_review_banner_hint:'既存の項目と重複・表記ゆれがないか確認し、必要なら名前を修正してから「確認済み」を押してください。',
+    version_history_title:'バージョン履歴', edit_drawing_title:'図面編集', add_drawing_title:'新規図面追加',
+    qr_modal_title_prefix:'図面QRコード', qr_modal_hint:'実際のQRコード — 印刷して図面/帳票に貼り付け、工程開始時にカメラでスキャンできます。',
+    field_drawing_code:'図面番号', field_drawing_name:'図面名',
+    field_version_and_date:'バージョンと発行日（最終行 = 現行バージョン）',
+    btn_add_version:'バージョン追加', version_ph:'バージョン（例: A）',
+    no_jobs_yet:'受注はまだありません。', edit_job_title:'受注編集', add_job_title:'新規受注追加',
+    field_job_code:'受注番号', field_due_date:'納期',
+    field_name_vi:'名前（ベトナム語）', field_name_en:'名前（English）', field_name_ja:'名前（日本語）',
+    field_priority:'優先度', field_memo:'メモ',
+    edit_user_title_prefix:'ユーザー編集', field_full_name:'氏名',
+    delete_user_title_prefix:'ユーザー削除',
+    delete_user_confirm:'このアカウントを削除してもよろしいですか？この操作は取り消せません。',
+    delete_job_title_prefix:'受注削除', delete_job_confirm:'この受注を削除してもよろしいですか？',
+    delete_job_has_drawings_warn:'⚠ この受注にはMaster上で関連付けられた図面があります。受注を削除しても図面自体は削除されませんが、受注で絞り込む際の正しい関連付けが失われます。',
+    err_enter_user_pass:'ユーザー名とパスワードを入力してください。', msg_logging_in:'ログイン中…',
+    err_wrong_credentials:'ユーザー名またはパスワードが違います。', err_profile_not_found:'ユーザープロフィールが見つかりません。',
+    err_account_pending:'アカウントは管理者の承認待ちです。', err_account_locked:'アカウントはロックされています。管理者に連絡してください。',
+    err_enter_username_first:'先にユーザー名を入力してください。',
+    msg_forgot_admin_sent:'管理者にリクエストを送信しました — 管理者が新しいパスワードを設定します。',
+    msg_forgot_email_unavailable:'メール復旧機能はまだ利用できません — パスワードのリセットは管理者にご連絡ください。',
+    err_enter_new_dept_name:'新しい部門名を入力してください。', err_fill_all_fields:'すべての項目を入力してください。',
+    err_password_min_len:'パスワードは6文字以上必要です。', msg_registering:'登録中…',
+    err_username_taken:'このユーザー名は既に使用されています。', err_register_prefix:'登録エラー: ',
+    err_create_dept_prefix:'部門作成エラー: ', err_create_profile_prefix:'プロフィール作成エラー: ',
+    msg_register_success:'登録が完了しました！アカウントは管理者の承認待ちです。',
+    edit_request_title:'アカウント編集依頼を送信',
+    edit_request_hint:'Adminに変更してほしい内容（氏名・社員番号・部門・役割など）を記入してください。Adminが確認して更新します。',
+    edit_request_ph:'例: 部門をKhoに変更してください…', btn_send_request:'依頼を送信',
+    menu_send_edit_request:'✉ 編集依頼を送信', notif_empty:'通知はありません。',
+    add_user_title:'ユーザー追加',
+    add_user_hint1:'本システムは実際の認証を使用しているため、Adminがここでパスワード付きアカウントを直接作成することはできません。',
+    add_user_hint2:'新規ユーザーはログイン画面で自ら<b>登録</b>（「新規アカウント登録」リンク）し、その後Adminがここで承認待ちアカウントを<b>承認</b>してください（上の「承認待ちアカウント」欄）。',
+    btn_add_item_manual:'手動で品目追加',
+    purchasing_alert_title_prefix:'⚠ 未発注の品目',
+    purchasing_th_item:'品目', purchasing_th_qty_needed:'必要数量', purchasing_th_unit:'単位',
+    step1_title:'1. PRファイルをアップロード', step1_upload_label:'📄 PRファイルを選択（.xlsx/.csv）',
+    step1_hint:'列を自動認識：受注、品名、Model、Maker、必要/在庫数量、単位、依頼日。',
+    step2_title:'2. Xcodeファイルをアップロード', step2_upload_label:'📄 Xcodeファイルを選択（.xlsx/.csv）',
+    step2_ref_count_suffix:'件の参照コード', btn_rematch:'↻ 再照合',
+    step3_title:'3. POファイルをアップロード（複数可）', step3_upload_label:'📄 POファイルを1件以上選択（.xlsx/.csv）',
+    step3_lines_read_suffix:'件のPO行を読込', btn_view_raw:'👁 生データ表示', btn_match_po:'↻ PO照合',
+    purchasing_list_title:'購入が必要な品目一覧（行をクリックで詳細表示/編集）',
+    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
+    purchasing_th_buyer:'購入担当', purchasing_th_received_needed:'入荷済 / 必要数',
+    purchasing_empty:'品目がまだありません。PRファイルをアップロードするか手動で追加してください。', badge_po_only:'POのみ',
+    purchasing_raw_po_title:'読み込んだ生PO行（照合確認用）',
+    purchasing_th_file:'ファイル', purchasing_th_sheet:'シート', purchasing_th_po_desc:'PO記載内容',
+    purchasing_th_po_number:'PO番号', purchasing_th_po_date:'PO日付', purchasing_th_po_name:'PO記載名',
+    purchasing_th_supplier:'仕入先', purchasing_th_qty:'数量', purchasing_th_matched:'照合済み？',
+    purchasing_no_po_lines:'PO行はまだありません。',
+    pi_form_title_edit:'品目詳細', pi_form_title_add:'品目を手動で追加',
+    opt_no_job:'— なし —', field_item_name:'品目名', field_model:'Model', field_maker:'Maker',
+    field_unit:'単位', field_qty_needed:'必要数量', field_qty_stock:'在庫数量', field_qty_to_buy:'購入必要数量',
+    field_request_date:'依頼日', field_buyer:'購入担当者', opt_no_buyer:'— 未割当 —',
+    xcode_match_title:'Xcodeマッチング結果（自動 — 必要ならメイン画面で再実行）',
+    field_po_number:'PO番号', field_po_issue_date:'PO発行日', field_po_name:'PO記載名',
+    field_supplier:'仕入先', field_expected_date:'入荷予定日', field_actual_batches:'実際の入荷ロット',
+    btn_add_batch:'ロット追加', batch_total_prefix:'入荷済み合計：', batch_label:'ロット',
+    ph_qty:'数量', ph_note:'メモ', field_note:'メモ',
   }
 };
 function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
@@ -794,6 +1307,25 @@ function renderLoginTexts(){
   document.getElementById('loginBtnTxt').textContent=t('login_btn');
   document.getElementById('forgotLinkTxt').textContent=t('forgot_link');
   document.getElementById('registerLinkTxt').textContent=t('register_link');
+  document.getElementById('forgotTitleTxt').textContent=t('forgot_title');
+  document.getElementById('forgotSubTxt').textContent=t('forgot_sub');
+  document.getElementById('lblFpUser').textContent=t('username');
+  document.getElementById('btnForgotAdmin').textContent=t('btn_forgot_admin');
+  document.getElementById('btnForgotEmail').textContent=t('btn_forgot_email');
+  document.getElementById('backToLoginTxt1').textContent=t('link_back_to_login');
+  document.getElementById('registerTitleTxt').textContent=t('register_title');
+  document.getElementById('registerSubTxt').textContent=t('register_sub');
+  document.getElementById('lblRgName').textContent=t('field_full_name');
+  document.getElementById('lblRgCode').textContent=t('field_emp_code');
+  document.getElementById('lblRgDept').textContent=t('field_dept');
+  document.getElementById('rg-dept-other').placeholder=t('ph_dept_other');
+  document.getElementById('lblRgUser').textContent=t('username');
+  document.getElementById('lblRgPass').textContent=t('password');
+  document.getElementById('btnSubmitRegister').textContent=t('btn_submit_register');
+  document.getElementById('backToLoginTxt2').textContent=t('link_back_to_login');
+  document.getElementById('li-user').placeholder=t('ph_username_example');
+  document.getElementById('fp-user').placeholder=t('ph_username_example');
+  document.getElementById('rg-user').placeholder=t('ph_username_example');
 }
 
 let DEPTS = [];
@@ -1140,14 +1672,14 @@ async function doLogin(){
   const u=document.getElementById('li-user').value.trim();
   const p=document.getElementById('li-pass').value;
   const err=document.getElementById('loginErr');
-  if(!u||!p){ err.textContent='Nhập tên đăng nhập và mật khẩu.'; return; }
-  err.textContent='Đang đăng nhập…';
+  if(!u||!p){ err.textContent=t('err_enter_user_pass'); return; }
+  err.textContent=t('msg_logging_in');
   const {data:authData, error:authErr}=await supabase.auth.signInWithPassword({email:u+AUTH_EMAIL_DOMAIN, password:p});
-  if(authErr){ err.textContent='Sai tên đăng nhập hoặc mật khẩu.'; return; }
+  if(authErr){ err.textContent=t('err_wrong_credentials'); return; }
   const {data:profile, error:profErr}=await supabase.from('profiles').select('*').eq('id',authData.user.id).single();
-  if(profErr||!profile){ err.textContent='Không tìm thấy hồ sơ người dùng.'; await supabase.auth.signOut(); return; }
-  if(profile.status==='pending'){ err.textContent='Tài khoản đang chờ Admin duyệt.'; await supabase.auth.signOut(); return; }
-  if(profile.status==='locked'){ err.textContent='Tài khoản đã bị khoá. Liên hệ Admin.'; await supabase.auth.signOut(); return; }
+  if(profErr||!profile){ err.textContent=t('err_profile_not_found'); await supabase.auth.signOut(); return; }
+  if(profile.status==='pending'){ err.textContent=t('err_account_pending'); await supabase.auth.signOut(); return; }
+  if(profile.status==='locked'){ err.textContent=t('err_account_locked'); await supabase.auth.signOut(); return; }
   err.textContent='';
   await loadCoreData();
   SESSION=USERS.find(x=>x.id===authData.user.id);
@@ -1159,9 +1691,9 @@ async function doLogin(){
 function forgotFlow(mode){
   const u=document.getElementById('fp-user').value.trim();
   const m=document.getElementById('forgotMsg');
-  if(!u){ m.textContent='Nhập tên đăng nhập trước đã.'; m.style.color='var(--danger)'; return; }
-  if(mode==='admin'){ m.textContent='Đã gửi yêu cầu tới Admin — Admin sẽ cấp mật khẩu mới cho bạn.'; }
-  else{ m.textContent='Tính năng gửi email khôi phục chưa khả dụng — vui lòng liên hệ Admin để được cấp lại mật khẩu.'; }
+  if(!u){ m.textContent=t('err_enter_username_first'); m.style.color='var(--danger)'; return; }
+  if(mode==='admin'){ m.textContent=t('msg_forgot_admin_sent'); }
+  else{ m.textContent=t('msg_forgot_email_unavailable'); }
   m.style.color='var(--solder)';
 }
 async function doRegister(){
@@ -1172,25 +1704,25 @@ async function doRegister(){
   const user=document.getElementById('rg-user').value.trim();
   const pass=document.getElementById('rg-pass').value;
   const m=document.getElementById('regMsg');
-  if(deptSel==='__other__' && !deptOther){ m.textContent='Nhập tên bộ phận mới.'; m.style.color='var(--danger)'; return; }
+  if(deptSel==='__other__' && !deptOther){ m.textContent=t('err_enter_new_dept_name'); m.style.color='var(--danger)'; return; }
   const dept = deptSel==='__other__' ? deptOther : deptSel;
-  if(!name||!code||!user||!pass||!dept){ m.textContent='Vui lòng điền đầy đủ thông tin.'; m.style.color='var(--danger)'; return; }
-  if(pass.length<6){ m.textContent='Mật khẩu cần ít nhất 6 ký tự.'; m.style.color='var(--danger)'; return; }
-  m.textContent='Đang đăng ký…'; m.style.color='var(--text-dim)';
+  if(!name||!code||!user||!pass||!dept){ m.textContent=t('err_fill_all_fields'); m.style.color='var(--danger)'; return; }
+  if(pass.length<6){ m.textContent=t('err_password_min_len'); m.style.color='var(--danger)'; return; }
+  m.textContent=t('msg_registering'); m.style.color='var(--text-dim)';
   const {data:signUpData, error:signUpErr}=await supabase.auth.signUp({email:user+AUTH_EMAIL_DOMAIN, password:pass});
-  if(signUpErr){ m.textContent = /already|registered/i.test(signUpErr.message)?'Tên đăng nhập đã tồn tại.':'Lỗi đăng ký: '+signUpErr.message; m.style.color='var(--danger)'; return; }
+  if(signUpErr){ m.textContent = /already|registered/i.test(signUpErr.message)?t('err_username_taken'):t('err_register_prefix')+signUpErr.message; m.style.color='var(--danger)'; return; }
   let deptId=DEPT_ID_BY_NAME[dept];
   if(!deptId){
     const {data:newDept, error:deptErr}=await supabase.from('depts').insert({name:dept}).select().single();
-    if(deptErr){ m.textContent='Lỗi tạo bộ phận mới: '+deptErr.message; m.style.color='var(--danger)'; await supabase.auth.signOut(); return; }
+    if(deptErr){ m.textContent=t('err_create_dept_prefix')+deptErr.message; m.style.color='var(--danger)'; await supabase.auth.signOut(); return; }
     deptId=newDept.id; DEPT_ID_BY_NAME[dept]=deptId; DEPT_NAME_BY_ID[deptId]=dept; DEPTS.push(dept);
   }
   const {error:profErr}=await supabase.from('profiles').insert({
     id:signUpData.user.id, name, code, username:user, dept_id:deptId, role:'employee', status:'pending'
   });
   await supabase.auth.signOut();
-  if(profErr){ m.textContent='Lỗi tạo hồ sơ: '+profErr.message; m.style.color='var(--danger)'; return; }
-  m.textContent='Đăng ký thành công! Tài khoản đang chờ Admin duyệt.'; m.style.color='var(--solder)';
+  if(profErr){ m.textContent=t('err_create_profile_prefix')+profErr.message; m.style.color='var(--danger)'; return; }
+  m.textContent=t('msg_register_success'); m.style.color='var(--solder)';
   ['rg-name','rg-code','rg-user','rg-pass','rg-dept-other'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('rg-dept-other').classList.add('hidden');
 }
@@ -1243,6 +1775,10 @@ function renderNav(){
     </div>`).join('');
   updateAssignBadge();
   document.querySelectorAll('.lang-switch-top .lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===LANG));
+  document.getElementById('sideEditReqBtn').textContent=t('menu_send_edit_request');
+  document.getElementById('sideLogoutBtn').textContent='↩ '+t('logout');
+  document.getElementById('umEditReqBtn').textContent=t('menu_send_edit_request');
+  document.getElementById('umLogoutBtn').textContent='↩ '+t('logout');
 }
 function updateAssignBadge(){
   const el=document.getElementById('assignBadge'); if(!el) return;
@@ -1288,7 +1824,7 @@ function renderNotifBell(open){
   const p=document.getElementById('notifPanel');
   p.innerHTML = mine.length? mine.slice().reverse().map(n=>`
     <div class="notif-item ${n.read?'':'unread'}">${n.text}<div class="t">${n.time}</div></div>
-  `).join('') : `<div class="notif-item">Không có thông báo.</div>`;
+  `).join('') : `<div class="notif-item">${t('notif_empty')}</div>`;
   if(open){
     const unreadIds=mine.filter(n=>!n.read).map(n=>n.id);
     mine.forEach(n=>n.read=true);
@@ -1352,36 +1888,36 @@ function openOrderDetail(code){
     const logs=TIMELOGS.filter(l=>l.drawingCodes.includes(d.code));
     const done=logs.some(l=>l.status==='done');
     const started=logs.length>0;
-    const st= done?`<span class="badge badge-done">Xong</span>` : started?`<span class="badge badge-progress">Đang làm</span>` : `<span class="badge badge-idle">Chưa làm</span>`;
+    const st= done?`<span class="badge badge-done">${t('status_done')}</span>` : started?`<span class="badge badge-progress">${t('status_progress')}</span>` : `<span class="badge badge-idle">${t('status_idle')}</span>`;
     const totalMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length),0);
     return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td>${st}</td><td class="mono">${fmtDur(totalMs)}</td></tr>`;
   }).join('');
   const genericTasks=TIMELOGS.filter(l=>l.job===code && (!l.drawingCodes||l.drawingCodes.length===0));
-  const genericNote = genericTasks.length? `<p style="font-size:11.5px;color:var(--amber);margin:6px 0 0">⚠ Có ${genericTasks.length} tác vụ đã ghi nhận cho job này nhưng chưa gắn bản vẽ cụ thể (vẫn được tính là "Đang làm").</p>` : '';
+  const genericNote = genericTasks.length? `<p style="font-size:11.5px;color:var(--amber);margin:6px 0 0">${t('order_generic_note_prefix')} ${genericTasks.length} ${t('order_generic_note_suffix')}</p>` : '';
   const editFields = canEdit ? `
     <div class="grid-cols g2">
-      <div class="field"><label>Tên đơn hàng (Tiếng Việt)</label><input id="ordNameViEdit" value="${(o.name_vi||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Ngày giao kế hoạch</label><input id="ordDateEdit" type="date" value="${o.planDate}"></div>
+      <div class="field"><label>${t('order_name_vi')}</label><input id="ordNameViEdit" value="${(o.name_vi||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>${t('order_plan_date')}</label><input id="ordDateEdit" type="date" value="${o.planDate}"></div>
     </div>
     <div class="grid-cols g2">
-      <div class="field"><label>Tên đơn hàng (English)</label><input id="ordNameEnEdit" value="${(o.name_en||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Tên đơn hàng (日本語)</label><input id="ordNameJaEdit" value="${(o.name_ja||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>${t('order_name_en')}</label><input id="ordNameEnEdit" value="${(o.name_en||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>${t('order_name_ja')}</label><input id="ordNameJaEdit" value="${(o.name_ja||'').replace(/"/g,'&quot;')}"></div>
     </div>
-    <div class="field"><label>Mức độ ưu tiên</label><select id="ordPriorityEdit">
+    <div class="field"><label>${t('order_priority_label')}</label><select id="ordPriorityEdit">
       <option value="high" ${o.priority==='high'?'selected':''}>${t('priority_high')}</option>
       <option value="medium" ${o.priority==='medium'?'selected':''}>${t('priority_medium')}</option>
       <option value="low" ${o.priority==='low'?'selected':''}>${t('priority_low')}</option>
     </select></div>
-    <div class="field"><label>Memo quản lý</label><textarea rows="2" id="memoEdit">${o.memo||''}</textarea></div>
+    <div class="field"><label>${t('order_memo_label')}</label><textarea rows="2" id="memoEdit">${o.memo||''}</textarea></div>
   ` : `
-    <p style="color:var(--text-dim);font-size:13px">${getJobName(o)} · Giao KH: ${o.planDate}</p>
-    <p style="font-size:12.5px;color:var(--text-mute)">Memo: ${o.memo||'—'}</p>
+    <p style="color:var(--text-dim);font-size:13px">${getJobName(o)} · ${t('order_due_prefix')}: ${o.planDate}</p>
+    <p style="font-size:12.5px;color:var(--text-mute)">${t('order_memo_prefix')}: ${o.memo||'—'}</p>
   `;
-  openModal(`Chi tiết đơn hàng ${o.code}`, `
+  openModal(`${t('order_detail_title')} ${o.code}`, `
     ${editFields}
     ${genericNote}
-    <table style="margin-top:10px"><thead><tr><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">Chưa có bản vẽ nào trong Master.</td></tr>`}</tbody></table>
-  `, canEdit ? [{label:'Lưu thay đổi', primary:true, onClick:async ()=>{
+    <table style="margin-top:10px"><thead><tr><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th></tr></thead><tbody>${rows||`<tr><td colspan="4" style="color:var(--text-mute)">${t('order_no_drawings')}</td></tr>`}</tbody></table>
+  `, canEdit ? [{label:t('btn_save_changes'), primary:true, onClick:async ()=>{
       const name_vi=document.getElementById('ordNameViEdit').value.trim()||o.name_vi;
       const name_en=document.getElementById('ordNameEnEdit').value.trim();
       const name_ja=document.getElementById('ordNameJaEdit').value.trim();
@@ -1392,7 +1928,7 @@ function openOrderDetail(code){
       if(error){ toast('Lỗi lưu đơn hàng: '+error.message,'err'); return; }
       Object.assign(o,{name_vi,name_en,name_ja,priority,planDate,memo});
       closeModal(); renderHome(); toast('Đã cập nhật thông tin đơn hàng.','ok');
-    }}] : [{label:'Đóng', onClick:closeModal}]);
+    }}] : [{label:t('close'), onClick:closeModal}]);
 }
 
 /* ---------------- ASSIGN ---------------- */
@@ -1401,10 +1937,10 @@ function renderAssign(){
   assignTab = (SESSION.role!=='employee')?'manage':'mine';
   const canManage = SESSION.role==='manager'||SESSION.role==='admin';
   document.getElementById('viewRoot').innerHTML=`
-    <div class="view-head"><div><h2>Nhiệm vụ</h2><p>Phân công, theo dõi và trao đổi về từng nhiệm vụ.</p></div></div>
+    <div class="view-head"><div><h2>${t('assign_title')}</h2><p>${t('assign_sub')}</p></div></div>
     <div class="tabs">
-      ${canManage?`<button class="tab-btn ${assignTab==='manage'?'active':''}" onclick="switchAssignTab('manage')">Quản lý phân công</button>`:''}
-      <button class="tab-btn ${assignTab==='mine'?'active':''}" onclick="switchAssignTab('mine')">Nhiệm vụ của tôi</button>
+      ${canManage?`<button class="tab-btn ${assignTab==='manage'?'active':''}" onclick="switchAssignTab('manage')">${t('tab_manage')}</button>`:''}
+      <button class="tab-btn ${assignTab==='mine'?'active':''}" onclick="switchAssignTab('mine')">${t('tab_mine')}</button>
     </div>
     <div id="assignBody"></div>`;
   renderAssignBody();
@@ -1422,36 +1958,36 @@ function renderAssignBody(){
     const empOpts=USERS.filter(u=>u.role==='employee').map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
     body.innerHTML=`
       <div class="card">
-        <h3 style="margin-top:0;font-size:14.5px">Tạo nhiệm vụ mới</h3>
-        <div class="field"><label>Bộ phận (lọc gợi ý người nhận, tuỳ chọn)</label><select id="asg-dept" onchange="onAsgDeptChange()"><option value="">— tất cả bộ phận —</option>${deptOpts}</select></div>
+        <h3 style="margin-top:0;font-size:14.5px">${t('assign_create_title')}</h3>
+        <div class="field"><label>${t('assign_field_dept')}</label><select id="asg-dept" onchange="onAsgDeptChange()"><option value="">${t('assign_dept_all_opt')}</option>${deptOpts}</select></div>
         <div class="field">
-          <label>Người nhận (chọn được nhiều người cùng lúc)</label>
+          <label>${t('assign_field_recipients')}</label>
           <div style="display:flex;gap:8px;align-items:flex-start">
-            <div style="flex:1">${multiComboHTML('asg-to', USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id).map(u=>({value:u.id, label:`${u.name} (${u.dept} · ${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]})`})), 'Gõ tên để tìm…', {allowCreate:false})}</div>
-            <button type="button" class="btn btn-sm" style="white-space:nowrap" onclick="addAllDeptToAssign()">+ Cả bộ phận</button>
+            <div style="flex:1">${multiComboHTML('asg-to', USERS.filter(u=>u.status==='active'&&u.id!==SESSION.id).map(u=>({value:u.id, label:`${u.name} (${u.dept} · ${({admin:t('role_admin'),manager:t('role_manager'),employee:t('role_employee')})[u.role]})`})), t('assign_type_to_search'), {allowCreate:false})}</div>
+            <button type="button" class="btn btn-sm" style="white-space:nowrap" onclick="addAllDeptToAssign()">${t('assign_add_whole_dept')}</button>
           </div>
         </div>
         <div class="grid-cols g2">
-          <div class="field"><label>Liên kết Job (tuỳ chọn — để trống nếu áp dụng chung, không riêng job/bộ phận nào)</label><select id="asg-job"><option value="">— không có job cụ thể —</option>${jobOpts}</select></div>
-          <div class="field"><label>Liên kết bản vẽ (tuỳ chọn)</label><select id="asg-drawing"><option value="">— không có bản vẽ cụ thể —</option>${drawOpts}</select></div>
+          <div class="field"><label>${t('assign_field_job')}</label><select id="asg-job"><option value="">${t('assign_job_none_opt')}</option>${jobOpts}</select></div>
+          <div class="field"><label>${t('assign_field_drawing')}</label><select id="asg-drawing"><option value="">${t('assign_drawing_none_opt')}</option>${drawOpts}</select></div>
         </div>
-        <div class="field"><label>Nội dung chỉ thị</label><textarea id="asg-content" rows="2" placeholder="Mô tả công việc cần thực hiện…"></textarea></div>
-        <button class="btn btn-primary" onclick="createAssign()">${icon('plus',15)} Phân nhiệm vụ</button>
+        <div class="field"><label>${t('assign_field_content')}</label><textarea id="asg-content" rows="2" placeholder="${t('assign_content_placeholder')}"></textarea></div>
+        <button class="btn btn-primary" onclick="createAssign()">${icon('plus',15)} ${t('btn_assign_task')}</button>
       </div>
       <div class="card scroll-x">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-          <h3 style="margin:0;font-size:14.5px">Danh sách đã phân</h3>
+          <h3 style="margin:0;font-size:14.5px">${t('assign_list_title')}</h3>
         </div>
         <div class="filter-bar">
-          <select id="asgF-emp" onchange="renderAssignManageTable()"><option value="">Tất cả nhân viên</option>${empOpts}</select>
-          <select id="asgF-dept" onchange="renderAssignManageTable()"><option value="">Tất cả bộ phận</option>${deptOpts}</select>
+          <select id="asgF-emp" onchange="renderAssignManageTable()"><option value="">${t('filter_all_employees')}</option>${empOpts}</select>
+          <select id="asgF-dept" onchange="renderAssignManageTable()"><option value="">${t('filter_all_depts')}</option>${deptOpts}</select>
           <select id="asgF-status" onchange="renderAssignManageTable()">
-            <option value="">Tất cả trạng thái</option>
-            <option value="sent">Đã phân</option><option value="accepted">Đã nhận</option>
-            <option value="inprogress">Đang làm</option><option value="done">Hoàn thành</option><option value="rejected">Từ chối</option>
+            <option value="">${t('filter_all_status')}</option>
+            <option value="sent">${t('status_sent')}</option><option value="accepted">${t('status_accepted')}</option>
+            <option value="inprogress">${t('status_progress')}</option><option value="done">${t('status_done')}</option><option value="rejected">${t('status_rejected')}</option>
           </select>
-          <select id="asgF-job" onchange="renderAssignManageTable()"><option value="">Tất cả Job</option>${jobOpts}</select>
-          <input id="asgF-search" placeholder="Tìm theo nội dung…" oninput="renderAssignManageTable()">
+          <select id="asgF-job" onchange="renderAssignManageTable()"><option value="">${t('filter_all_jobs')}</option>${jobOpts}</select>
+          <input id="asgF-search" placeholder="${t('assign_search_placeholder')}" oninput="renderAssignManageTable()">
         </div>
         <div id="assignManageTableWrap"></div>
       </div>`;
@@ -1463,12 +1999,12 @@ function renderAssignBody(){
     const accepted=mine.filter(a=>a.status!=='sent');
     body.innerHTML=`
       <div class="card">
-        <h3 style="margin-top:0;font-size:14.5px">Nhiệm vụ mới — cần phản hồi (${pending.length})</h3>
-        ${pending.length? pending.map(a=>assignCardEmployee(a,true)).join('') : `<p style="color:var(--text-mute);font-size:13px">Không có nhiệm vụ chờ phản hồi.</p>`}
+        <h3 style="margin-top:0;font-size:14.5px">${t('assign_pending_title')} (${pending.length})</h3>
+        ${pending.length? pending.map(a=>assignCardEmployee(a,true)).join('') : `<p style="color:var(--text-mute);font-size:13px">${t('assign_no_pending')}</p>`}
       </div>
       <div class="card">
-        <h3 style="margin-top:0;font-size:14.5px">Nhiệm vụ đã nhận</h3>
-        ${accepted.length? accepted.map(a=>assignCardEmployee(a,false)).join('') : `<p style="color:var(--text-mute);font-size:13px">Chưa có nhiệm vụ nào.</p>`}
+        <h3 style="margin-top:0;font-size:14.5px">${t('assign_accepted_title')}</h3>
+        ${accepted.length? accepted.map(a=>assignCardEmployee(a,false)).join('') : `<p style="color:var(--text-mute);font-size:13px">${t('assign_no_accepted')}</p>`}
       </div>`;
   }
 }
@@ -1515,8 +2051,8 @@ function renderAssignManageTable(){
 function assignPageChange(delta){ assignPageState.page+=delta; renderAssignManageTable(); }
 function assignPageSizeChange(v){ assignPageState.pageSize=v==='all'?'all':Number(v); assignPageState.page=1; renderAssignManageTable(); }
 function statusBadge(s){
-  const map={sent:['Đã phân','badge-info'],accepted:['Đã nhận','badge-info'],inprogress:['Đang làm','badge-progress'],done:['Hoàn thành','badge-done'],rejected:['Từ chối','badge-danger']};
-  const [lbl,cls]=map[s]||['—','badge-idle']; return `<span class="badge ${cls}">${lbl}</span>`;
+  const map={sent:['status_sent','badge-info'],accepted:['status_accepted','badge-info'],inprogress:['status_progress','badge-progress'],done:['status_done','badge-done'],rejected:['status_rejected','badge-danger']};
+  const [k,cls]=map[s]||[null,'badge-idle']; return `<span class="badge ${cls}">${k?t(k):'—'}</span>`;
 }
 function hasUnreadChat(a){
   const seen=(a.lastSeenBy && a.lastSeenBy[SESSION.id]) || 0;
@@ -1524,7 +2060,7 @@ function hasUnreadChat(a){
 }
 function chatBtn(id, a){
   const unread=hasUnreadChat(a);
-  return `<button class="btn btn-ghost btn-sm" style="position:relative" onclick="openAssignChat('${id}')">${icon('chat',14)} Trao đổi${a.comments.length?` (${a.comments.length})`:''}${unread?`<span style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface)"></span>`:''}</button>`;
+  return `<button class="btn btn-ghost btn-sm" style="position:relative" onclick="openAssignChat('${id}')">${icon('chat',14)} ${t('btn_chat')}${a.comments.length?` (${a.comments.length})`:''}${unread?`<span style="position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--danger);border:1.5px solid var(--surface)"></span>`:''}</button>`;
 }
 function onAsgDeptChange(){
   const dept=document.getElementById('asg-dept').value;
@@ -1547,10 +2083,10 @@ function assignRowManage(a){
     <td style="max-width:260px">${a.content}</td>
     <td>${emp?emp.name:'—'}</td>
     <td class="mono" style="font-size:12px">${a.job||'—'}${a.drawing?' / '+a.drawing:''}</td>
-    <td>${statusBadge(a.status)}${a.status==='rejected'?`<div style="font-size:11px;color:var(--danger);margin-top:3px">Lý do: ${a.rejectReason}</div>`:''}</td>
+    <td>${statusBadge(a.status)}${a.status==='rejected'?`<div style="font-size:11px;color:var(--danger);margin-top:3px">${t('label_reason')}: ${a.rejectReason}</div>`:''}</td>
     <td style="white-space:nowrap">
       ${chatBtn(a.id, a)}
-      ${a.status==='rejected'?`<button class="btn btn-sm btn-primary" style="margin-left:6px" onclick="reassignTask('${a.id}')">↻ Phân lại</button>`:''}
+      ${a.status==='rejected'?`<button class="btn btn-sm btn-primary" style="margin-left:6px" onclick="reassignTask('${a.id}')">↻ ${t('btn_reassign')}</button>`:''}
     </td>
   </tr>`;
 }
@@ -1569,17 +2105,17 @@ function assignCardEmployee(a,isPending){
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div>
         <div style="font-size:13.5px">${a.content}</div>
-        <div style="font-size:11.5px;color:var(--text-mute);margin-top:4px">Job: <span class="mono">${a.job||'—'}</span> ${a.drawing?'· BV: <span class="mono">'+a.drawing+'</span>':''} · ${a.createdAt}</div>
+        <div style="font-size:11.5px;color:var(--text-mute);margin-top:4px">${t('th_job')}: <span class="mono">${a.job||'—'}</span> ${a.drawing?'· '+t('th_drawing')+': <span class="mono">'+a.drawing+'</span>':''} · ${a.createdAt}</div>
       </div>
       <div>${statusBadge(a.status)}</div>
     </div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       ${isPending?`
-        <button class="btn btn-solder btn-sm" onclick="respondAssign('${a.id}','accept')">${icon('check',14)} Nhận</button>
-        <button class="btn btn-danger btn-sm" onclick="respondAssign('${a.id}','reject')">${icon('x',14)} Từ chối</button>
+        <button class="btn btn-solder btn-sm" onclick="respondAssign('${a.id}','accept')">${icon('check',14)} ${t('btn_accept')}</button>
+        <button class="btn btn-danger btn-sm" onclick="respondAssign('${a.id}','reject')">${icon('x',14)} ${t('btn_reject')}</button>
       `:`
-        ${a.status==='accepted'?`<button class="btn btn-sm btn-primary" onclick="respondAssign('${a.id}','start')">Bắt đầu</button>`:''}
-        ${a.status==='inprogress'?`<button class="btn btn-sm btn-solder" onclick="respondAssign('${a.id}','finish')">Hoàn thành</button>`:''}
+        ${a.status==='accepted'?`<button class="btn btn-sm btn-primary" onclick="respondAssign('${a.id}','start')">${t('btn_start')}</button>`:''}
+        ${a.status==='inprogress'?`<button class="btn btn-sm btn-solder" onclick="respondAssign('${a.id}','finish')">${t('btn_finish')}</button>`:''}
         ${chatBtn(a.id, a)}
       `}
     </div>
@@ -1616,8 +2152,8 @@ async function respondAssign(id,action){
     a.status='accepted'; toast('Đã nhận nhiệm vụ.','ok');
   }
   else if(action==='reject'){
-    openModal('Lý do từ chối', `<div class="field"><label>Ghi rõ lý do</label><textarea id="rejReason" rows="3"></textarea></div>`,
-      [{label:'Xác nhận từ chối', primary:true, danger:true, onClick:async ()=>{
+    openModal(t('reject_reason_title'), `<div class="field"><label>${t('label_reason_detail')}</label><textarea id="rejReason" rows="3"></textarea></div>`,
+      [{label:t('btn_confirm_reject'), primary:true, danger:true, onClick:async ()=>{
         const r=document.getElementById('rejReason').value.trim();
         if(!r){toast('Cần nhập lý do.','err'); return;}
         const {error}=await supabase.from('assigns').update({status:'rejected', reject_reason:r}).eq('id',id);
@@ -1647,12 +2183,12 @@ function openAssignChat(id){
   supabase.from('assign_last_seen').upsert({assign_id:id, user_id:SESSION.id, seen_count:a.comments.length}, {onConflict:'assign_id,user_id'})
     .then(({error})=>{ if(error) console.error(error); });
   const msgs=a.comments.map(c=>`<div class="chat-msg"><b>${c.by}:</b> ${c.text}<span class="t">${c.time}</span></div>`).join('');
-  openModal('Trao đổi nhiệm vụ', `
+  openModal(t('assign_chat_title'), `
     <p style="font-size:12.5px;color:var(--text-dim)">${a.content}</p>
-    <div class="chat-box" id="chatBox">${msgs||'<div style="color:var(--text-mute);font-size:12.5px">Chưa có trao đổi nào.</div>'}</div>
+    <div class="chat-box" id="chatBox">${msgs||`<div style="color:var(--text-mute);font-size:12.5px">${t('chat_no_messages')}</div>`}</div>
     <div style="display:flex;gap:8px">
-      <input id="chatInput" placeholder="Nhập tin nhắn…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
-      <button class="btn btn-primary btn-sm" onclick="sendChat('${id}')">Gửi</button>
+      <input id="chatInput" placeholder="${t('chat_placeholder')}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+      <button class="btn btn-primary btn-sm" onclick="sendChat('${id}')">${t('btn_send')}</button>
     </div>`, []);
 }
 async function sendChat(id){
@@ -1686,39 +2222,39 @@ function renderShift(){
   const rowHtml=(l)=>{
     const elapsed=(l.end||Date.now())-l.start-l.pausedMs;
     return `<tr>
-      <td class="mono">${l.job}${l.offline?` <span class="badge badge-progress" title="Chưa gửi lên được do mất mạng — sẽ tự gửi khi có mạng lại">⏳ Chưa gửi</span>`:''}</td>
+      <td class="mono">${l.job}${l.offline?` <span class="badge badge-progress" title="${t('offline_not_synced_title')}">⏳ ${t('offline_not_synced')}</span>`:''}</td>
       <td class="mono">${l.drawingCodes.join(', ')}</td>
       <td>${l.drawingName}</td>
       <td>${l.stages.join(', ')}</td>
       <td class="timer">${fmtDur(elapsed)}</td>
-      <td>${l.status==='running'?`<button class="btn btn-sm" onclick="pauseLog('${l.id}')">⏸ Pause</button> <button class="btn btn-sm btn-solder" onclick="finishLog('${l.id}')">✓ Finish</button>`
-        : l.status==='paused'?`<button class="btn btn-sm btn-primary" onclick="resumeLog('${l.id}')">▶ Resume</button>`
-        : `<span class="badge badge-done">Đã xong</span>`}</td>
+      <td>${l.status==='running'?`<button class="btn btn-sm" onclick="pauseLog('${l.id}')">⏸ ${t('btn_pause')}</button> <button class="btn btn-sm btn-solder" onclick="finishLog('${l.id}')">✓ ${t('btn_finish')}</button>`
+        : l.status==='paused'?`<button class="btn btn-sm btn-primary" onclick="resumeLog('${l.id}')">▶ ${t('btn_resume')}</button>`
+        : `<span class="badge badge-done">${t('status_done')}</span>`}</td>
     </tr>`;
   };
 
   document.getElementById('viewRoot').innerHTML=`
-    <div class="view-head"><div><h2>Ca làm việc hôm nay</h2><p>Ghi nhận thời gian thực hiện theo từng bản vẽ / công đoạn.</p></div>
-      <button class="btn btn-primary" onclick="openAddTask()">${icon('plus',15)} Thêm tác vụ</button>
+    <div class="view-head"><div><h2>${t('shift_title')}</h2><p>${t('shift_sub')}</p></div>
+      <button class="btn btn-primary" onclick="openAddTask()">${icon('plus',15)} ${t('btn_add_task')}</button>
     </div>
 
     ${unfinished.length?`
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Việc dở từ trước — bấm Resume để tiếp tục</h3>
+      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">${t('shift_unfinished_title')}</h3>
       <table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead>
       <tbody>${unfinished.map(rowHtml).join('')}</tbody></table>
     </div>`:''}
 
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px;color:var(--copper-hi)">Đang thực hiện</h3>
+      <h3 style="margin-top:0;font-size:14px;color:var(--copper-hi)">${t('shift_running_title')}</h3>
       ${running.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${running.map(rowHtml).join('')}</tbody></table>`
-      : `<div class="empty-state">${icon('clock',30)}<p>Chưa có tác vụ nào đang chạy. Bấm "Thêm tác vụ" để bắt đầu.</p></div>`}
+      : `<div class="empty-state">${icon('clock',30)}<p>${t('shift_empty_running')}</p></div>`}
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px">Đã hoàn thành hôm nay</h3>
+      <h3 style="margin-top:0;font-size:14px">${t('shift_done_title')}</h3>
       ${doneToday.length?`<table><thead><tr><th>${t('th_job')}</th><th>${t('th_drawing')}</th><th>${t('th_name')}</th><th>${t('th_stage')}</th><th>${t('th_time')}</th><th></th></tr></thead><tbody>${doneToday.map(rowHtml).join('')}</tbody></table>`
-      : `<p style="color:var(--text-mute);font-size:13px">Chưa hoàn thành tác vụ nào.</p>`}
+      : `<p style="color:var(--text-mute);font-size:13px">${t('shift_empty_done')}</p>`}
     </div>`;
 }
 /* ---------------- Hàng đợi offline (Start/Pause/Resume/Finish) ----------------
@@ -1753,11 +2289,11 @@ function renderOfflineBadge(){
     el=document.createElement('div');
     el.id='offlineBadge';
     el.style.cssText='position:fixed;bottom:78px;right:14px;z-index:500;background:var(--amber-bg);color:var(--amber);padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:pointer';
-    el.title='Bấm để thử đồng bộ ngay';
+    el.title=t('offline_pending_title');
     el.onclick=()=>flushOfflineQueue();
     document.body.appendChild(el);
   }
-  el.textContent=`⏳ Chưa đồng bộ (${OFFLINE_QUEUE.length})`;
+  el.textContent=`⏳ ${t('offline_pending')} (${OFFLINE_QUEUE.length})`;
 }
 /** Gửi lại lần lượt (đúng thứ tự) các thao tác đã lưu tạm. Với "start" bị
     lưu tạm, phải tải lại dữ liệu mới nhất rồi KIỂM TRA TRÙNG CÔNG ĐOẠN LẠI
@@ -1861,47 +2397,47 @@ function openAddTask(){
   scanBuffer=[];
   const stageOpts=Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i)
     .map(s=>({value:s, label:s}));
-  openModal('Thêm tác vụ mới', `
+  openModal(t('add_task_title'), `
     <div class="tabs" style="margin-bottom:12px">
-      <button class="tab-btn active" id="tab-qr" onclick="switchAddTab('qr')">${icon('qr',14)} Quét QR</button>
-      <button class="tab-btn" id="tab-manual" onclick="switchAddTab('manual')">Nhập thủ công</button>
+      <button class="tab-btn active" id="tab-qr" onclick="switchAddTab('qr')">${icon('qr',14)} ${t('tab_scan_qr')}</button>
+      <button class="tab-btn" id="tab-manual" onclick="switchAddTab('manual')">${t('tab_manual_entry')}</button>
     </div>
     <div id="addTab-qr">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-primary" id="qrCamBtn" onclick="toggleQrCamera()">${icon('qr',14)} Bật camera quét</button>
-        <span style="font-size:11.5px;color:var(--text-mute)">Có thể quét liên tục nhiều bản vẽ. Không có camera? Chọn thủ công bên dưới.</span>
+        <button class="btn btn-sm btn-primary" id="qrCamBtn" onclick="toggleQrCamera()">${icon('qr',14)} ${t('btn_enable_camera')}</button>
+        <span style="font-size:11.5px;color:var(--text-mute)">${t('hint_scan_multiple')}</span>
       </div>
       <div id="qrCamWrap" class="hidden" style="margin-bottom:10px">
         <div style="position:relative;width:100%;max-width:320px">
           <video id="qrVideo" playsinline muted style="width:100%;border-radius:8px;background:#000;display:block"></video>
           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:65%;aspect-ratio:1/1;border:3px solid var(--copper-hi);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none"></div>
         </div>
-        <p style="font-size:11px;color:var(--text-mute);margin:6px 0 0">Đưa mã QR vào giữa khung vuông để quét nhanh hơn.</p>
+        <p style="font-size:11px;color:var(--text-mute);margin:6px 0 0">${t('hint_qr_center')}</p>
         <div id="qrDebug" style="font-size:11px;color:var(--text-mute);margin-top:2px;font-family:var(--font-mono)"></div>
       </div>
-      <div class="field"><label>Mã bản vẽ (QR)</label>
-        <select id="qrPick"><option value="">— chọn bản vẽ để giả lập quét —</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
+      <div class="field"><label>${t('field_drawing_qr')}</label>
+        <select id="qrPick"><option value="">${t('opt_simulate_scan')}</option>${DRAWINGS.map(d=>`<option value="${d.code}">${d.code} — ${d.name}</option>`).join('')}</select>
       </div>
-      <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} Quét mã này</button>
+      <button class="btn btn-sm" onclick="addToScanBuffer()">${icon('qr',14)} ${t('btn_scan_this_code')}</button>
       <div id="scanList" style="margin:10px 0;font-size:12.5px;color:var(--text-dim)"></div>
-      <div class="field"><label>Công đoạn cho lô vừa quét (chọn được nhiều — thời gian sẽ chia đều)</label>
+      <div class="field"><label>${t('field_stage_for_batch')}</label>
         ${multiComboHTML('qrStage', stageOpts, 'vd: Vẽ mạch, Mạ đồng…')}
       </div>
-      <p style="font-size:11.5px;color:var(--text-mute)">Nếu quét nhiều mã liên tiếp trước khi chọn công đoạn, các bản vẽ sẽ gộp vào 1 dòng — thời gian làm sau này sẽ được <b>chia đều</b> cho các bản vẽ trong dòng.</p>
+      <p style="font-size:11.5px;color:var(--text-mute)">${t('hint_scan_batch_merge')}</p>
     </div>
     <div id="addTab-manual" class="hidden">
-      <p style="font-size:11.5px;color:var(--text-mute);margin-top:0">Chọn từ danh sách có sẵn, hoặc gõ nội dung mới nếu không làm trên bản vẽ/Job cụ thể (vd: việc khác, họp, bảo trì…) — Job/bản vẽ gõ mới sẽ tự thêm vào Master.</p>
-      <div class="field"><label>Job</label>
-        ${comboHTML('mnJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), '— để trống nếu không có Job — gõ để tìm hoặc thêm mới')}
+      <p style="font-size:11.5px;color:var(--text-mute);margin-top:0">${t('hint_manual_entry')}</p>
+      <div class="field"><label>${t('th_job')}</label>
+        ${comboHTML('mnJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), t('ph_job_combo'))}
       </div>
-      <div class="field"><label>Bản vẽ</label>
-        ${comboHTML('mnDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), '— để trống nếu không có bản vẽ — gõ để tìm hoặc thêm mới')}
+      <div class="field"><label>${t('th_drawing')}</label>
+        ${comboHTML('mnDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), t('ph_drawing_combo'))}
       </div>
-      <div class="field"><label>Công đoạn / công việc (chọn được nhiều — thời gian sẽ chia đều)</label>
+      <div class="field"><label>${t('field_stage_multi')}</label>
         ${multiComboHTML('mnStage', stageOpts, 'vd: Vẽ mạch, Họp nhóm, Bảo trì máy…')}
       </div>
     </div>
-  `, [{label:'Bắt đầu (Start)', primary:true, onClick:submitAddTask}]);
+  `, [{label:t('btn_start'), primary:true, onClick:submitAddTask}]);
   renderMultiComboChips('qrStage'); renderMultiComboChips('mnStage');
 }
 function switchAddTab(t){
@@ -2016,12 +2552,12 @@ async function submitAddTask(){
   if(submittingTask) return;
   submittingTask=true;
   const startBtn=document.querySelector('#modalFoot .btn-primary');
-  if(startBtn){ startBtn.disabled=true; startBtn.textContent='Đang xử lý…'; }
+  if(startBtn){ startBtn.disabled=true; startBtn.textContent=t('processing_ellipsis'); }
   try{
     await submitAddTaskInner();
   } finally {
     submittingTask=false;
-    if(startBtn){ startBtn.disabled=false; startBtn.textContent='Bắt đầu (Start)'; }
+    if(startBtn){ startBtn.disabled=false; startBtn.textContent=t('btn_start'); }
   }
 }
 async function submitAddTaskInner(){
@@ -2077,13 +2613,13 @@ async function submitAddTaskInner(){
   }));
   if(conflicts.length){
     const lines=conflicts.map(({code,stg,log})=>
-      `<li><b>${code}</b> — công đoạn <b>${stg}</b>: bạn đang làm dở, chưa hoàn thành${log.status==='paused'?' (đang tạm dừng)':''}</li>`
+      `<li><b>${code}</b> — ${t('th_stage')} <b>${stg}</b>: ${t('conflict_stage_item_ongoing')}${log.status==='paused'?' '+t('conflict_stage_item_paused'):''}</li>`
     ).join('');
-    openModal('⚠ Trùng công đoạn đang làm dở', `
-      <p style="font-size:13px">Không thể bắt đầu vì trùng với phiên chấm công chưa hoàn thành:</p>
+    openModal(t('conflict_stage_title'), `
+      <p style="font-size:13px">${t('conflict_stage_intro')}</p>
       <ul style="font-size:12.5px;color:var(--text-dim);padding-left:18px;margin:8px 0">${lines}</ul>
-      <p style="font-size:12.5px;color:var(--text-mute)">Hãy hoàn thành/tạm dừng phiên cũ trước, hoặc bỏ bớt công đoạn trùng rồi thử lại.</p>
-    `, [{label:'Đã hiểu', primary:true, onClick:closeModal}]);
+      <p style="font-size:12.5px;color:var(--text-mute)">${t('conflict_stage_hint')}</p>
+    `, [{label:t('btn_understood'), primary:true, onClick:closeModal}]);
     return;
   }
   await createTimelogNow(codes, job, stages, name);
@@ -2246,32 +2782,33 @@ function renderGroupBarChartHTML(items, formatVal){
 }
 
 /* ---------------- Báo cáo chi phí (đơn giá/giờ x số giờ, theo bộ lọc Dashboard) ---------------- */
-const COST_GROUP_LABELS={user:'Nhân viên', job:'Job', dept:'Bộ phận', drawing:'Bản vẽ', stage:'Công đoạn'};
+const COST_GROUP_KEYS=['user','job','dept','drawing','stage'];
+function costGroupLabel(k){ return {user:t('th_employee'), job:t('th_job'), dept:t('th_dept'), drawing:t('th_drawing'), stage:t('th_stage')}[k]; }
 let costGroupBy='user';
 function openCostReport(){
-  const groupBtns=Object.keys(COST_GROUP_LABELS).map(k=>
-    `<button type="button" class="btn btn-sm ${k===costGroupBy?'btn-primary':''}" onclick="setCostGroupBy('${k}')" id="costGroupBtn-${k}">${COST_GROUP_LABELS[k]}</button>`
+  const groupBtns=COST_GROUP_KEYS.map(k=>
+    `<button type="button" class="btn btn-sm ${k===costGroupBy?'btn-primary':''}" onclick="setCostGroupBy('${k}')" id="costGroupBtn-${k}">${costGroupLabel(k)}</button>`
   ).join(' ');
-  openModal('💰 Báo cáo chi phí', `
-    <p style="font-size:12px;color:var(--text-mute);margin-top:0">Tính theo đúng các bản ghi đang được lọc ở Dashboard hiện tại (Job/nhân viên/bộ phận/bản vẽ/công đoạn/thời kỳ).</p>
-    <div class="field"><label>Đơn giá / giờ</label><input type="number" id="costRate" min="0" step="1000" placeholder="vd: 50000"></div>
+  openModal(t('btn_cost_report'), `
+    <p style="font-size:12px;color:var(--text-mute);margin-top:0">${t('cost_report_hint')}</p>
+    <div class="field"><label>${t('cost_rate_label')}</label><input type="number" id="costRate" min="0" step="1000" placeholder="${t('cost_rate_ph')}"></div>
     <div class="grid-cols g2">
-      <div class="field"><label>Đơn vị tiền tệ</label>
+      <div class="field"><label>${t('cost_currency_label')}</label>
         <select id="costCurrency" onchange="onCostCurrencyChange()">
           <option value="VND">VND</option><option value="USD">USD</option><option value="JPY">JPY</option>
-          <option value="EUR">EUR</option><option value="CNY">CNY</option><option value="OTHER">Khác…</option>
+          <option value="EUR">EUR</option><option value="CNY">CNY</option><option value="OTHER">${t('cost_currency_other')}</option>
         </select>
       </div>
-      <div class="field hidden" id="costCurrencyOtherWrap"><label>Mã tiền tệ</label><input id="costCurrencyOther" placeholder="vd: KRW" maxlength="6"></div>
+      <div class="field hidden" id="costCurrencyOtherWrap"><label>${t('cost_currency_code_label')}</label><input id="costCurrencyOther" placeholder="vd: KRW" maxlength="6"></div>
     </div>
-    <div class="field hidden" id="costFxWrap"><label>Tỷ giá quy đổi sang VND (1 đơn vị = ? VND)</label><input type="number" id="costFx" min="0" step="1" placeholder="vd: 25000"></div>
-    <div class="field"><label>Báo cáo theo</label><div style="display:flex;gap:6px;flex-wrap:wrap" id="costGroupBtns">${groupBtns}</div></div>
+    <div class="field hidden" id="costFxWrap"><label>${t('cost_fx_label')}</label><input type="number" id="costFx" min="0" step="1" placeholder="vd: 25000"></div>
+    <div class="field"><label>${t('cost_group_by_label')}</label><div style="display:flex;gap:6px;flex-wrap:wrap" id="costGroupBtns">${groupBtns}</div></div>
     <div id="costResult"></div>
-  `, [{label:'Tính báo cáo', primary:true, onClick:computeCostReport}, {label:'Đóng', onClick:closeModal}]);
+  `, [{label:t('cost_btn_compute'), primary:true, onClick:computeCostReport}, {label:t('close'), onClick:closeModal}]);
 }
 function setCostGroupBy(k){
   costGroupBy=k;
-  Object.keys(COST_GROUP_LABELS).forEach(key=>{
+  COST_GROUP_KEYS.forEach(key=>{
     document.getElementById('costGroupBtn-'+key).classList.toggle('btn-primary', key===k);
   });
 }
@@ -2296,7 +2833,7 @@ function computeCostReport(){
   const values=distinctDimValues(logs, dimKey);
   const {days, series}=buildDailySeries(logs, {key:dimKey, values});
 
-  const groupLabel=COST_GROUP_LABELS[dimKey];
+  const groupLabel=costGroupLabel(dimKey);
   const rowsData=series.map(s=>{
     const ms=s.data.reduce((a,b)=>a+b,0);
     const hours=ms/3600000;
@@ -2311,18 +2848,18 @@ function computeCostReport(){
   const barItems=capped.map(x=>({name:x.name, value:(x.value/3600000)*rate}));
   const barChartHtml = barItems.length
     ? `<div class="bar-chart">${renderGroupBarChartHTML(barItems, v=>fmtMoney(v)+' '+currency)}</div>`
-    : `<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`;
+    : `<p style="color:var(--text-mute);font-size:13px">${t('dash_no_data')}</p>`;
   const trendSeries=capped.map(x=>({name:x.name, data:(x.data||days.map(()=>0)).map(ms=>(ms/3600000)*rate)}));
   const trendChartHtml=renderDailyChartSVG(days, trendSeries, v=>fmtMoney(v));
 
   document.getElementById('costResult').innerHTML=`
-    <table style="margin-top:12px"><thead><tr><th>${groupLabel}</th><th>Số giờ</th><th>Chi phí</th>${!isVnd?'<th>Quy đổi VND</th>':''}</tr></thead>
-    <tbody>${rowsHtml||`<tr><td colspan="${isVnd?3:4}" style="color:var(--text-mute)">Không có dữ liệu phù hợp bộ lọc.</td></tr>`}</tbody>
-    <tfoot><tr style="font-weight:600"><td>Tổng cộng</td><td class="mono">${totalHours.toFixed(2)}</td><td class="mono">${fmtMoney(totalCost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(totalCost*fx)} VND</td>`:''}</tr></tfoot>
+    <table style="margin-top:12px"><thead><tr><th>${groupLabel}</th><th>${t('cost_th_hours')}</th><th>${t('cost_th_cost')}</th>${!isVnd?`<th>${t('cost_th_vnd')}</th>`:''}</tr></thead>
+    <tbody>${rowsHtml||`<tr><td colspan="${isVnd?3:4}" style="color:var(--text-mute)">${t('dash_no_data')}</td></tr>`}</tbody>
+    <tfoot><tr style="font-weight:600"><td>${t('cost_total')}</td><td class="mono">${totalHours.toFixed(2)}</td><td class="mono">${fmtMoney(totalCost)} ${currency}</td>${!isVnd?`<td class="mono">${fmtMoney(totalCost*fx)} VND</td>`:''}</tr></tfoot>
     </table>
-    <h4 style="margin:16px 0 6px;font-size:13px">Chi phí theo ${groupLabel.toLowerCase()}</h4>
+    <h4 style="margin:16px 0 6px;font-size:13px">${t('cost_by_group_title_prefix')} ${groupLabel.toLowerCase()}</h4>
     ${barChartHtml}
-    <h4 style="margin:16px 0 6px;font-size:13px">Chi phí theo ngày</h4>
+    <h4 style="margin:16px 0 6px;font-size:13px">${t('cost_by_day_title')}</h4>
     ${trendChartHtml}
   `;
 }
@@ -2332,23 +2869,23 @@ function renderDashboard(){
     <div class="view-head">
       <div><h2>${t('dash_title')}</h2><p>${t('dash_sub')}</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" onclick="openCostReport()">💰 Báo cáo chi phí</button>
+        <button class="btn" onclick="openCostReport()">${t('btn_cost_report')}</button>
         <button class="btn btn-primary" onclick="exportDashboardReport()">⬇ ${t('export_report')}</button>
       </div>
     </div>
     <div class="filter-bar">
-      <div style="min-width:200px">${multiComboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), 'Tất cả Job — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
-      <div style="min-width:200px">${multiComboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), 'Tất cả nhân viên — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
-      <div style="min-width:200px">${multiComboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), 'Tất cả bộ phận — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
-      <div style="min-width:200px">${multiComboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), 'Tất cả bản vẽ — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
-      <div style="min-width:200px">${multiComboHTML('fStage', allStageOptions().map(s=>({value:s, label:s})), 'Tất cả công đoạn — gõ để tìm…', {onChange:'renderDashBody', allowCreate:false})}</div>
-      <select id="fStatus" onchange="renderDashBody()"><option value="">Tất cả trạng thái</option><option value="running">Đang làm</option><option value="paused">Tạm dừng</option><option value="done">Hoàn thành</option></select>
+      <div style="min-width:200px">${multiComboHTML('fJob', ORDERS.map(o=>({value:o.code, label:`${o.code} — ${getJobName(o)}`})), t('filter_job_ph'), {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fUser', USERS.filter(u=>u.role==='employee').map(u=>({value:u.id, label:u.name})), t('filter_emp_ph'), {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fDept', DEPTS.map(d=>({value:d, label:d})), t('filter_dept_ph'), {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fDrawing', DRAWINGS.map(d=>({value:d.code, label:`${d.code} — ${d.name}`})), t('filter_drawing_ph'), {onChange:'renderDashBody', allowCreate:false})}</div>
+      <div style="min-width:200px">${multiComboHTML('fStage', allStageOptions().map(s=>({value:s, label:s})), t('filter_stage_ph'), {onChange:'renderDashBody', allowCreate:false})}</div>
+      <select id="fStatus" onchange="renderDashBody()"><option value="">${t('filter_all_status')}</option><option value="running">${t('status_progress')}</option><option value="paused">${t('status_paused')}</option><option value="done">${t('status_done')}</option></select>
       <select id="fPeriod" onchange="renderDashBody()">
-        <option value="">Toàn bộ thời gian</option>
-        <option value="today">Hôm nay</option>
-        <option value="7d">7 ngày qua</option>
-        <option value="30d">30 ngày qua</option>
-        <option value="custom">Tuỳ chọn khoảng ngày…</option>
+        <option value="">${t('period_all')}</option>
+        <option value="today">${t('period_today')}</option>
+        <option value="7d">${t('period_7d')}</option>
+        <option value="30d">${t('period_30d')}</option>
+        <option value="custom">${t('period_custom')}</option>
       </select>
       <input type="date" id="fDateFrom" class="hidden" onchange="renderDashBody()">
       <input type="date" id="fDateTo" class="hidden" onchange="renderDashBody()">
@@ -2436,48 +2973,48 @@ function renderDashBody(){
   const pageItems=drawStats.slice(startIdx, startIdx+pageSize);
 
   const rowsJd = pageItems.map(({d,state,dMs,startedAt,finishedAt})=>{
-    const st = state==='done'?`<span class="badge badge-done">Hoàn thành</span>` : state==='progress'?`<span class="badge badge-progress">Đang làm</span>` : `<span class="badge badge-idle">Chưa làm</span>`;
+    const st = state==='done'?`<span class="badge badge-done">${t('status_done')}</span>` : state==='progress'?`<span class="badge badge-progress">${t('status_progress')}</span>` : `<span class="badge badge-idle">${t('status_idle')}</span>`;
     return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td class="mono">${d.job}</td><td>${st}</td><td class="mono">${fmtDur(dMs)}</td><td class="mono" style="font-size:11.5px">${startedAt?new Date(startedAt).toLocaleString('vi-VN'):'—'}</td><td class="mono" style="font-size:11.5px">${finishedAt?new Date(finishedAt).toLocaleString('vi-VN'):'—'}</td></tr>`;
   }).join('');
 
   const jobDrawingsSection = `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0;font-size:14px">${fJobs.length?`Toàn bộ bản vẽ của Job ${fJobs.join(', ')}`:'Toàn bộ bản vẽ trong Master'} <span style="color:var(--text-mute);font-weight:400">(kể cả bản vẽ chưa từng thực hiện)</span></h3>
+        <h3 style="margin:0;font-size:14px">${fJobs.length?`${t('dash_all_drawings_prefix')} ${fJobs.join(', ')}`:t('dash_all_drawings_master')} <span style="color:var(--text-mute);font-weight:400">${t('dash_incl_never_done')}</span></h3>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <select onchange="dashDrawStatusChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12.5px">
-            <option value="" ${!dashDrawState.statusFilter?'selected':''}>Tất cả trạng thái</option>
-            <option value="idle" ${dashDrawState.statusFilter==='idle'?'selected':''}>Chưa làm</option>
-            <option value="progress" ${dashDrawState.statusFilter==='progress'?'selected':''}>Đang làm</option>
-            <option value="done" ${dashDrawState.statusFilter==='done'?'selected':''}>Đã hoàn thành</option>
+            <option value="" ${!dashDrawState.statusFilter?'selected':''}>${t('filter_all_status')}</option>
+            <option value="idle" ${dashDrawState.statusFilter==='idle'?'selected':''}>${t('status_idle')}</option>
+            <option value="progress" ${dashDrawState.statusFilter==='progress'?'selected':''}>${t('status_progress')}</option>
+            <option value="done" ${dashDrawState.statusFilter==='done'?'selected':''}>${t('dash_stat_done')}</option>
           </select>
-          <div style="font-size:12.5px;color:var(--text-dim)">Tổng thời gian đã làm: <b class="mono" style="color:var(--copper-hi)">${fmtDur(jobTotalMs)}</b></div>
+          <div style="font-size:12.5px;color:var(--text-dim)">${t('dash_total_worked_prefix')}: <b class="mono" style="color:var(--copper-hi)">${fmtDur(jobTotalMs)}</b></div>
         </div>
       </div>
       <div class="grid-cols g4" style="margin-top:12px">
-        <div class="stat-card" style="cursor:pointer" onclick="dashDrawStatusChange('')"><div class="num">${cntTotalD}</div><div class="lbl">Tổng số bản vẽ</div></div>
-        <div class="stat-card accent-amber" style="cursor:pointer" onclick="dashDrawStatusChange('progress')"><div class="num">${cntProgress}</div><div class="lbl">Đang làm</div></div>
-        <div class="stat-card accent-solder" style="cursor:pointer" onclick="dashDrawStatusChange('done')"><div class="num">${cntDone}</div><div class="lbl">Đã hoàn thành</div></div>
-        <div class="stat-card accent-danger" style="cursor:pointer" onclick="dashDrawStatusChange('idle')"><div class="num">${cntIdle}</div><div class="lbl">Chưa làm</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="dashDrawStatusChange('')"><div class="num">${cntTotalD}</div><div class="lbl">${t('dash_stat_total_drawings')}</div></div>
+        <div class="stat-card accent-amber" style="cursor:pointer" onclick="dashDrawStatusChange('progress')"><div class="num">${cntProgress}</div><div class="lbl">${t('status_progress')}</div></div>
+        <div class="stat-card accent-solder" style="cursor:pointer" onclick="dashDrawStatusChange('done')"><div class="num">${cntDone}</div><div class="lbl">${t('dash_stat_done')}</div></div>
+        <div class="stat-card accent-danger" style="cursor:pointer" onclick="dashDrawStatusChange('idle')"><div class="num">${cntIdle}</div><div class="lbl">${t('status_idle')}</div></div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:12px;color:var(--text-mute)">Hiển thị ${drawStats.length?startIdx+1:0}–${Math.min(startIdx+pageSize,drawStats.length)} / ${drawStats.length} bản vẽ</div>
+        <div style="font-size:12px;color:var(--text-mute)">${t('label_showing')} ${drawStats.length?startIdx+1:0}–${Math.min(startIdx+pageSize,drawStats.length)} / ${drawStats.length} ${t('unit_drawings')}</div>
         <div style="display:flex;align-items:center;gap:8px">
-          <label style="font-size:12px;color:var(--text-mute)">Số dòng/trang:</label>
+          <label style="font-size:12px;color:var(--text-mute)">${t('label_rows_per_page')}</label>
           <select onchange="dashDrawPageSizeChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">
             <option value="10" ${dashDrawState.pageSize===10?'selected':''}>10</option>
             <option value="20" ${dashDrawState.pageSize===20?'selected':''}>20</option>
             <option value="50" ${dashDrawState.pageSize===50?'selected':''}>50</option>
-            <option value="all" ${dashDrawState.pageSize==='all'?'selected':''}>Tất cả</option>
+            <option value="all" ${dashDrawState.pageSize==='all'?'selected':''}>${t('label_all')}</option>
           </select>
         </div>
       </div>
       <table style="margin-top:10px"><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('col_status')}</th><th>${t('th_worked_time')}</th><th>${t('th_started_at')}</th><th>${t('th_finished_at')}</th></tr></thead>
-      <tbody>${rowsJd||`<tr><td colspan="7" style="color:var(--text-mute)">Không có bản vẽ nào trong Master phù hợp bộ lọc.</td></tr>`}</tbody></table>
+      <tbody>${rowsJd||`<tr><td colspan="7" style="color:var(--text-mute)">${t('dash_no_matching_drawings')}</td></tr>`}</tbody></table>
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
-        <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">‹ Trước</button>
-        <span style="font-size:12.5px;color:var(--text-dim)">Trang ${dashDrawState.page}/${pageCount}</span>
-        <button class="btn btn-sm" ${dashDrawState.page>=pageCount?'disabled':''} onclick="dashDrawPageChange(1)">Sau ›</button>
+        <button class="btn btn-sm" ${dashDrawState.page<=1?'disabled':''} onclick="dashDrawPageChange(-1)">${t('btn_prev')}</button>
+        <span style="font-size:12.5px;color:var(--text-dim)">${t('label_page')} ${dashDrawState.page}/${pageCount}</span>
+        <button class="btn btn-sm" ${dashDrawState.page>=pageCount?'disabled':''} onclick="dashDrawPageChange(1)">${t('btn_next')}</button>
       </div>
     </div>`;
 
@@ -2494,44 +3031,44 @@ function renderDashBody(){
 
   document.getElementById('dashBody').innerHTML=`
     <div class="grid-cols g4">
-      <div class="stat-card accent-copper"><div class="num">${total}</div><div class="lbl">Tổng bản ghi công đoạn</div></div>
-      <div class="stat-card accent-amber"><div class="num">${running}</div><div class="lbl">Đang thực hiện</div></div>
-      <div class="stat-card accent-solder"><div class="num">${done}</div><div class="lbl">Đã hoàn thành</div></div>
-      <div class="stat-card accent-danger"><div class="num">${overdue}</div><div class="lbl">Nhiệm vụ chưa xong</div></div>
+      <div class="stat-card accent-copper"><div class="num">${total}</div><div class="lbl">${t('dash_stat_total_records')}</div></div>
+      <div class="stat-card accent-amber"><div class="num">${running}</div><div class="lbl">${t('dash_stat_running')}</div></div>
+      <div class="stat-card accent-solder"><div class="num">${done}</div><div class="lbl">${t('dash_stat_done')}</div></div>
+      <div class="stat-card accent-danger"><div class="num">${overdue}</div><div class="lbl">${t('dash_stat_overdue')}</div></div>
     </div>
     <div class="card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div><h3 style="margin:0 0 3px;font-size:14px">Tổng thời gian đã làm (theo bộ lọc hiện tại)</h3><p style="margin:0;font-size:12px;color:var(--text-mute)">Tổng cộng thời gian của toàn bộ bản ghi đang được lọc bên dưới.</p></div>
+      <div><h3 style="margin:0 0 3px;font-size:14px">${t('dash_total_time_title')}</h3><p style="margin:0;font-size:12px;color:var(--text-mute)">${t('dash_total_time_sub')}</p></div>
       <div class="timer" style="font-size:22px">${fmtDur(totalTimeMs)}</div>
     </div>
     ${jobDrawingsSection}
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px">Biến động thời gian làm việc theo ngày</h3>
-      <p style="margin:0 0 6px;font-size:12px;color:var(--text-mute)">${dashSplitDim?`Tách riêng theo ${({job:'Job',drawing:'bản vẽ',stage:'công đoạn',dept:'bộ phận',user:'nhân viên'})[dashSplitDim.key]} đang chọn.`:'Chọn nhiều Job/bộ phận/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.'}</p>
+      <h3 style="margin-top:0;font-size:14px">${t('dash_daily_chart_title')}</h3>
+      <p style="margin:0 0 6px;font-size:12px;color:var(--text-mute)">${dashSplitDim?`${t('dash_split_by_prefix')} ${({job:t('th_job'),drawing:t('th_drawing'),stage:t('th_stage'),dept:t('th_dept'),user:t('th_employee')})[dashSplitDim.key]} ${t('dash_split_by_suffix')}`:t('dash_split_hint')}</p>
       ${dailyChartHtml}
     </div>
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px">Thời gian trung bình mỗi công đoạn</h3>
-      ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">Chưa có dữ liệu phù hợp bộ lọc.</p>`}
+      <h3 style="margin-top:0;font-size:14px">${t('dash_avg_stage_title')}</h3>
+      ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">${t('dash_no_data')}</p>`}
     </div>
     <div class="card scroll-x">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0;font-size:14px">Chi tiết bản ghi</h3>
+        <h3 style="margin:0;font-size:14px">${t('dash_detail_title')}</h3>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--text-mute)">Hiển thị ${logsReversed.length?logStartIdx+1:0}–${Math.min(logStartIdx+logPageSize,logsReversed.length)} / ${logsReversed.length}</span>
+          <span style="font-size:12px;color:var(--text-mute)">${t('label_showing')} ${logsReversed.length?logStartIdx+1:0}–${Math.min(logStartIdx+logPageSize,logsReversed.length)} / ${logsReversed.length}</span>
           <select onchange="dashLogPageSizeChange(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">
             <option value="20" ${dashLogState.pageSize===20?'selected':''}>20</option>
             <option value="50" ${dashLogState.pageSize===50?'selected':''}>50</option>
             <option value="100" ${dashLogState.pageSize===100?'selected':''}>100</option>
-            <option value="all" ${dashLogState.pageSize==='all'?'selected':''}>Tất cả</option>
+            <option value="all" ${dashLogState.pageSize==='all'?'selected':''}>${t('label_all')}</option>
           </select>
         </div>
       </div>
       <table style="margin-top:10px"><thead><tr><th>${t('th_job')}</th><th>${t('th_employee')}</th><th>${t('th_dept')}</th><th>${t('th_drawing')}</th><th>${t('th_stage')}</th><th>${t('col_status')}</th><th>${t('th_time')}</th></tr></thead>
-      <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">Không có dữ liệu.</td></tr>`}</tbody></table>
+      <tbody>${rows||`<tr><td colspan="7" style="color:var(--text-mute)">${t('dash_no_data_plain')}</td></tr>`}</tbody></table>
       <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px">
-        <button class="btn btn-sm" ${dashLogState.page<=1?'disabled':''} onclick="dashLogPageChange(-1)">‹ Trước</button>
-        <span style="font-size:12.5px;color:var(--text-dim)">Trang ${dashLogState.page}/${logPageCount}</span>
-        <button class="btn btn-sm" ${dashLogState.page>=logPageCount?'disabled':''} onclick="dashLogPageChange(1)">Sau ›</button>
+        <button class="btn btn-sm" ${dashLogState.page<=1?'disabled':''} onclick="dashLogPageChange(-1)">${t('btn_prev')}</button>
+        <span style="font-size:12.5px;color:var(--text-dim)">${t('label_page')} ${dashLogState.page}/${logPageCount}</span>
+        <button class="btn btn-sm" ${dashLogState.page>=logPageCount?'disabled':''} onclick="dashLogPageChange(1)">${t('btn_next')}</button>
       </div>
     </div>`;
 }
@@ -2608,8 +3145,8 @@ function exportDashboardReport(){
   }
 }
 function statusPill(s){
-  const map={running:['Đang làm','badge-progress'],paused:['Tạm dừng','badge-idle'],done:['Hoàn thành','badge-done']};
-  const [t,c]=map[s]||['—','badge-idle']; return `<span class="badge ${c}">${t}</span>`;
+  const map={running:['status_progress','badge-progress'],paused:['status_paused','badge-idle'],done:['status_done','badge-done']};
+  const [k,c]=map[s]||[null,'badge-idle']; return `<span class="badge ${c}">${k?t(k):'—'}</span>`;
 }
 
 /* ---------------- PURCHASING ---------------- */
@@ -2627,15 +3164,15 @@ function purchaseStatusOf(item){
 function purchaseStatusBadge(item){
   const s=purchaseStatusOf(item);
   const map={
-    poOnly:['Chỉ có trên PO','badge-info'],
-    noNeed:['Đủ tồn kho','badge-idle'],
-    notOrdered:['Chưa lên PO','badge-danger'],
-    ordered:['Đã lên PO, chưa về','badge-progress'],
-    partial:['Về một phần','badge-progress'],
-    complete:['Đã về đủ','badge-done'],
+    poOnly:['purchase_po_only','badge-info'],
+    noNeed:['purchase_no_need','badge-idle'],
+    notOrdered:['purchase_not_ordered','badge-danger'],
+    ordered:['purchase_ordered','badge-progress'],
+    partial:['purchase_partial','badge-progress'],
+    complete:['purchase_complete','badge-done'],
   };
-  const [lbl,cls]=map[s]||['—','badge-idle'];
-  return `<span class="badge ${cls}">${lbl}</span>`;
+  const [k,cls]=map[s]||[null,'badge-idle'];
+  return `<span class="badge ${cls}">${k?t(k):'—'}</span>`;
 }
 function normTokens(str){
   return stripDiacritics(String(str||'')).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=2);
@@ -2682,37 +3219,37 @@ function renderPurchasing(){
   const alerts = PURCHASE_ITEMS.filter(it=>!it.poOnly && it.qtyToBuy>0 && !it.poNumber);
   document.getElementById('viewRoot').innerHTML=`
     <div class="view-head"><div><h2>${t('purchasing_title')}</h2><p>${t('purchasing_sub')}</p></div>
-      <button class="btn btn-primary" onclick="openPurchaseItemForm()">${icon('plus',15)} Thêm mặt hàng thủ công</button>
+      <button class="btn btn-primary" onclick="openPurchaseItemForm()">${icon('plus',15)} ${t('btn_add_item_manual')}</button>
     </div>
 
     ${alerts.length?`<div class="card" style="border-color:var(--danger)">
-      <h3 style="margin-top:0;font-size:14px;color:var(--danger)">⚠ Cảnh báo hàng chưa lên PO (${alerts.length})</h3>
-      <table><thead><tr><th>Job</th><th>Mặt hàng</th><th>SL cần mua</th><th>Đơn vị</th></tr></thead>
+      <h3 style="margin-top:0;font-size:14px;color:var(--danger)">${t('purchasing_alert_title_prefix')} (${alerts.length})</h3>
+      <table><thead><tr><th>${t('th_job')}</th><th>${t('purchasing_th_item')}</th><th>${t('purchasing_th_qty_needed')}</th><th>${t('purchasing_th_unit')}</th></tr></thead>
       <tbody>${alerts.map(it=>`<tr><td class="mono">${it.jobCode||'—'}</td><td>${it.itemName}</td><td class="mono">${it.qtyToBuy}</td><td>${it.unit||'—'}</td></tr>`).join('')}</tbody></table>
     </div>`:''}
 
     <div class="grid-cols g3">
       <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">1. Tải file PR</h3>
-        <label class="upload-drop">📄 Chọn file PR (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" onchange="handlePRUpload(this)"></label>
-        <p style="font-size:11px;color:var(--text-mute);margin:8px 0 0">Tự nhận diện cột: Job, Tên hàng, Model, Maker, SL cần/tồn, ĐVT, ngày yêu cầu.</p>
+        <h3 style="margin-top:0;font-size:13.5px">${t('step1_title')}</h3>
+        <label class="upload-drop">${t('step1_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" onchange="handlePRUpload(this)"></label>
+        <p style="font-size:11px;color:var(--text-mute);margin:8px 0 0">${t('step1_hint')}</p>
       </div>
       <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">2. Tải file Xcode</h3>
-        <label class="upload-drop">📄 Chọn file Xcode (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" onchange="handleXcodeUpload(this)"></label>
+        <h3 style="margin-top:0;font-size:13.5px">${t('step2_title')}</h3>
+        <label class="upload-drop">${t('step2_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" onchange="handleXcodeUpload(this)"></label>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <p style="font-size:11px;color:var(--text-mute);margin:0">${XCODES.length} mã tham chiếu</p>
-          <button class="btn btn-sm btn-ghost" onclick="matchAllXcodes()">↻ Khớp lại</button>
+          <p style="font-size:11px;color:var(--text-mute);margin:0">${XCODES.length} ${t('step2_ref_count_suffix')}</p>
+          <button class="btn btn-sm btn-ghost" onclick="matchAllXcodes()">${t('btn_rematch')}</button>
         </div>
       </div>
       <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">3. Tải file PO (nhiều file)</h3>
-        <label class="upload-drop">📄 Chọn 1+ file PO (.xlsx/.csv)<input type="file" accept=".xlsx,.xls,.csv" multiple onchange="handlePOUpload(this)"></label>
+        <h3 style="margin-top:0;font-size:13.5px">${t('step3_title')}</h3>
+        <label class="upload-drop">${t('step3_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" multiple onchange="handlePOUpload(this)"></label>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px">
-          <p style="font-size:11px;color:var(--text-mute);margin:0">${POLINES.length} dòng PO đã đọc</p>
+          <p style="font-size:11px;color:var(--text-mute);margin:0">${POLINES.length} ${t('step3_lines_read_suffix')}</p>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-ghost" onclick="togglePOLinesView()">👁 Xem thô</button>
-            <button class="btn btn-sm btn-primary" onclick="matchAllPOs()">↻ Khớp PO</button>
+            <button class="btn btn-sm btn-ghost" onclick="togglePOLinesView()">${t('btn_view_raw')}</button>
+            <button class="btn btn-sm btn-primary" onclick="matchAllPOs()">${t('btn_match_po')}</button>
           </div>
         </div>
       </div>
@@ -2720,9 +3257,9 @@ function renderPurchasing(){
     <div id="poLinesWrap" class="card ${poLinesVisible?'':'hidden'}"></div>
 
     <div class="card scroll-x">
-      <h3 style="margin-top:0;font-size:14px">Danh sách mặt hàng cần mua (bấm 1 dòng để xem/sửa chi tiết)</h3>
-      <table><thead><tr><th>Job</th><th>Mặt hàng</th><th>Model / Maker</th><th>SL cần mua</th><th>ĐVT</th><th>Xcode</th><th>PO</th><th>Người mua</th><th>Đã về / Cần</th><th>Trạng thái</th></tr></thead>
-      <tbody>${PURCHASE_ITEMS.map(it=>purchaseRow(it)).join('') || `<tr><td colspan="10" style="color:var(--text-mute)">Chưa có mặt hàng nào. Tải file PR hoặc thêm thủ công.</td></tr>`}</tbody></table>
+      <h3 style="margin-top:0;font-size:14px">${t('purchasing_list_title')}</h3>
+      <table><thead><tr><th>${t('th_job')}</th><th>${t('purchasing_th_item')}</th><th>${t('purchasing_th_model_maker')}</th><th>${t('purchasing_th_qty_needed')}</th><th>${t('purchasing_th_unit')}</th><th>${t('purchasing_th_xcode')}</th><th>${t('purchasing_th_po')}</th><th>${t('purchasing_th_buyer')}</th><th>${t('purchasing_th_received_needed')}</th><th>${t('col_status')}</th></tr></thead>
+      <tbody>${PURCHASE_ITEMS.map(it=>purchaseRow(it)).join('') || `<tr><td colspan="10" style="color:var(--text-mute)">${t('purchasing_empty')}</td></tr>`}</tbody></table>
     </div>`;
   if(poLinesVisible) renderPOLinesRaw();
 }
@@ -2731,7 +3268,7 @@ function purchaseRow(it){
   const total=batchTotal(it);
   return `<tr class="row-click" onclick="openPurchaseItemForm('${it.id}')">
     <td class="mono">${it.jobCode||'—'}${it.jobCode?`<div style="font-size:11px;color:var(--text-mute)">${getJobNameByCode(it.jobCode)}</div>`:''}</td>
-    <td>${it.itemName}${it.poOnly?` <span class="badge badge-info" style="margin-left:4px">Chỉ trên PO</span>`:''}${it.note?`<div style="font-size:11px;color:var(--amber);max-width:200px">${it.note}</div>`:''}</td>
+    <td>${it.itemName}${it.poOnly?` <span class="badge badge-info" style="margin-left:4px">${t('badge_po_only')}</span>`:''}${it.note?`<div style="font-size:11px;color:var(--amber);max-width:200px">${it.note}</div>`:''}</td>
     <td style="font-size:12px;color:var(--text-dim)">${it.model||'—'} / ${it.maker||'—'}</td>
     <td class="mono">${it.qtyToBuy}</td>
     <td>${it.unit||'—'}</td>
@@ -2745,9 +3282,9 @@ function purchaseRow(it){
 function togglePOLinesView(){ poLinesVisible=!poLinesVisible; renderPurchasing(); }
 function renderPOLinesRaw(){
   const wrap=document.getElementById('poLinesWrap'); if(!wrap) return;
-  wrap.innerHTML = `<h3 style="margin-top:0;font-size:13.5px">Dòng PO thô đã đọc (để đối chiếu minh bạch)</h3>` + (POLINES.length? `<div class="scroll-x"><table><thead><tr><th>File</th><th>Sheet</th><th>Mô tả trên PO</th><th>Số PO</th><th>Ngày PO</th><th>Tên trên PO</th><th>NCC</th><th>SL</th><th>Đã khớp?</th></tr></thead>
+  wrap.innerHTML = `<h3 style="margin-top:0;font-size:13.5px">${t('purchasing_raw_po_title')}</h3>` + (POLINES.length? `<div class="scroll-x"><table><thead><tr><th>${t('purchasing_th_file')}</th><th>${t('purchasing_th_sheet')}</th><th>${t('purchasing_th_po_desc')}</th><th>${t('purchasing_th_po_number')}</th><th>${t('purchasing_th_po_date')}</th><th>${t('purchasing_th_po_name')}</th><th>${t('purchasing_th_supplier')}</th><th>${t('purchasing_th_qty')}</th><th>${t('purchasing_th_matched')}</th></tr></thead>
     <tbody>${POLINES.map(l=>`<tr><td style="font-size:11px">${l.file}</td><td style="font-size:11px">${l.sheet}</td><td>${l.desc}</td><td class="mono">${l.poNumber||'—'}</td><td class="mono">${l.poDate||'—'}</td><td>${l.poName||'—'}</td><td>${l.supplier||'—'}</td><td class="mono">${l.qty||'—'}</td><td>${l.matched?'✅':'—'}</td></tr>`).join('')}</tbody></table></div>`
-    : `<p style="color:var(--text-mute);font-size:12.5px">Chưa có dòng PO nào.</p>`);
+    : `<p style="color:var(--text-mute);font-size:12.5px">${t('purchasing_no_po_lines')}</p>`);
 }
 function handlePRUpload(input){
   const file=input.files[0]; if(!file) return;
@@ -2903,45 +3440,45 @@ function openPurchaseItemForm(id){
   const jobOpts = ORDERS.map(o=>`<option value="${o.code}" ${existing&&existing.jobCode===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('');
   const buyerOpts = USERS.filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${existing&&existing.buyer===u.id?'selected':''}>${u.name} (${u.dept})</option>`).join('');
   purchaseFormBatches = existing? (existing.batches||[]).map(b=>({...b})) : [];
-  openModal(existing?'Chi tiết mặt hàng mua':'Thêm mặt hàng mua thủ công', `
+  openModal(existing?t('pi_form_title_edit'):t('pi_form_title_add'), `
     <div class="grid-cols g2">
-      <div class="field"><label>Job</label><select id="pf-job"><option value="">— không —</option>${jobOpts}</select></div>
-      <div class="field"><label>Tên mặt hàng</label><input id="pf-name" value="${existing?(existing.itemName||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="field"><label>Job</label><select id="pf-job"><option value="">${t('opt_no_job')}</option>${jobOpts}</select></div>
+      <div class="field"><label>${t('field_item_name')}</label><input id="pf-name" value="${existing?(existing.itemName||'').replace(/"/g,'&quot;'):''}"></div>
     </div>
     <div class="grid-cols g3">
-      <div class="field"><label>Model</label><input id="pf-model" value="${existing?(existing.model||''):''}"></div>
-      <div class="field"><label>Maker</label><input id="pf-maker" value="${existing?(existing.maker||''):''}"></div>
-      <div class="field"><label>Đơn vị tính</label><input id="pf-unit" value="${existing?(existing.unit||''):''}"></div>
+      <div class="field"><label>${t('field_model')}</label><input id="pf-model" value="${existing?(existing.model||''):''}"></div>
+      <div class="field"><label>${t('field_maker')}</label><input id="pf-maker" value="${existing?(existing.maker||''):''}"></div>
+      <div class="field"><label>${t('field_unit')}</label><input id="pf-unit" value="${existing?(existing.unit||''):''}"></div>
     </div>
     <div class="grid-cols g3">
-      <div class="field"><label>SL cần</label><input id="pf-needed" type="number" value="${existing?existing.qtyNeeded:0}" onchange="recalcQtyToBuyPreview()"></div>
-      <div class="field"><label>SL tồn kho</label><input id="pf-stock" type="number" value="${existing?existing.qtyStock:0}" onchange="recalcQtyToBuyPreview()"></div>
-      <div class="field"><label>SL cần mua</label><input id="pf-tobuy" type="number" value="${existing?existing.qtyToBuy:0}"></div>
+      <div class="field"><label>${t('field_qty_needed')}</label><input id="pf-needed" type="number" value="${existing?existing.qtyNeeded:0}" onchange="recalcQtyToBuyPreview()"></div>
+      <div class="field"><label>${t('field_qty_stock')}</label><input id="pf-stock" type="number" value="${existing?existing.qtyStock:0}" onchange="recalcQtyToBuyPreview()"></div>
+      <div class="field"><label>${t('field_qty_to_buy')}</label><input id="pf-tobuy" type="number" value="${existing?existing.qtyToBuy:0}"></div>
     </div>
     <div class="grid-cols g2">
-      <div class="field"><label>Ngày yêu cầu</label><input id="pf-reqdate" type="date" value="${existing?existing.requestDate:''}"></div>
-      <div class="field"><label>Người được phân công mua</label><select id="pf-buyer"><option value="">— chưa phân —</option>${buyerOpts}</select></div>
+      <div class="field"><label>${t('field_request_date')}</label><input id="pf-reqdate" type="date" value="${existing?existing.requestDate:''}"></div>
+      <div class="field"><label>${t('field_buyer')}</label><select id="pf-buyer"><option value="">${t('opt_no_buyer')}</option>${buyerOpts}</select></div>
     </div>
     <div class="card" style="background:var(--surface-2);margin:14px 0">
-      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 6px">Kết quả khớp mã Xcode (tự động — chạy lại ở màn hình chính nếu cần)</p>
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 6px">${t('xcode_match_title')}</p>
       <p style="font-size:12.5px;margin:0"><b class="mono">${existing?(existing.xcode||'—'):'—'}</b> ${existing&&existing.xcodeName?'— '+existing.xcodeName:''}</p>
     </div>
     <div class="grid-cols g2">
-      <div class="field"><label>Số PO</label><input id="pf-po" value="${existing?(existing.poNumber||''):''}"></div>
-      <div class="field"><label>Ngày phát hành PO</label><input id="pf-podate" type="date" value="${existing?(existing.poDate||''):''}"></div>
+      <div class="field"><label>${t('field_po_number')}</label><input id="pf-po" value="${existing?(existing.poNumber||''):''}"></div>
+      <div class="field"><label>${t('field_po_issue_date')}</label><input id="pf-podate" type="date" value="${existing?(existing.poDate||''):''}"></div>
     </div>
     <div class="grid-cols g2">
-      <div class="field"><label>Tên trên PO</label><input id="pf-poname" value="${existing?(existing.poName||''):''}"></div>
-      <div class="field"><label>Nhà cung cấp</label><input id="pf-supplier" value="${existing?(existing.supplier||''):''}"></div>
+      <div class="field"><label>${t('field_po_name')}</label><input id="pf-poname" value="${existing?(existing.poName||''):''}"></div>
+      <div class="field"><label>${t('field_supplier')}</label><input id="pf-supplier" value="${existing?(existing.supplier||''):''}"></div>
     </div>
-    <div class="field"><label>Ngày về dự kiến</label><input id="pf-expected" type="date" value="${existing?(existing.expectedDate||''):''}"></div>
+    <div class="field"><label>${t('field_expected_date')}</label><input id="pf-expected" type="date" value="${existing?(existing.expectedDate||''):''}"></div>
     <div class="field">
-      <label>Các đợt hàng về thực tế</label>
+      <label>${t('field_actual_batches')}</label>
       <div id="batchRows"></div>
-      <button class="btn btn-sm btn-ghost" onclick="addBatchRow()">${icon('plus',13)} Thêm đợt</button>
-      <p style="font-size:12px;color:var(--text-dim);margin-top:8px">Tổng đã về: <b class="mono" id="batchTotalTxt">0</b></p>
+      <button class="btn btn-sm btn-ghost" onclick="addBatchRow()">${icon('plus',13)} ${t('btn_add_batch')}</button>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:8px">${t('batch_total_prefix')} <b class="mono" id="batchTotalTxt">0</b></p>
     </div>
-    <div class="field"><label>Ghi chú</label><textarea id="pf-note" rows="2">${existing?(existing.note||''):''}</textarea></div>
+    <div class="field"><label>${t('field_note')}</label><textarea id="pf-note" rows="2">${existing?(existing.note||''):''}</textarea></div>
   `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>savePurchaseItemForm(id)}]);
   renderBatchRows();
 }
@@ -2954,10 +3491,10 @@ function renderBatchRows(){
   const wrap=document.getElementById('batchRows'); if(!wrap) return;
   wrap.innerHTML = purchaseFormBatches.map((b,i)=>`
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
-      <span style="font-size:11.5px;color:var(--text-mute);width:50px">Đợt ${i+1}</span>
-      <input type="number" placeholder="SL" value="${b.qty||''}" style="width:80px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'qty',this.value)">
+      <span style="font-size:11.5px;color:var(--text-mute);width:50px">${t('batch_label')} ${i+1}</span>
+      <input type="number" placeholder="${t('ph_qty')}" value="${b.qty||''}" style="width:80px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'qty',this.value)">
       <input type="date" value="${b.date||''}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'date',this.value)">
-      <input placeholder="Ghi chú" value="${b.note||''}" style="flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'note',this.value)">
+      <input placeholder="${t('ph_note')}" value="${b.note||''}" style="flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'note',this.value)">
       <button class="btn btn-ghost btn-sm" onclick="removeBatchRow(${i})">✕</button>
     </div>`).join('');
   const total=purchaseFormBatches.reduce((s,b)=>s+(Number(b.qty)||0),0);
@@ -3004,10 +3541,10 @@ function renderMaster(){
   document.getElementById('viewRoot').innerHTML=`
     <div class="view-head"><div><h2>${t('master_title')}</h2><p>${t('master_sub')}</p></div></div>
     <div class="tabs">
-      <button class="tab-btn ${masterTab==='drawings'?'active':''}" onclick="switchMasterTab('drawings')">Bản vẽ</button>
-      <button class="tab-btn ${masterTab==='jobs'?'active':''}" onclick="switchMasterTab('jobs')">Job</button>
-      <button class="tab-btn ${masterTab==='stages'?'active':''}" onclick="switchMasterTab('stages')">Công đoạn</button>
-      <button class="tab-btn ${masterTab==='users'?'active':''}" onclick="switchMasterTab('users')">Người dùng</button>
+      <button class="tab-btn ${masterTab==='drawings'?'active':''}" onclick="switchMasterTab('drawings')">${t('tab_drawings')}</button>
+      <button class="tab-btn ${masterTab==='jobs'?'active':''}" onclick="switchMasterTab('jobs')">${t('tab_jobs')}</button>
+      <button class="tab-btn ${masterTab==='stages'?'active':''}" onclick="switchMasterTab('stages')">${t('tab_stages')}</button>
+      <button class="tab-btn ${masterTab==='users'?'active':''}" onclick="switchMasterTab('users')">${t('tab_users')}</button>
     </div>
     <div id="masterBody"></div>`;
   renderMasterBody();
@@ -3019,14 +3556,14 @@ function renderMasterBody(){
     body.innerHTML=`
       <div class="card">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-          <input id="dwSearch" placeholder="Tìm bản vẽ (có/không dấu)…" oninput="renderDrawingTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
-          <button class="btn btn-sm btn-ghost" onclick="downloadDrawingTemplate()">⬇ Tải template</button>
-          <label class="btn btn-sm" title="Bản vẽ đã có trong Master: ghi đè tên/Job/phiên bản theo file (bản vẽ đã có thời gian làm việc thì chỉ thêm phiên bản mới, không xoá)">⬆ Cập nhật (ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'update')"></label>
-          <label class="btn btn-sm" title="Bản vẽ đã có trong Master: giữ nguyên tên/Job/phiên bản cũ, chỉ thêm phiên bản mới nếu file có phiên bản chưa từng có">⬆ Thêm mới (không ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'add')"></label>
-          <button class="btn btn-sm btn-ghost" onclick="printAllDrawingQrs()">${icon('qr',14)} In phiếu QR</button>
-          <button class="btn btn-sm btn-primary" onclick="openDrawingForm()">${icon('plus',14)} Thêm bản vẽ</button>
+          <input id="dwSearch" placeholder="${t('master_search_drawing_ph')}" oninput="renderDrawingTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <button class="btn btn-sm btn-ghost" onclick="downloadDrawingTemplate()">${t('btn_download_template')}</button>
+          <label class="btn btn-sm" title="${t('master_drawing_update_hint')}">${t('btn_update_overwrite')}<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'update')"></label>
+          <label class="btn btn-sm" title="${t('master_drawing_add_hint')}">${t('btn_add_new_no_overwrite')}<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importDrawingsExcel(this,'add')"></label>
+          <button class="btn btn-sm btn-ghost" onclick="printAllDrawingQrs()">${icon('qr',14)} ${t('btn_print_qr')}</button>
+          <button class="btn btn-sm btn-primary" onclick="openDrawingForm()">${icon('plus',14)} ${t('btn_add_drawing')}</button>
         </div>
-        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px"><b>Cập nhật</b>: bản vẽ đã có sẽ bị ghi đè tên/Job/phiên bản theo file (riêng bản vẽ đã phát sinh thời gian làm việc thì không bị xoá phiên bản cũ, chỉ thêm mới). <b>Thêm mới</b>: bản vẽ đã có trong Master sẽ được giữ nguyên hoàn toàn, file chỉ có tác dụng thêm bản vẽ chưa từng có hoặc thêm phiên bản mới. Mỗi bản vẽ có thể có nhiều phiên bản, mỗi phiên bản có ngày phát hành riêng — Dashboard chỉ tính chung theo bản vẽ, không tách theo từng phiên bản.</p>
+        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px">${t('master_drawing_import_note')}</p>
         <div id="drawingTableWrap"></div>
       </div>`;
     renderDrawingTable();
@@ -3034,13 +3571,13 @@ function renderMasterBody(){
     body.innerHTML=`
       <div class="card">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-          <input id="jbSearch" placeholder="Tìm Job (có/không dấu)…" oninput="renderJobTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
-          <button class="btn btn-sm btn-ghost" onclick="downloadJobTemplate()">⬇ Tải template</button>
-          <label class="btn btn-sm" title="Job đã có trong Master: ghi đè các trường có giá trị trong file">⬆ Cập nhật (ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'update')"></label>
-          <label class="btn btn-sm" title="Bỏ qua hoàn toàn Job đã có trong Master, chỉ thêm Job hoàn toàn mới">⬆ Thêm mới (không ghi đè)<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'add')"></label>
-          <button class="btn btn-sm btn-primary" onclick="openJobForm()">${icon('plus',14)} Thêm Job</button>
+          <input id="jbSearch" placeholder="${t('master_search_job_ph')}" oninput="renderJobTable()" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <button class="btn btn-sm btn-ghost" onclick="downloadJobTemplate()">${t('btn_download_template')}</button>
+          <label class="btn btn-sm" title="${t('master_job_update_hint')}">${t('btn_update_overwrite')}<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'update')"></label>
+          <label class="btn btn-sm" title="${t('master_job_add_hint')}">${t('btn_add_new_no_overwrite')}<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importJobsExcel(this,'add')"></label>
+          <button class="btn btn-sm btn-primary" onclick="openJobForm()">${icon('plus',14)} ${t('btn_add_job')}</button>
         </div>
-        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px"><b>Cập nhật</b>: Job đã có sẽ bị ghi đè theo file. <b>Thêm mới</b>: Job đã có trong Master được giữ nguyên hoàn toàn, chỉ thêm Job chưa từng có.</p>
+        <p style="font-size:11px;color:var(--text-mute);margin:0 0 10px">${t('master_job_import_note')}</p>
         <div id="jobTableWrap"></div>
       </div>`;
     renderJobTable();
@@ -3048,66 +3585,66 @@ function renderMasterBody(){
     const orphans=orphanStageNames();
     const orphanCard = orphans.length ? `
     <div class="card" style="border-color:var(--amber)">
-      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">⚠ Công đoạn ngoài danh sách (${orphans.length})</h3>
-      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">Nhân viên đã gõ tự do những tên công đoạn này khi chấm công (chưa từng thêm chính thức ở dưới) — có thể là trùng ý nhưng khác chữ với 1 công đoạn đã có (lỗi chính tả), hoặc là công đoạn mới thật sự cần thêm.</p>
+      <h3 style="margin-top:0;font-size:14px;color:var(--amber)">${t('master_orphan_stage_title_prefix')} (${orphans.length})</h3>
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">${t('master_orphan_stage_hint')}</p>
       ${orphans.map((o,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px">
-        <span>${o.name} <span style="color:var(--text-mute);font-size:11.5px">(${o.count} lần)</span></span>
+        <span>${o.name} <span style="color:var(--text-mute);font-size:11.5px">(${o.count} ${t('master_orphan_count_suffix')})</span></span>
         <div style="display:flex;gap:6px;align-items:center">
           <select id="orphanDept-${i}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12.5px">${DEPTS.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
-          <button class="btn btn-sm" onclick="addOrphanStageToMaster('${String(o.name).replace(/'/g,"\\'")}','orphanDept-${i}')">+ Thêm vào Master</button>
+          <button class="btn btn-sm" onclick="addOrphanStageToMaster('${String(o.name).replace(/'/g,"\\'")}','orphanDept-${i}')">${t('btn_add_to_master')}</button>
         </div>
       </div>`).join('')}
     </div>` : '';
     body.innerHTML=`${orphanCard}
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px">Thêm bộ phận mới</h3>
-      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">Tạo thêm bộ phận để tuỳ chỉnh quản lý (vd: QC, Kho, Bảo trì…). Bộ phận mới sẽ xuất hiện ở đăng ký, phân quyền, phân công nhiệm vụ và dashboard.</p>
+      <h3 style="margin-top:0;font-size:14px">${t('master_add_dept_title')}</h3>
+      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 10px">${t('master_add_dept_hint')}</p>
       <div style="display:flex;gap:8px;max-width:420px">
-        <input id="newDeptName" placeholder="Tên bộ phận mới…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
-        <button class="btn btn-primary btn-sm" onclick="addDept()">${icon('plus',14)} Thêm bộ phận</button>
+        <input id="newDeptName" placeholder="${t('master_new_dept_ph')}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+        <button class="btn btn-primary btn-sm" onclick="addDept()">${icon('plus',14)} ${t('btn_add_dept')}</button>
       </div>
     </div>
     <div class="grid-cols g3">${DEPTS.map(d=>`
       <div class="card">
         <h3 style="margin-top:0;font-size:14px">${d}</h3>
         <div id="stageList-${d}">${(STAGE_MASTER[d]||[]).map((s,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-soft);font-size:13px"><span>${s}</span><button class="btn btn-ghost btn-sm" onclick="removeStage('${d}',${i})">✕</button></div>`).join('')}</div>
-        <div style="display:flex;gap:6px;margin-top:10px"><input id="newStage-${d}" placeholder="Công đoạn mới…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px"><button class="btn btn-sm" onclick="addStage('${d}')">+</button></div>
+        <div style="display:flex;gap:6px;margin-top:10px"><input id="newStage-${d}" placeholder="${t('master_new_stage_ph')}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px"><button class="btn btn-sm" onclick="addStage('${d}')">+</button></div>
       </div>`).join('')}</div>`;
   } else {
     const pendingUsers=USERS.filter(u=>u.status==='pending');
     const pendingRequests=EDIT_REQUESTS.filter(r=>r.status==='pending');
     body.innerHTML=`
       ${pendingRequests.length?`<div class="card" style="border-color:var(--info)">
-        <h3 style="margin-top:0;font-size:14px;color:var(--info)">Yêu cầu chỉnh sửa tài khoản (${pendingRequests.length})</h3>
+        <h3 style="margin-top:0;font-size:14px;color:var(--info)">${t('master_edit_requests_title_prefix')} (${pendingRequests.length})</h3>
         ${pendingRequests.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-soft)">
           <div><span style="font-size:13px"><b>${r.userName}</b> · ${r.createdAt}</span><div style="font-size:12.5px;color:var(--text-dim);margin-top:2px">${r.message}</div></div>
           <div style="display:flex;gap:6px;white-space:nowrap">
-            <button class="btn btn-sm" onclick="openEditUserByRequest('${r.userId}')">Sửa tài khoản</button>
-            <button class="btn btn-sm btn-ghost" onclick="resolveEditRequest('${r.id}')">Đã xử lý</button>
+            <button class="btn btn-sm" onclick="openEditUserByRequest('${r.userId}')">${t('btn_edit_account')}</button>
+            <button class="btn btn-sm btn-ghost" onclick="resolveEditRequest('${r.id}')">${t('btn_mark_resolved')}</button>
           </div>
         </div>`).join('')}
       </div>`:''}
       ${pendingUsers.length?`<div class="card" style="border-color:var(--amber)">
-        <h3 style="margin-top:0;font-size:14px;color:var(--amber)">Tài khoản chờ duyệt (${pendingUsers.length})</h3>
+        <h3 style="margin-top:0;font-size:14px;color:var(--amber)">${t('master_pending_accounts_title_prefix')} (${pendingUsers.length})</h3>
         ${pendingUsers.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-soft)">
           <span style="font-size:13px">${u.name} · ${u.code} · ${u.dept}</span>
-          <div style="display:flex;gap:6px"><button class="btn btn-sm btn-solder" onclick="approveUser('${u.id}')">Duyệt</button><button class="btn btn-sm btn-danger" onclick="rejectUser('${u.id}')">Từ chối</button></div>
+          <div style="display:flex;gap:6px"><button class="btn btn-sm btn-solder" onclick="approveUser('${u.id}')">${t('btn_approve')}</button><button class="btn btn-sm btn-danger" onclick="rejectUser('${u.id}')">${t('btn_reject')}</button></div>
         </div>`).join('')}
       </div>`:''}
       <div class="card scroll-x">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <h3 style="margin:0;font-size:14px">Danh sách người dùng</h3>
-          <button class="btn btn-sm btn-primary" onclick="openAddUser()">${icon('plus',14)} Thêm người dùng</button>
+          <h3 style="margin:0;font-size:14px">${t('master_user_list_title')}</h3>
+          <button class="btn btn-sm btn-primary" onclick="openAddUser()">${icon('plus',14)} ${t('btn_add_user')}</button>
         </div>
         <table><thead><tr><th>${t('th_name')}</th><th>${t('th_emp_code')}</th><th>${t('th_dept')}</th><th>${t('th_role')}</th><th>${t('col_status')}</th><th></th></tr></thead>
         <tbody>${USERS.filter(u=>u.status!=='pending').map(u=>`<tr>
           <td>${u.name}</td><td class="mono">${u.code}</td><td>${u.dept}</td>
-          <td><span class="badge badge-info">${({admin:'Admin',manager:'Quản lý',employee:'Nhân viên'})[u.role]}</span></td>
-          <td>${u.status==='active'?'<span class="badge badge-done">Hoạt động</span>':'<span class="badge badge-danger">Đã khoá</span>'}</td>
+          <td><span class="badge badge-info">${({admin:t('role_admin'),manager:t('role_manager'),employee:t('role_employee')})[u.role]}</span></td>
+          <td>${u.status==='active'?`<span class="badge badge-done">${t('account_active')}</span>`:`<span class="badge badge-danger">${t('account_locked')}</span>`}</td>
           <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" onclick="openEditUser('${u.id}')">Sửa</button>
-            <button class="btn btn-ghost btn-sm" onclick="toggleLock('${u.id}')">${u.status==='active'?'Khoá':'Mở khoá'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteUserConfirm('${u.id}')">Xoá</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditUser('${u.id}')">${t('edit')}</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleLock('${u.id}')">${u.status==='active'?t('btn_lock'):t('btn_unlock')}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteUserConfirm('${u.id}')">${t('delete')}</button>
           </td>
         </tr>`).join('')}</tbody></table>
       </div>`;
@@ -3119,22 +3656,22 @@ function renderDrawingTable(){
   const q=document.getElementById('dwSearch')?document.getElementById('dwSearch').value:'';
   const rows=DRAWINGS.filter(d=>matchesSearch(d.name,q)||matchesSearch(d.code,q)).map(d=>{
     const lv=latestVersion(d);
-    return `<tr><td class="mono">${d.code}${d.needsReview?` <span class="badge badge-progress" title="Được tự tạo khi nhân viên gõ tự do trong Thêm tác vụ — chưa ai kiểm tra lại tên/chính tả">⚠ Cần rà soát</span>`:''}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
+    return `<tr><td class="mono">${d.code}${d.needsReview?` <span class="badge badge-progress" title="${t('needs_review_badge_title')}">${t('needs_review_badge')}</span>`:''}</td><td>${d.name}</td><td class="mono">${d.job} <span style="color:var(--text-mute)">(${getJobNameByCode(d.job)})</span></td>
     <td class="mono">${lv.version}</td><td class="mono">${lv.issueDate}</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" onclick="openVersionHistory('${d.code}')">🕘 Lịch sử</button>
+      <button class="btn btn-ghost btn-sm" onclick="openVersionHistory('${d.code}')">${t('btn_history')}</button>
       <button class="btn btn-ghost btn-sm" onclick="openDrawingForm('${d.code}')">${t('edit')}</button>
       <button class="btn btn-ghost btn-sm" onclick="openQrFor('${d.code}')">${icon('qr',14)} QR</button>
-      ${d.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('drawing','${d.code}')">Đã xem xét</button>`:''}
+      ${d.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('drawing','${d.code}')">${t('btn_mark_reviewed')}</button>`:''}
     </td></tr>`;
   }).join('');
   const reviewCount=DRAWINGS.filter(d=>d.needsReview).length;
-  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">⚠ ${reviewCount} bản vẽ được tự tạo khi nhân viên gõ tự do, chưa được rà soát</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">Kiểm tra xem có bị trùng ý/lỗi chính tả với bản vẽ đã có không, sửa lại tên nếu cần rồi bấm "Đã xem xét".</p></div>` : '';
-  document.getElementById('drawingTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có bản vẽ nào.</td></tr>`}</tbody></table>`;
+  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">${t('master_drawing_review_banner_prefix')} ${reviewCount} ${t('th_drawing').toLowerCase()} ${t('master_drawing_review_banner_suffix')}</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">${t('master_review_banner_hint')}</p></div>` : '';
+  document.getElementById('drawingTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_drawing_code')}</th><th>${t('th_drawing_name')}</th><th>${t('th_job')}</th><th>${t('th_current_version')}</th><th>${t('th_issue_date')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">${t('no_drawings_yet')}</td></tr>`}</tbody></table>`;
 }
 function openVersionHistory(code){
   const d=DRAWINGS.find(x=>x.code===code);
-  openModal('Lịch sử phiên bản — '+code, `
+  openModal(t('version_history_title')+' — '+code, `
     <table><thead><tr><th>${t('th_version')}</th><th>${t('th_issue_date')}</th></tr></thead>
     <tbody>${d.versions.map(v=>`<tr><td class="mono">${v.version}</td><td class="mono">${v.issueDate||'—'}</td></tr>`).join('')}</tbody></table>
   `, [{label:t('close'), onClick:closeModal}]);
@@ -3144,16 +3681,16 @@ function openDrawingForm(code){
   const existing = code? DRAWINGS.find(d=>d.code===code) : null;
   drawFormVersions = existing? existing.versions.map(v=>({...v})) : [{version:'A', issueDate:new Date().toISOString().slice(0,10)}];
   const jobOpts = ORDERS.map(o=>`<option value="${o.code}" ${existing&&existing.job===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('');
-  openModal(existing? 'Sửa bản vẽ '+code : 'Thêm bản vẽ mới', `
+  openModal(existing? t('edit_drawing_title')+' '+code : t('add_drawing_title'), `
     <div class="grid-cols g2">
-      <div class="field"><label>Mã bản vẽ</label><input id="nd-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
-      <div class="field"><label>Job</label><select id="nd-job">${jobOpts}</select></div>
+      <div class="field"><label>${t('field_drawing_code')}</label><input id="nd-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
+      <div class="field"><label>${t('th_job')}</label><select id="nd-job">${jobOpts}</select></div>
     </div>
-    <div class="field"><label>Tên bản vẽ</label><input id="nd-name" value="${existing?existing.name.replace(/"/g,'&quot;'):''}"></div>
+    <div class="field"><label>${t('field_drawing_name')}</label><input id="nd-name" value="${existing?existing.name.replace(/"/g,'&quot;'):''}"></div>
     <div class="field">
-      <label>Phiên bản &amp; ngày phát hành (dòng cuối = phiên bản hiện hành)</label>
+      <label>${t('field_version_and_date')}</label>
       <div id="versionRows"></div>
-      <button class="btn btn-sm btn-ghost" onclick="addVersionRow()">${icon('plus',13)} Thêm phiên bản</button>
+      <button class="btn btn-sm btn-ghost" onclick="addVersionRow()">${icon('plus',13)} ${t('btn_add_version')}</button>
     </div>
   `, [{label: existing?t('save'):t('add'), primary:true, onClick:()=>saveDrawingForm(code)}]);
   renderVersionRows();
@@ -3162,7 +3699,7 @@ function renderVersionRows(){
   const wrap=document.getElementById('versionRows'); if(!wrap) return;
   wrap.innerHTML = drawFormVersions.map((v,i)=>`
     <div style="display:flex;gap:6px;margin-bottom:6px">
-      <input placeholder="Phiên bản (vd: A)" value="${v.version}" style="width:100px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px" onchange="updateVersionRow(${i},'version',this.value)">
+      <input placeholder="${t('version_ph')}" value="${v.version}" style="width:100px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px" onchange="updateVersionRow(${i},'version',this.value)">
       <input type="date" value="${v.issueDate}" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 9px" onchange="updateVersionRow(${i},'issueDate',this.value)">
       ${drawFormVersions.length>1?`<button class="btn btn-ghost btn-sm" onclick="removeVersionRow(${i})">✕</button>`:''}
     </div>`).join('');
@@ -3325,11 +3862,11 @@ function importDrawingsExcel(input, mode){
   }
 }
 function openQrFor(code){
-  openModal('Mã QR bản vẽ '+code, `
+  openModal(t('qr_modal_title_prefix')+' '+code, `
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
       <div class="qr-box" style="width:180px;height:180px" id="qrBox"></div>
       <div class="code-chip">${code}</div>
-      <p style="font-size:11.5px;color:var(--text-mute);text-align:center">Mã QR thật — in ra dán lên phiếu/bản vẽ để quét bằng camera khi bắt đầu công đoạn.</p>
+      <p style="font-size:11.5px;color:var(--text-mute);text-align:center">${t('qr_modal_hint')}</p>
     </div>`, [{label:t('close'), onClick:closeModal}]);
   setTimeout(()=>renderRealQR(code, document.getElementById('qrBox')),10);
 }
@@ -3381,14 +3918,14 @@ async function printAllDrawingQrs(){
 function renderJobTable(){
   const q=document.getElementById('jbSearch')?document.getElementById('jbSearch').value:'';
   const rows=ORDERS.filter(o=>matchesSearch(getJobName(o),q)||matchesSearch(o.code,q)).map(o=>`
-    <tr><td class="mono">${o.code}${o.needsReview?` <span class="badge badge-progress" title="Được tự tạo khi nhân viên gõ tự do trong Thêm tác vụ — chưa ai kiểm tra lại tên/chính tả">⚠ Cần rà soát</span>`:''}</td><td>${getJobName(o)}</td><td class="mono">${o.planDate}</td><td>${priorityBadge(o.priority)}</td>
+    <tr><td class="mono">${o.code}${o.needsReview?` <span class="badge badge-progress" title="${t('needs_review_badge_title')}">${t('needs_review_badge')}</span>`:''}</td><td>${getJobName(o)}</td><td class="mono">${o.planDate}</td><td>${priorityBadge(o.priority)}</td>
     <td style="max-width:180px;font-size:12px;color:var(--text-mute)">${o.memo||'—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openJobForm('${o.code}')">${t('edit')}</button>
-    ${o.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('job','${o.code}')">Đã xem xét</button>`:''}
+    ${o.needsReview?`<button class="btn btn-ghost btn-sm" onclick="markReviewed('job','${o.code}')">${t('btn_mark_reviewed')}</button>`:''}
     <button class="btn btn-ghost btn-sm" onclick="deleteJobConfirm('${o.code}')">${t('delete')}</button></td></tr>`).join('');
   const reviewCount=ORDERS.filter(o=>o.needsReview).length;
-  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">⚠ ${reviewCount} Job được tự tạo khi nhân viên gõ tự do, chưa được rà soát</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">Kiểm tra xem có bị trùng ý/lỗi chính tả với Job đã có không, sửa lại tên nếu cần rồi bấm "Đã xem xét".</p></div>` : '';
-  document.getElementById('jobTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">Chưa có Job nào.</td></tr>`}</tbody></table>`;
+  const reviewBanner=reviewCount? `<div class="card" style="border-color:var(--amber);margin-bottom:12px"><h3 style="margin:0;font-size:14px;color:var(--amber)">${t('master_drawing_review_banner_prefix')} ${reviewCount} ${t('th_job')} ${t('master_drawing_review_banner_suffix')}</h3><p style="margin:6px 0 0;font-size:12px;color:var(--text-mute)">${t('master_review_banner_hint')}</p></div>` : '';
+  document.getElementById('jobTableWrap').innerHTML=`${reviewBanner}<table><thead><tr><th>${t('th_job_code')}</th><th>${t('th_name')}</th><th>${t('th_due_date')}</th><th>${t('col_priority')}</th><th>${t('col_memo')}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="6" style="color:var(--text-mute)">${t('no_jobs_yet')}</td></tr>`}</tbody></table>`;
 }
 async function markReviewed(type, code){
   const table = type==='job' ? 'jobs' : 'drawings';
@@ -3401,22 +3938,22 @@ async function markReviewed(type, code){
 }
 function openJobForm(code){
   const existing = code? ORDERS.find(o=>o.code===code) : null;
-  openModal(existing?'Sửa Job '+code:'Thêm Job mới', `
+  openModal(existing?t('edit_job_title')+' '+code:t('add_job_title'), `
     <div class="grid-cols g2">
-      <div class="field"><label>Mã Job</label><input id="jf-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
-      <div class="field"><label>Ngày cần giao</label><input id="jf-date" type="date" value="${existing?existing.planDate:''}"></div>
+      <div class="field"><label>${t('field_job_code')}</label><input id="jf-code" value="${existing?existing.code:''}" ${existing?'disabled':''}></div>
+      <div class="field"><label>${t('field_due_date')}</label><input id="jf-date" type="date" value="${existing?existing.planDate:''}"></div>
     </div>
-    <div class="field"><label>Tên (Tiếng Việt)</label><input id="jf-name-vi" value="${existing?(existing.name_vi||'').replace(/"/g,'&quot;'):''}"></div>
+    <div class="field"><label>${t('field_name_vi')}</label><input id="jf-name-vi" value="${existing?(existing.name_vi||'').replace(/"/g,'&quot;'):''}"></div>
     <div class="grid-cols g2">
-      <div class="field"><label>Tên (English)</label><input id="jf-name-en" value="${existing?(existing.name_en||'').replace(/"/g,'&quot;'):''}"></div>
-      <div class="field"><label>Tên (日本語)</label><input id="jf-name-ja" value="${existing?(existing.name_ja||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="field"><label>${t('field_name_en')}</label><input id="jf-name-en" value="${existing?(existing.name_en||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="field"><label>${t('field_name_ja')}</label><input id="jf-name-ja" value="${existing?(existing.name_ja||'').replace(/"/g,'&quot;'):''}"></div>
     </div>
-    <div class="field"><label>Mức độ ưu tiên</label><select id="jf-priority">
+    <div class="field"><label>${t('field_priority')}</label><select id="jf-priority">
       <option value="high" ${existing&&existing.priority==='high'?'selected':''}>${t('priority_high')}</option>
       <option value="medium" ${!existing||existing.priority==='medium'?'selected':''}>${t('priority_medium')}</option>
       <option value="low" ${existing&&existing.priority==='low'?'selected':''}>${t('priority_low')}</option>
     </select></div>
-    <div class="field"><label>Memo</label><textarea id="jf-memo" rows="2">${existing?(existing.memo||''):''}</textarea></div>
+    <div class="field"><label>${t('field_memo')}</label><textarea id="jf-memo" rows="2">${existing?(existing.memo||''):''}</textarea></div>
   `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>saveJobForm(!!existing)}]);
 }
 async function saveJobForm(isEdit){
@@ -3438,7 +3975,7 @@ async function saveJobForm(isEdit){
 }
 function deleteJobConfirm(code){
   const hasDrawings = DRAWINGS.some(d=>d.job===code);
-  openModal('Xoá Job '+code, `<p style="font-size:13px">Bạn có chắc muốn xoá Job này?</p>${hasDrawings?`<p style="font-size:12.5px;color:var(--danger)">⚠ Job này đang có bản vẽ liên kết trong Master. Xoá Job sẽ không xoá các bản vẽ đó, nhưng chúng sẽ mất liên kết đúng khi lọc theo Job.</p>`:''}`,
+  openModal(t('delete_job_title_prefix')+' '+code, `<p style="font-size:13px">${t('delete_job_confirm')}</p>${hasDrawings?`<p style="font-size:12.5px;color:var(--danger)">${t('delete_job_has_drawings_warn')}</p>`:''}`,
    [{label:t('delete'), primary:true, danger:true, onClick:async ()=>{
       const {error}=await supabase.from('jobs').delete().eq('code',code);
       if(error){ toast('Lỗi xoá Job: '+error.message,'err'); return; }
@@ -3589,17 +4126,17 @@ async function toggleLock(id){
 function openEditUser(id){
   const u=USERS.find(x=>x.id===id);
   if(!u) return;
-  openModal('Sửa người dùng — '+u.name, `
+  openModal(t('edit_user_title_prefix')+' — '+u.name, `
     <div class="grid-cols g2">
-      <div class="field"><label>Họ tên</label><input id="eu-name" value="${u.name.replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Mã NV</label><input id="eu-code" value="${u.code.replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>${t('field_full_name')}</label><input id="eu-name" value="${u.name.replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>${t('th_emp_code')}</label><input id="eu-code" value="${u.code.replace(/"/g,'&quot;')}"></div>
     </div>
     <div class="grid-cols g2">
-      <div class="field"><label>Bộ phận</label><select id="eu-dept">${DEPTS.map(d=>`<option ${d===u.dept?'selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="field"><label>Vai trò</label><select id="eu-role">
-        <option value="employee" ${u.role==='employee'?'selected':''}>Nhân viên</option>
-        <option value="manager" ${u.role==='manager'?'selected':''}>Quản lý</option>
-        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+      <div class="field"><label>${t('th_dept')}</label><select id="eu-dept">${DEPTS.map(d=>`<option ${d===u.dept?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="field"><label>${t('th_role')}</label><select id="eu-role">
+        <option value="employee" ${u.role==='employee'?'selected':''}>${t('role_employee')}</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>${t('role_manager')}</option>
+        <option value="admin" ${u.role==='admin'?'selected':''}>${t('role_admin')}</option>
       </select></div>
     </div>
   `, [{label:t('save'), primary:true, onClick:()=>saveEditUser(id)}]);
@@ -3620,7 +4157,7 @@ async function saveEditUser(id){
 function deleteUserConfirm(id){
   const u=USERS.find(x=>x.id===id);
   if(!u) return;
-  openModal('Xoá người dùng — '+u.name, `<p style="font-size:13px">Bạn có chắc muốn xoá tài khoản này? Hành động này không thể hoàn tác.</p>`,
+  openModal(t('delete_user_title_prefix')+' — '+u.name, `<p style="font-size:13px">${t('delete_user_confirm')}</p>`,
     [{label:t('delete'), primary:true, danger:true, onClick:async ()=>{
       const {error}=await supabase.from('profiles').delete().eq('id',id);
       if(error){
@@ -3634,10 +4171,10 @@ function deleteUserConfirm(id){
 }
 function openEditUserByRequest(userId){ openEditUser(userId); }
 function openEditRequestForm(){
-  openModal('Gửi yêu cầu chỉnh sửa tài khoản', `
-    <p style="font-size:12.5px;color:var(--text-dim)">Mô tả thông tin bạn muốn Admin chỉnh sửa (tên, mã NV, bộ phận, vai trò…). Admin sẽ xem và cập nhật giúp bạn.</p>
-    <div class="field"><textarea id="er-message" rows="4" placeholder="Vd: Đổi bộ phận của tôi sang Kho…"></textarea></div>
-  `, [{label:'Gửi yêu cầu', primary:true, onClick:submitEditRequest}]);
+  openModal(t('edit_request_title'), `
+    <p style="font-size:12.5px;color:var(--text-dim)">${t('edit_request_hint')}</p>
+    <div class="field"><textarea id="er-message" rows="4" placeholder="${t('edit_request_ph')}"></textarea></div>
+  `, [{label:t('btn_send_request'), primary:true, onClick:submitEditRequest}]);
 }
 async function submitEditRequest(){
   const msg=document.getElementById('er-message').value.trim();
@@ -3654,9 +4191,9 @@ async function resolveEditRequest(id){
   renderMasterBody(); toast('Đã đánh dấu xử lý yêu cầu.','ok');
 }
 function openAddUser(){
-  openModal('Thêm người dùng', `
-    <p style="font-size:13px">Vì hệ thống dùng xác thực thật, Admin không thể tạo tài khoản kèm mật khẩu trực tiếp tại đây.</p>
-    <p style="font-size:13px">Người dùng mới cần tự <b>đăng ký</b> ở màn hình đăng nhập (link "Đăng ký tài khoản mới"), sau đó Admin vào đây để <b>duyệt</b> tài khoản đang chờ (mục "Tài khoản chờ duyệt" phía trên).</p>
+  openModal(t('add_user_title'), `
+    <p style="font-size:13px">${t('add_user_hint1')}</p>
+    <p style="font-size:13px">${t('add_user_hint2')}</p>
   `, [{label:t('close'), onClick:closeModal}]);
 }
 
@@ -3672,7 +4209,7 @@ function openModal(title, bodyHtml, actions){
     </div>`;
   const foot=document.getElementById('modalFoot');
   foot.innerHTML='';
-  (actions||[{label:'Đóng',onClick:closeModal}]).forEach(a=>{
+  (actions||[{label:t('close'),onClick:closeModal}]).forEach(a=>{
     const b=document.createElement('button');
     b.className='btn '+(a.primary?(a.danger?'btn-danger':'btn-primary'):'btn-ghost');
     b.textContent=a.label;
