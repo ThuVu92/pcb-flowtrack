@@ -1360,6 +1360,7 @@ function getJobNameByCode(code){ return getJobName(ORDERS.find(o=>o.code===code)
 let ASSIGNS = [];
 
 let TIMELOGS = [];
+let JOB_PROGRESS_PUBLIC = null; // {job_code: {pct, status}} tính sẵn trên server, không bị RLS chặn — xem computeOrderProgress()
 
 /* ---------------- Supabase data layer ---------------- */
 const AUTH_EMAIL_DOMAIN = '@users.pcbflowtrack.com';
@@ -1413,7 +1414,7 @@ function mapNotif(n){
 async function loadCoreData(){
   const [{data:depts}, {data:stages}, {data:profiles}, {data:jobs}, {data:drawings}, {data:versions},
          {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:tlStages}, {data:tlJobs}, {data:notifs},
-         {data:editReqs}]
+         {data:editReqs}, {data:jobProgress, error:jobProgressErr}]
     = await Promise.all([
       supabase.from('depts').select('*'),
       supabase.from('stages').select('*').order('sort_order'),
@@ -1430,7 +1431,16 @@ async function loadCoreData(){
       supabase.from('timelog_jobs').select('*'),
       supabase.from('notifs').select('*').order('created_at'),
       supabase.from('edit_requests').select('*').order('created_at'),
+      supabase.rpc('job_progress_summary'),
     ]);
+  // Nhân viên chỉ đọc được bản ghi chấm công của chính mình (RLS), nên
+  // JOB_PROGRESS_PUBLIC (tính sẵn trên server, vượt qua RLS an toàn qua
+  // hàm security definer) là nguồn đúng cho % tiến độ Job toàn công ty ở
+  // Trang chủ — dùng chung cho mọi vai trò. Nếu chưa chạy migration thì
+  // giữ null để computeOrderProgress() tự rơi về cách tính JS cũ.
+  JOB_PROGRESS_PUBLIC = (!jobProgressErr && jobProgress)
+    ? Object.fromEntries(jobProgress.map(r=>[r.job_code, {pct:r.pct, status:r.status}]))
+    : null;
 
   DEPT_NAME_BY_ID={}; DEPT_ID_BY_NAME={};
   (depts||[]).forEach(d=>{ DEPT_NAME_BY_ID[d.id]=d.name; DEPT_ID_BY_NAME[d.name]=d.id; });
@@ -1859,6 +1869,7 @@ function renderNotifBell(open){
 
 /* ---------------- HOME / ORDERS ---------------- */
 function computeOrderProgress(jobCode){
+  if(JOB_PROGRESS_PUBLIC && JOB_PROGRESS_PUBLIC[jobCode]) return JOB_PROGRESS_PUBLIC[jobCode];
   const drs=DRAWINGS.filter(d=>d.job===jobCode);
   // tác vụ đã ghi nhận cho job này nhưng KHÔNG gắn bản vẽ cụ thể nào (áp dụng chung)
   const genericLogs=TIMELOGS.filter(l=>l.jobCodes.includes(jobCode) && (!l.drawingCodes || l.drawingCodes.length===0));
