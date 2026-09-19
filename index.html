@@ -811,7 +811,7 @@ const I18N = {
     dash_daily_chart_title:'Biến động thời gian làm việc theo ngày',
     dash_split_by_prefix:'Tách riêng theo', dash_split_by_suffix:'đang chọn.',
     dash_split_hint:'Chọn nhiều Job/bộ phận/bản vẽ/công đoạn/nhân viên ở bộ lọc phía trên để so sánh riêng từng mục.',
-    dash_avg_stage_title:'Thời gian trung bình mỗi công đoạn', dash_no_data:'Chưa có dữ liệu phù hợp bộ lọc.',
+    dash_total_by_stage_title:'Tổng thời gian mỗi công đoạn (theo bộ lọc)', dash_no_data:'Chưa có dữ liệu phù hợp bộ lọc.',
     dash_detail_title:'Chi tiết bản ghi', dash_no_data_plain:'Không có dữ liệu.',
     cost_report_hint:'Tính theo đúng các bản ghi đang được lọc ở Dashboard hiện tại (Job/nhân viên/bộ phận/bản vẽ/công đoạn/thời kỳ).',
     cost_rate_label:'Đơn giá / giờ', cost_rate_ph:'vd: 50000',
@@ -1012,7 +1012,7 @@ const I18N = {
     dash_daily_chart_title:'Time worked over days',
     dash_split_by_prefix:'Split by', dash_split_by_suffix:'selected.',
     dash_split_hint:'Select multiple Job/department/drawing/stage/employee in the filter above to compare them separately.',
-    dash_avg_stage_title:'Average time per stage', dash_no_data:'No data matching the filter.',
+    dash_total_by_stage_title:'Total time per stage (current filter)', dash_no_data:'No data matching the filter.',
     dash_detail_title:'Record details', dash_no_data_plain:'No data.',
     cost_report_hint:'Calculated from the records currently filtered on the Dashboard (Job/employee/department/drawing/stage/period).',
     cost_rate_label:'Hourly rate', cost_rate_ph:'e.g. 50000',
@@ -1213,7 +1213,7 @@ const I18N = {
     dash_daily_chart_title:'日別作業時間の推移',
     dash_split_by_prefix:'選択中の', dash_split_by_suffix:'ごとに分けて表示。',
     dash_split_hint:'上の絞り込みでJob/部門/図面/工程/従業員を複数選択すると個別に比較できます。',
-    dash_avg_stage_title:'工程ごとの平均時間', dash_no_data:'絞り込み条件に一致するデータがありません。',
+    dash_total_by_stage_title:'工程ごとの合計時間（現在のフィルター）', dash_no_data:'絞り込み条件に一致するデータがありません。',
     dash_detail_title:'記録の詳細', dash_no_data_plain:'データがありません。',
     cost_report_hint:'現在Dashboardで絞り込まれている記録（受注/従業員/部門/図面/工程/期間）を対象に計算します。',
     cost_rate_label:'時給単価', cost_rate_ph:'例: 50000',
@@ -2958,16 +2958,15 @@ function renderDashBody(){
     const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
     const per=((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/stagesArr.length/(l.jobCodes.length||1);
     stagesArr.forEach(st=>{
-      if(!stageAgg[st]) stageAgg[st]={sum:0,n:0};
-      stageAgg[st].sum+=per; stageAgg[st].n++;
+      stageAgg[st]=(stageAgg[st]||0)+per;
     });
   });
   const stageKeys=Object.keys(stageAgg);
-  const maxAvg=Math.max(1,...stageKeys.map(k=>stageAgg[k].sum/stageAgg[k].n));
+  const maxTotal=Math.max(1,...stageKeys.map(k=>stageAgg[k]));
   const bars=stageKeys.map(k=>{
-    const avg=stageAgg[k].sum/stageAgg[k].n;
-    const h=Math.max(6,(avg/maxAvg)*130);
-    return `<div class="bar-col"><div class="bar-val">${fmtDur(avg)}</div><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${k}</div></div>`;
+    const totalMs=stageAgg[k];
+    const h=Math.max(6,(totalMs/maxTotal)*130);
+    return `<div class="bar-col"><div class="bar-val">${fmtDur(totalMs)}</div><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${k}</div></div>`;
   }).join('');
 
   // ---- Biểu đồ thời gian làm việc theo ngày — tách riêng theo Job/bản vẽ/
@@ -2991,7 +2990,7 @@ function renderDashBody(){
     (!fStages.length||l.stages.some(s=>fStages.includes(s))) &&
     (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
   );
-  const scopedDrawings = (fJobs.length? DRAWINGS.filter(d=>fJobs.includes(d.job)) : DRAWINGS.slice());
+  const scopedDrawings = DRAWINGS.filter(d=>(!fJobs.length||fJobs.includes(d.job)) && (!fDrawings.length||fDrawings.includes(d.code)));
   const allDrawStats = scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
     const started=matching.length>0;
@@ -3089,7 +3088,7 @@ function renderDashBody(){
       ${dailyChartHtml}
     </div>
     <div class="card">
-      <h3 style="margin-top:0;font-size:14px">${t('dash_avg_stage_title')}</h3>
+      <h3 style="margin-top:0;font-size:14px">${t('dash_total_by_stage_title')}</h3>
       ${stageKeys.length?`<div class="bar-chart">${bars}</div>`:`<p style="color:var(--text-mute);font-size:13px">${t('dash_no_data')}</p>`}
     </div>
     <div class="card scroll-x">
@@ -3125,7 +3124,7 @@ function exportDashboardReport(){
   const logs=filterDashLogs(f);
   const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
   const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(!fStages.length||l.stages.some(s=>fStages.includes(s)))&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
-  const scopedDrawings=(fJobs.length? DRAWINGS.filter(d=>fJobs.includes(d.job)) : DRAWINGS.slice());
+  const scopedDrawings=DRAWINGS.filter(d=>(!fJobs.length||fJobs.includes(d.job)) && (!fDrawings.length||fDrawings.includes(d.code)));
   const drawStats=scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
     const started=matching.length>0;
