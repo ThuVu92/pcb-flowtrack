@@ -801,7 +801,7 @@ const I18N = {
     dash_stat_total_records:'Tổng bản ghi công đoạn', dash_stat_running:'Đang thực hiện',
     dash_stat_done:'Đã hoàn thành', dash_stat_overdue:'Nhiệm vụ chưa xong',
     dash_total_time_title:'Tổng thời gian đã làm (theo bộ lọc hiện tại)',
-    dash_total_time_sub:'Tổng cộng thời gian của toàn bộ bản ghi đang được lọc bên dưới.',
+    dash_total_time_sub:'Chỉ tính phần thuộc bộ lọc: bản ghi chấm chung nhiều Job/bản vẽ/công đoạn được chia đều cho từng phần.',
     dash_all_drawings_prefix:'Toàn bộ bản vẽ của Job', dash_all_drawings_master:'Toàn bộ bản vẽ trong Master',
     dash_incl_never_done:'(kể cả bản vẽ chưa từng thực hiện)',
     dash_total_worked_prefix:'Tổng thời gian đã làm', dash_stat_total_drawings:'Tổng số bản vẽ',
@@ -1002,7 +1002,7 @@ const I18N = {
     dash_stat_total_records:'Total stage records', dash_stat_running:'In progress',
     dash_stat_done:'Completed', dash_stat_overdue:'Tasks not yet done',
     dash_total_time_title:'Total time worked (current filter)',
-    dash_total_time_sub:'Sum of time across all records filtered below.',
+    dash_total_time_sub:'Only the share matching the filters: records logged across several Jobs/drawings/stages are split evenly between them.',
     dash_all_drawings_prefix:'All drawings of Job', dash_all_drawings_master:'All drawings in Master',
     dash_incl_never_done:'(including drawings never worked on)',
     dash_total_worked_prefix:'Total time worked', dash_stat_total_drawings:'Total drawings',
@@ -1203,7 +1203,7 @@ const I18N = {
     dash_stat_total_records:'工程記録数', dash_stat_running:'進行中',
     dash_stat_done:'完了', dash_stat_overdue:'未完了タスク',
     dash_total_time_title:'合計作業時間（現在の絞り込み）',
-    dash_total_time_sub:'下に表示中の全記録の合計時間。',
+    dash_total_time_sub:'フィルターに該当する分のみ：複数の受注/図面/工程にまたがる記録は均等に按分されます。',
     dash_all_drawings_prefix:'受注の全図面', dash_all_drawings_master:'Master内の全図面',
     dash_incl_never_done:'（未着手の図面を含む）',
     dash_total_worked_prefix:'合計作業時間', dash_stat_total_drawings:'図面総数',
@@ -2738,6 +2738,22 @@ function filterDashLogs(f){
     (f.rangeStart===null||l.start>=f.rangeStart) && (f.rangeEnd===null||l.start<=f.rangeEnd)
   );
 }
+/** Phần thời gian của 1 bản ghi thực sự thuộc về bộ lọc Dashboard hiện tại.
+    Bản ghi chấm chung nhiều Job/bản vẽ/công đoạn được chia đều cho từng "ô"
+    (Job × bản vẽ × công đoạn); khi lọc, chỉ tính các ô khớp bộ lọc — vd bản
+    ghi 85h gắn 2 Job, lọc riêng 1 Job thì chỉ còn 42.5h. `exclude` bỏ qua 1
+    chiều (job/drawing/stage) khi chính chiều đó đang được tách riêng. */
+function logShareUnderFilter(l, f, exclude){
+  const dur=(l.end||Date.now())-l.start-l.pausedMs;
+  const frac=(vals, sel)=>{
+    if(!vals||!vals.length||!sel||!sel.length) return 1;
+    return vals.filter(v=>sel.includes(v)).length/vals.length;
+  };
+  return dur
+    * (exclude==='job'?1:frac(l.jobCodes, f.fJobs))
+    * (exclude==='drawing'?1:frac(l.drawingCodes, f.fDrawings))
+    * (exclude==='stage'?1:frac(l.stages, f.fStages));
+}
 function allStageOptions(){
   return Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i);
 }
@@ -2746,28 +2762,30 @@ function allStageOptions(){
     từng NGÀY, tách thành nhiều đường nếu dim!=null (vd: đang chọn nhiều Job
     thì mỗi Job 1 đường). Bản ghi gộp nhiều bản vẽ/công đoạn được chia đều
     thời gian, giống cách tính "Thời gian trung bình mỗi công đoạn" ở trên. */
-function buildDailySeries(logs, dim){
+function buildDailySeries(logs, dim, f){
   const dayKey=(ms)=>{ const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
   const seriesMap={}, dayset=new Set();
   const bump=(name, day, ms)=>{ seriesMap[name]=seriesMap[name]||{}; seriesMap[name][day]=(seriesMap[name][day]||0)+ms; };
+  const rawDur=(l)=>(l.end||Date.now())-l.start-l.pausedMs;
+  // Có bộ lọc (f) thì chỉ tính phần thuộc bộ lọc; `exclude` bỏ qua chiều đang được tách riêng.
+  const share=(l, exclude)=> f ? logShareUnderFilter(l, f, exclude) : rawDur(l);
   logs.forEach(l=>{
     const day=dayKey(l.start); dayset.add(day);
-    const dur=(l.end||Date.now())-l.start-l.pausedMs;
-    if(!dim){ bump('Tổng', day, dur); return; }
+    if(!dim){ bump('Tổng', day, share(l)); return; }
     if(dim.key==='job'){
       const jobsArr=l.jobCodes&&l.jobCodes.length?l.jobCodes:['—'];
-      const perJob=dur/jobsArr.length;
+      const perJob=share(l,'job')/jobsArr.length;
       jobsArr.filter(j=>dim.values.includes(j)).forEach(j=>bump(j, day, perJob));
     } else if(dim.key==='dept'){
-      const v=l.dept||'—'; if(dim.values.includes(v)) bump(v, day, dur);
+      const v=l.dept||'—'; if(dim.values.includes(v)) bump(v, day, share(l));
     } else if(dim.key==='user'){
-      if(dim.values.includes(l.user)) bump(getUserName(l.user), day, dur);
+      if(dim.values.includes(l.user)) bump(getUserName(l.user), day, share(l));
     } else if(dim.key==='drawing'){
-      const per=dur/(l.drawingCodes.length||1);
+      const per=share(l,'drawing')/(l.drawingCodes.length||1);
       l.drawingCodes.filter(c=>dim.values.includes(c)).forEach(c=>bump(c, day, per));
     } else if(dim.key==='stage'){
       const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
-      const per=dur/stagesArr.length;
+      const per=share(l,'stage')/stagesArr.length;
       stagesArr.filter(s=>dim.values.includes(s)).forEach(s=>bump(s, day, per));
     }
   });
@@ -2882,9 +2900,13 @@ function computeCostReport(){
     if(!fx || fx<=0){ toast('Nhập tỷ giá quy đổi sang VND hợp lệ.','err'); return; }
   }
   const dimKey=costGroupBy;
-  const logs=filterDashLogs(getDashFilters());
-  const values=distinctDimValues(logs, dimKey);
-  const {days, series}=buildDailySeries(logs, {key:dimKey, values});
+  const costF=getDashFilters();
+  const logs=filterDashLogs(costF);
+  // Nhóm theo đúng chiều đang được lọc thì chỉ giữ các giá trị đã chọn (vd lọc Job A,
+  // nhóm theo Job → không hiện Job B chỉ vì chung bản ghi với A).
+  const selForDim={job:costF.fJobs, dept:costF.fDepts, user:costF.fUsers, drawing:costF.fDrawings, stage:costF.fStages}[dimKey]||[];
+  const values=distinctDimValues(logs, dimKey).filter(v=>!selForDim.length||selForDim.includes(v));
+  const {days, series}=buildDailySeries(logs, {key:dimKey, values}, costF);
 
   const groupLabel=costGroupLabel(dimKey);
   const rowsData=series.map(s=>{
@@ -2962,7 +2984,7 @@ function renderDashBody(){
 
   const total=logs.length, running=logs.filter(l=>l.status==='running').length, done=logs.filter(l=>l.status==='done').length;
   const overdue=ASSIGNS.filter(a=>a.status!=='done'&&a.status!=='rejected').length;
-  const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
+  const totalTimeMs=logs.reduce((s,l)=>s+logShareUnderFilter(l,f),0);
 
   const stageAgg={};
   logs.forEach(l=>{
@@ -2988,7 +3010,7 @@ function renderDashBody(){
   else if(fStages.length>1) dashSplitDim={key:'stage', values:fStages};
   else if(fDepts.length>1) dashSplitDim={key:'dept', values:fDepts};
   else if(fUsers.length>1) dashSplitDim={key:'user', values:fUsers};
-  const {days:dashDays, series:dashSeries}=buildDailySeries(logs, dashSplitDim);
+  const {days:dashDays, series:dashSeries}=buildDailySeries(logs, dashSplitDim, f);
   const dailyChartHtml=renderDailyChartSVG(dashDays, dashSeries);
 
   // ---- Toàn bộ bản vẽ theo Master (lọc theo Job nếu có chọn) — kể cả bản vẽ chưa từng làm ----
@@ -3008,7 +3030,7 @@ function renderDashBody(){
     const hasUnfinished=matching.some(l=>l.status!=='done');
     const state = !started?'idle':hasUnfinished?'progress':'done';
     const doneLogs=matching.filter(l=>l.status==='done');
-    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1),0);
+    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
     const startedAt = started? Math.min(...matching.map(l=>l.start)) : null;
     const finishedAt = (state==='done' && doneLogs.length)? Math.max(...doneLogs.map(l=>l.end)) : null;
     return {d, state, dMs, startedAt, finishedAt};
@@ -3133,7 +3155,7 @@ function exportDashboardReport(){
   const f=getDashFilters();
   const {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd}=f;
   const logs=filterDashLogs(f);
-  const totalTimeMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs),0);
+  const totalTimeMs=logs.reduce((s,l)=>s+logShareUnderFilter(l,f),0);
   const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(!fStages.length||l.stages.some(s=>fStages.includes(s)))&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
   const scopedDrawings=DRAWINGS.filter(d=>(!fJobs.length||fJobs.includes(d.job)) && (!fDrawings.length||fDrawings.includes(d.code)));
   const drawStats=scopedDrawings.map(d=>{
@@ -3142,7 +3164,7 @@ function exportDashboardReport(){
     const hasUnfinished=matching.some(l=>l.status!=='done');
     const state=!started?'Chưa làm':hasUnfinished?'Đang làm':'Hoàn thành';
     const doneLogs=matching.filter(l=>l.status==='done');
-    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1),0);
+    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
     const startedAt=started?new Date(Math.min(...matching.map(l=>l.start))).toLocaleString('vi-VN'):'';
     const finishedAt=(state==='Hoàn thành' && doneLogs.length)?new Date(Math.max(...doneLogs.map(l=>l.end))).toLocaleString('vi-VN'):'';
     return [d.code, d.name, d.job, state, fmtDur(dMs), startedAt, finishedAt];
