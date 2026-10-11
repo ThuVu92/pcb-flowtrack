@@ -3506,6 +3506,14 @@ const PR_COMPARE=[ // cột so sánh khi phát hiện thay đổi: field JS → 
 ];
 const PR_COL_LABEL={qty_needed:'pr_f_needed', qty_stock:'pr_f_stock', unit:'pr_f_unit', request_date:'pr_f_date'};
 
+/** UUID v4; crypto.randomUUID() không có trên Safari/iPhone cũ hoặc trang không HTTPS. */
+function newUuid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  const b=new Uint8Array(16); crypto.getRandomValues(b);
+  b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
+  const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
 function prKey(job,name,model,maker){
   return [job,name,model,maker].map(x=>stripDiacritics(String(x||'')).replace(/[^a-z0-9]+/g,' ').trim()).join('|');
 }
@@ -3608,9 +3616,16 @@ function prItemsToTable(items){
     const L=lines[i];
     if(isHeader(L)) continue;
     const cells=header.map(()=>'');
-    L.phrases.forEach(p=>{
-      let col=0; anchors.forEach((ax,ci)=>{ if(ax<=p.x+med) col=ci; });
-      cells[col]=(cells[col]?cells[col]+' ':'')+p.str;
+    // gán từng chữ (không gộp trước) vào cột theo vị trí tiêu đề, để cột sát nhau không bị dính
+    // (khối chữ bị trình đọc gộp nhiều ô thì tách từng từ, ước tính vị trí theo tỉ lệ ký tự)
+    L.items.forEach(it=>{
+      let idx=0;
+      it.str.split(/(\s+)/).forEach(tok=>{
+        const pos=it.x+it.w*(idx/Math.max(1,it.str.length)); idx+=tok.length;
+        if(!tok.trim()) return;
+        let col=0; anchors.forEach((ax,ci)=>{ if(ax<=pos+med*0.8) col=ci; });
+        cells[col]=(cells[col]?cells[col]+' ':'')+tok;
+      });
     });
     const filled=cells.filter(Boolean).length;
     if(!filled) continue;
@@ -3647,7 +3662,7 @@ async function prExtractPdf(file, setStatus){
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
   let items=[], chars=0;
   for(let p=1;p<=pdf.numPages;p++){
-    const page=await pdf.getPage(p), tc=await page.getTextContent();
+    const page=await pdf.getPage(p), tc=await page.getTextContent({disableCombineTextItems:true});
     tc.items.forEach(i=>{
       if(!i.str||!i.str.trim()) return;
       chars+=i.str.length;
@@ -3765,7 +3780,7 @@ async function prUploadOriginal(file, uploadId){
   return path;
 }
 async function prStoreOnly(file, defJob){
-  const uploadId=crypto.randomUUID();
+  const uploadId=newUuid();
   try{
     const path=await prUploadOriginal(file, uploadId);
     const {error}=await supabase.from('pr_uploads').insert({id:uploadId, job_code:defJob||null, file_name:file.name, file_path:path, file_type:file.type||'', file_size:file.size, parsed:false, uploaded_by:SESSION.id});
@@ -3786,7 +3801,7 @@ async function prImport(ctx){
     const fieldOfMap={qtyNeeded:'qtyNeeded',qtyStock:'qtyStock',unit:'unit',requestDate:'requestDate'}[cmp.k];
     return ctx.map[fieldOfMap]>-1;
   });
-  const uploadId=crypto.randomUUID();
+  const uploadId=newUuid();
   const seen=new Set(), newRows=[], newChanges=[], changedChanges=[];
   let dup=0;
   ctx.items.forEach(r=>{
@@ -3796,7 +3811,7 @@ async function prImport(ctx){
     seen.add(key);
     const ex=byKey.get(key);
     if(!ex){
-      const id=crypto.randomUUID();
+      const id=newUuid();
       const row={id, key, job_code:job||null, item_name:r.itemName, model:r.model, maker:r.maker,
         qty_needed:r.qtyNeeded, qty_stock:r.qtyStock, qty_to_buy:calcQtyToBuy(r.qtyNeeded,r.qtyStock), unit:r.unit, request_date:r.requestDate, first_upload_id:uploadId};
       newRows.push(row);
@@ -4142,7 +4157,7 @@ async function savePurchaseItemForm(id){
   };
   if(!data.itemName){ toast('Nhập tên mặt hàng.','err'); return; }
   const target = id ? {...PURCHASE_ITEMS.find(x=>x.id===id), ...data}
-                    : {id:crypto.randomUUID(), xcode:'', xcodeName:'', poOnly:false, ...data};
+                    : {id:newUuid(), xcode:'', xcodeName:'', poOnly:false, ...data};
   if(PR_READY && !target.poOnly && !(await prPersistItem(target))) return;
   if(id){ const idx=PURCHASE_ITEMS.findIndex(x=>x.id===id); PURCHASE_ITEMS[idx]=target; }
   else PURCHASE_ITEMS.push(target);
