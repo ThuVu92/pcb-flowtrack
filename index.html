@@ -488,8 +488,8 @@ tr.row-click:hover td{background:var(--surface-2);}
    Dữ liệu thật lưu trên Supabase (Postgres). Các biến USERS/ORDERS/...
    dưới đây là bộ nhớ đệm phía client, được nạp từ Supabase sau khi đăng
    nhập (xem loadCoreData()) và cập nhật lại sau mỗi lần ghi dữ liệu.
-   Riêng dữ liệu Mua hàng (XCODES/POLINES/PURCHASE_ITEMS) vẫn là dữ liệu
-   mẫu tạm thời — sẽ được nối vào Supabase ở giai đoạn kế tiếp.
+   Riêng dữ liệu Mua hàng (PURCHASE_ITEMS) được nạp từ pr_items khi mở trang
+   Mua hàng — xem loadPurchasing().
    ========================================================================= */
 
 /* ---------------- Helpers ---------------- */
@@ -726,7 +726,7 @@ const I18N = {
     tab_manage:'Quản lý phân công', tab_mine:'Nhiệm vụ của tôi',
     dash_title:'Dashboard tổng quan', dash_sub:'Lọc theo Job, nhân viên, bộ phận, bản vẽ, thời kỳ, trạng thái.',
     export_report:'Xuất báo cáo',
-    purchasing_title:'Mua hàng', purchasing_sub:'Theo dõi yêu cầu mua hàng, khớp mã, PO và tình hình hàng về.',
+    purchasing_title:'Mua hàng', purchasing_sub:'Nạp và theo dõi yêu cầu mua hàng (PR) từ bộ phận thiết kế.',
     master_title:'Quản lý Master', master_sub:'Bản vẽ, Job, công đoạn chuẩn, người dùng & phân quyền — chỉ Admin chỉnh sửa.',
     lang_label:'Ngôn ngữ',
     th_drawing:'Bản vẽ', th_drawing_code:'Mã BV', th_drawing_name:'Tên bản vẽ', th_name:'Tên',
@@ -736,8 +736,6 @@ const I18N = {
     th_current_version:'Phiên bản hiện tại', th_issue_date:'Ngày phát hành', th_version:'Phiên bản',
     th_job_code:'Mã Job', th_due_date:'Ngày cần giao',
     th_started_at:'Bắt đầu lúc', th_finished_at:'Hoàn thành lúc',
-    purchase_po_only:'Chỉ có trên PO', purchase_no_need:'Đủ tồn kho', purchase_not_ordered:'Chưa lên PO',
-    purchase_ordered:'Đã lên PO, chưa về', purchase_partial:'Về một phần', purchase_complete:'Đã về đủ',
     role_admin:'Admin', role_manager:'Quản lý', role_employee:'Nhân viên',
     account_active:'Hoạt động', account_locked:'Đã khoá',
     btn_pause:'Tạm dừng', btn_resume:'Tiếp tục', btn_finish:'Hoàn thành',
@@ -878,8 +876,6 @@ const I18N = {
     add_user_hint1:'Vì hệ thống dùng xác thực thật, Admin không thể tạo tài khoản kèm mật khẩu trực tiếp tại đây.',
     add_user_hint2:'Người dùng mới cần tự <b>đăng ký</b> ở màn hình đăng nhập (link "Đăng ký tài khoản mới"), sau đó Admin vào đây để <b>duyệt</b> tài khoản đang chờ (mục "Tài khoản chờ duyệt" phía trên).',
     btn_add_item_manual:'Thêm mặt hàng thủ công',
-    purchasing_alert_title_prefix:'⚠ Cảnh báo hàng chưa lên PO',
-    purchasing_th_item:'Mặt hàng', purchasing_th_qty_needed:'SL cần mua', purchasing_th_unit:'Đơn vị',
     pr_card_title:'1. Nạp PR (yêu cầu mua hàng)', pr_drop_label:'📄 Chọn file PR (Excel, PDF, Word, ảnh… mọi loại)',
     pr_hint:'Excel/CSV, PDF, Word, ảnh được tự đọc thành các dòng; loại khác chỉ lưu bản gốc. Mục trùng thì bỏ qua, mục thay đổi thì chờ duyệt, mục mới được thêm.',
     pr_default_job:'Job mặc định (cho dòng không ghi Job)', pr_opt_no_job:'— không —', pr_review_before:'Soát lại các dòng trước khi nạp (Excel)',
@@ -894,28 +890,12 @@ const I18N = {
     pr_detail_title:'Chi tiết lần nạp', pr_tab_new:'Mục mới', pr_tab_changed:'Thay đổi', pr_btn_open_file:'Xem file gốc',
     pr_status_pending:'Chờ duyệt', pr_status_approved:'Đã duyệt', pr_status_rejected:'Đã từ chối',
     pr_need_migration:'Chưa có dữ liệu PR trên server — cần chạy migration 0013_purchase_requests.sql trong Supabase SQL Editor.',
-    step2_title:'2. Tải file Xcode', step2_upload_label:'📄 Chọn file Xcode (.xlsx/.csv)',
-    step2_ref_count_suffix:'mã tham chiếu', btn_rematch:'↻ Khớp lại',
-    step3_title:'3. Tải file PO (nhiều file)', step3_upload_label:'📄 Chọn 1+ file PO (.xlsx/.csv)',
-    step3_lines_read_suffix:'dòng PO đã đọc', btn_view_raw:'👁 Xem thô', btn_match_po:'↻ Khớp PO',
     purchasing_list_title:'Danh sách mặt hàng cần mua (bấm 1 dòng để xem/sửa chi tiết)',
-    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
-    purchasing_th_buyer:'Người mua', purchasing_th_received_needed:'Đã về / Cần',
-    purchasing_empty:'Chưa có mặt hàng nào. Tải file PR hoặc thêm thủ công.', badge_po_only:'Chỉ trên PO',
-    purchasing_raw_po_title:'Dòng PO thô đã đọc (để đối chiếu minh bạch)',
-    purchasing_th_file:'File', purchasing_th_sheet:'Sheet', purchasing_th_po_desc:'Mô tả trên PO',
-    purchasing_th_po_number:'Số PO', purchasing_th_po_date:'Ngày PO', purchasing_th_po_name:'Tên trên PO',
-    purchasing_th_supplier:'NCC', purchasing_th_qty:'SL', purchasing_th_matched:'Đã khớp?',
-    purchasing_no_po_lines:'Chưa có dòng PO nào.',
+    purchasing_empty:'Chưa có mặt hàng nào. Tải file PR hoặc thêm thủ công.',
     pi_form_title_edit:'Chi tiết mặt hàng mua', pi_form_title_add:'Thêm mặt hàng mua thủ công',
     opt_no_job:'— không —', field_item_name:'Tên mặt hàng', field_model:'Model', field_maker:'Maker',
     field_unit:'Đơn vị tính', field_qty_needed:'SL cần', field_qty_stock:'SL tồn kho', field_qty_to_buy:'SL cần mua',
-    field_request_date:'Ngày yêu cầu', field_buyer:'Người được phân công mua', opt_no_buyer:'— chưa phân —',
-    xcode_match_title:'Kết quả khớp mã Xcode (tự động — chạy lại ở màn hình chính nếu cần)',
-    field_po_number:'Số PO', field_po_issue_date:'Ngày phát hành PO', field_po_name:'Tên trên PO',
-    field_supplier:'Nhà cung cấp', field_expected_date:'Ngày về dự kiến', field_actual_batches:'Các đợt hàng về thực tế',
-    btn_add_batch:'Thêm đợt', batch_total_prefix:'Tổng đã về:', batch_label:'Đợt',
-    ph_qty:'SL', ph_note:'Ghi chú', field_note:'Ghi chú',
+    field_request_date:'Ngày yêu cầu',
   },
   en:{
     app_tagline:'Workflow & cycle-time tracking system for the PCB plating line — Design · Purchasing · Production.',
@@ -939,7 +919,7 @@ const I18N = {
     tab_manage:'Manage assignments', tab_mine:'My tasks',
     dash_title:'Dashboard overview', dash_sub:'Filter by job, employee, department, drawing, period, status.',
     export_report:'Export report',
-    purchasing_title:'Purchasing', purchasing_sub:'Track purchase requests, code matching, POs and incoming shipments.',
+    purchasing_title:'Purchasing', purchasing_sub:'Upload and track purchase requests (PR) from the design department.',
     master_title:'Master data', master_sub:'Drawings, Jobs, standard stages, users & permissions — Admin only.',
     lang_label:'Language',
     th_drawing:'Drawing', th_drawing_code:'Drawing code', th_drawing_name:'Drawing name', th_name:'Name',
@@ -949,8 +929,6 @@ const I18N = {
     th_current_version:'Current version', th_issue_date:'Issue date', th_version:'Version',
     th_job_code:'Job code', th_due_date:'Due date',
     th_started_at:'Started at', th_finished_at:'Finished at',
-    purchase_po_only:'PO only', purchase_no_need:'Stock sufficient', purchase_not_ordered:'Not on PO yet',
-    purchase_ordered:'On PO, not received', purchase_partial:'Partially received', purchase_complete:'Fully received',
     role_admin:'Admin', role_manager:'Manager', role_employee:'Employee',
     account_active:'Active', account_locked:'Locked',
     btn_pause:'Pause', btn_resume:'Resume', btn_finish:'Finish',
@@ -1091,8 +1069,6 @@ const I18N = {
     add_user_hint1:'Since the system uses real authentication, an Admin cannot create an account with a password directly here.',
     add_user_hint2:'A new user must <b>register</b> themselves on the login screen ("Create new account" link), then an Admin comes here to <b>approve</b> the pending account (the "Accounts awaiting approval" section above).',
     btn_add_item_manual:'Add item manually',
-    purchasing_alert_title_prefix:'⚠ Items not yet on a PO',
-    purchasing_th_item:'Item', purchasing_th_qty_needed:'Qty to buy', purchasing_th_unit:'Unit',
     pr_card_title:'1. Upload PR (purchase request)', pr_drop_label:'📄 Choose PR file (Excel, PDF, Word, image… any type)',
     pr_hint:'Excel/CSV, PDF, Word and images are read into rows automatically; other types are stored as-is. Duplicates are skipped, changed items wait for approval, new items are added.',
     pr_default_job:'Default Job (for rows without a Job)', pr_opt_no_job:'— none —', pr_review_before:'Review rows before importing (Excel)',
@@ -1107,28 +1083,12 @@ const I18N = {
     pr_detail_title:'Upload details', pr_tab_new:'New items', pr_tab_changed:'Changes', pr_btn_open_file:'Open original file',
     pr_status_pending:'Pending', pr_status_approved:'Approved', pr_status_rejected:'Rejected',
     pr_need_migration:'PR data is not set up on the server yet — run migration 0013_purchase_requests.sql in the Supabase SQL Editor.',
-    step2_title:'2. Upload Xcode file', step2_upload_label:'📄 Choose Xcode file (.xlsx/.csv)',
-    step2_ref_count_suffix:'reference codes', btn_rematch:'↻ Re-match',
-    step3_title:'3. Upload PO file(s)', step3_upload_label:'📄 Choose 1+ PO file(s) (.xlsx/.csv)',
-    step3_lines_read_suffix:'PO lines read', btn_view_raw:'👁 View raw', btn_match_po:'↻ Match POs',
     purchasing_list_title:'Items to purchase (click a row to view/edit details)',
-    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
-    purchasing_th_buyer:'Buyer', purchasing_th_received_needed:'Received / Needed',
-    purchasing_empty:'No item yet. Upload a PR file or add one manually.', badge_po_only:'PO only',
-    purchasing_raw_po_title:'Raw PO lines read (for transparency)',
-    purchasing_th_file:'File', purchasing_th_sheet:'Sheet', purchasing_th_po_desc:'PO description',
-    purchasing_th_po_number:'PO number', purchasing_th_po_date:'PO date', purchasing_th_po_name:'PO name',
-    purchasing_th_supplier:'Supplier', purchasing_th_qty:'Qty', purchasing_th_matched:'Matched?',
-    purchasing_no_po_lines:'No PO line yet.',
+    purchasing_empty:'No item yet. Upload a PR file or add one manually.',
     pi_form_title_edit:'Item details', pi_form_title_add:'Add item manually',
     opt_no_job:'— none —', field_item_name:'Item name', field_model:'Model', field_maker:'Maker',
     field_unit:'Unit', field_qty_needed:'Qty needed', field_qty_stock:'Qty in stock', field_qty_to_buy:'Qty to buy',
-    field_request_date:'Request date', field_buyer:'Assigned buyer', opt_no_buyer:'— unassigned —',
-    xcode_match_title:'Xcode matching result (automatic — re-run on the main screen if needed)',
-    field_po_number:'PO number', field_po_issue_date:'PO issue date', field_po_name:'Name on PO',
-    field_supplier:'Supplier', field_expected_date:'Expected arrival date', field_actual_batches:'Actual received batches',
-    btn_add_batch:'Add batch', batch_total_prefix:'Total received:', batch_label:'Batch',
-    ph_qty:'Qty', ph_note:'Note', field_note:'Note',
+    field_request_date:'Request date',
   },
   ja:{
     app_tagline:'PCBメッキラインの工程管理・作業時間計測システム — 設計・購買・製造。',
@@ -1152,7 +1112,7 @@ const I18N = {
     tab_manage:'割り当て管理', tab_mine:'自分のタスク',
     dash_title:'ダッシュボード概要', dash_sub:'受注・担当者・部門・図面・期間・状態で絞り込み。',
     export_report:'レポート出力',
-    purchasing_title:'購買', purchasing_sub:'購買依頼、コード照合、PO、入荷状況を管理。',
+    purchasing_title:'購買', purchasing_sub:'設計部門からの購買依頼（PR）をアップロードして管理。',
     master_title:'マスター管理', master_sub:'図面・受注・標準工程・ユーザー権限 — Admin専用。',
     lang_label:'言語',
     th_drawing:'図面', th_drawing_code:'図面番号', th_drawing_name:'図面名', th_name:'名前',
@@ -1162,8 +1122,6 @@ const I18N = {
     th_current_version:'現行版', th_issue_date:'発行日', th_version:'バージョン',
     th_job_code:'受注番号', th_due_date:'納期',
     th_started_at:'開始日時', th_finished_at:'完了日時',
-    purchase_po_only:'POのみ', purchase_no_need:'在庫十分', purchase_not_ordered:'未発注',
-    purchase_ordered:'発注済み・未入荷', purchase_partial:'一部入荷', purchase_complete:'入荷完了',
     role_admin:'管理者', role_manager:'マネージャー', role_employee:'従業員',
     account_active:'有効', account_locked:'ロック中',
     btn_pause:'一時停止', btn_resume:'再開', btn_finish:'完了',
@@ -1304,8 +1262,6 @@ const I18N = {
     add_user_hint1:'本システムは実際の認証を使用しているため、Adminがここでパスワード付きアカウントを直接作成することはできません。',
     add_user_hint2:'新規ユーザーはログイン画面で自ら<b>登録</b>（「新規アカウント登録」リンク）し、その後Adminがここで承認待ちアカウントを<b>承認</b>してください（上の「承認待ちアカウント」欄）。',
     btn_add_item_manual:'手動で品目追加',
-    purchasing_alert_title_prefix:'⚠ 未発注の品目',
-    purchasing_th_item:'品目', purchasing_th_qty_needed:'必要数量', purchasing_th_unit:'単位',
     pr_card_title:'1. PR（購買依頼）をアップロード', pr_drop_label:'📄 PRファイルを選択（Excel・PDF・Word・画像など全形式）',
     pr_hint:'Excel/CSV・PDF・Word・画像は自動で行に読み取ります。その他の形式は原本のみ保存。重複はスキップ、変更は承認待ち、新規は追加されます。',
     pr_default_job:'既定の受注（受注の記載がない行用）', pr_opt_no_job:'— なし —', pr_review_before:'取り込み前に行を確認（Excel）',
@@ -1320,28 +1276,12 @@ const I18N = {
     pr_detail_title:'アップロード詳細', pr_tab_new:'新規項目', pr_tab_changed:'変更', pr_btn_open_file:'原本を開く',
     pr_status_pending:'承認待ち', pr_status_approved:'承認済み', pr_status_rejected:'却下',
     pr_need_migration:'サーバーにPRデータがまだありません — Supabase SQL Editorで 0013_purchase_requests.sql を実行してください。',
-    step2_title:'2. Xcodeファイルをアップロード', step2_upload_label:'📄 Xcodeファイルを選択（.xlsx/.csv）',
-    step2_ref_count_suffix:'件の参照コード', btn_rematch:'↻ 再照合',
-    step3_title:'3. POファイルをアップロード（複数可）', step3_upload_label:'📄 POファイルを1件以上選択（.xlsx/.csv）',
-    step3_lines_read_suffix:'件のPO行を読込', btn_view_raw:'👁 生データ表示', btn_match_po:'↻ PO照合',
     purchasing_list_title:'購入が必要な品目一覧（行をクリックで詳細表示/編集）',
-    purchasing_th_model_maker:'Model / Maker', purchasing_th_xcode:'Xcode', purchasing_th_po:'PO',
-    purchasing_th_buyer:'購入担当', purchasing_th_received_needed:'入荷済 / 必要数',
-    purchasing_empty:'品目がまだありません。PRファイルをアップロードするか手動で追加してください。', badge_po_only:'POのみ',
-    purchasing_raw_po_title:'読み込んだ生PO行（照合確認用）',
-    purchasing_th_file:'ファイル', purchasing_th_sheet:'シート', purchasing_th_po_desc:'PO記載内容',
-    purchasing_th_po_number:'PO番号', purchasing_th_po_date:'PO日付', purchasing_th_po_name:'PO記載名',
-    purchasing_th_supplier:'仕入先', purchasing_th_qty:'数量', purchasing_th_matched:'照合済み？',
-    purchasing_no_po_lines:'PO行はまだありません。',
+    purchasing_empty:'品目がまだありません。PRファイルをアップロードするか手動で追加してください。',
     pi_form_title_edit:'品目詳細', pi_form_title_add:'品目を手動で追加',
     opt_no_job:'— なし —', field_item_name:'品目名', field_model:'Model', field_maker:'Maker',
     field_unit:'単位', field_qty_needed:'必要数量', field_qty_stock:'在庫数量', field_qty_to_buy:'購入必要数量',
-    field_request_date:'依頼日', field_buyer:'購入担当者', opt_no_buyer:'— 未割当 —',
-    xcode_match_title:'Xcodeマッチング結果（自動 — 必要ならメイン画面で再実行）',
-    field_po_number:'PO番号', field_po_issue_date:'PO発行日', field_po_name:'PO記載名',
-    field_supplier:'仕入先', field_expected_date:'入荷予定日', field_actual_batches:'実際の入荷ロット',
-    btn_add_batch:'ロット追加', batch_total_prefix:'入荷済み合計：', batch_label:'ロット',
-    ph_qty:'数量', ph_note:'メモ', field_note:'メモ',
+    field_request_date:'依頼日',
   }
 };
 function t(key){ return (I18N[LANG]&&I18N[LANG][key]) || I18N.vi[key] || key; }
@@ -1771,14 +1711,6 @@ function teardownRealtime(){
 }
 
 /* ---------------- Dữ liệu mẫu Mua hàng (chưa nối Supabase — giai đoạn kế tiếp) ---------------- */
-let XCODES = [
-  {code:'X-8801', name:'Tụ điện 100uF 25V', model:'CAP-100UF-25V', maker:'Nichicon'},
-  {code:'X-8802', name:'IC ổn áp nguồn 5V', model:'LM7805', maker:'Texas Instruments'},
-  {code:'X-8803', name:'Đầu nối RS485 2 chân', model:'RS485-CONN-2P', maker:'Molex'},
-  {code:'X-8804', name:'Điện trở dán 10K 0805', model:'RES-10K-0805', maker:'Yageo'},
-  {code:'X-8805', name:'Điện trở dán 10K 0603', model:'RES-10K-0603', maker:'Yageo'},
-];
-let POLINES = []; // các dòng PO đã đọc từ file, dùng để đối chiếu minh bạch
 let PURCHASE_ITEMS = []; // nạp từ pr_items khi mở trang Mua hàng (loadPurchasing)
 
 let NOTIFS = [];
@@ -3350,38 +3282,6 @@ function statusPill(s){
 
 /* ---------------- PURCHASING ---------------- */
 function calcQtyToBuy(qtyNeeded,qtyStock){ return Math.max((Number(qtyNeeded)||0)-(Number(qtyStock)||0), 0); }
-function batchTotal(item){ return (item.batches||[]).reduce((s,b)=>s+(Number(b.qty)||0),0); }
-function purchaseStatusOf(item){
-  if(item.poOnly) return 'poOnly';
-  const total=batchTotal(item);
-  if(item.qtyToBuy<=0) return 'noNeed';
-  if(total>=item.qtyToBuy) return 'complete';
-  if(total>0) return 'partial';
-  if(item.poNumber) return 'ordered';
-  return 'notOrdered';
-}
-function purchaseStatusBadge(item){
-  const s=purchaseStatusOf(item);
-  const map={
-    poOnly:['purchase_po_only','badge-info'],
-    noNeed:['purchase_no_need','badge-idle'],
-    notOrdered:['purchase_not_ordered','badge-danger'],
-    ordered:['purchase_ordered','badge-progress'],
-    partial:['purchase_partial','badge-progress'],
-    complete:['purchase_complete','badge-done'],
-  };
-  const [k,cls]=map[s]||[null,'badge-idle'];
-  return `<span class="badge ${cls}">${k?t(k):'—'}</span>`;
-}
-function normTokens(str){
-  return stripDiacritics(String(str||'')).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>=2);
-}
-function tokenOverlapRatio(a,b){
-  const ta=new Set(normTokens(a)), tb=new Set(normTokens(b));
-  if(!ta.size||!tb.size) return 0;
-  let common=0; ta.forEach(x=>{ if(tb.has(x)) common++; });
-  return common/Math.min(ta.size,tb.size);
-}
 function findColIndex(headerRow, synonyms){
   const norm=(headerRow||[]).map(h=>stripDiacritics(String(h||'')).replace(/[^a-z0-9]/g,''));
   for(let i=0;i<norm.length;i++){ for(const syn of synonyms){ if(norm[i]===syn || (norm[i] && norm[i].includes(syn))) return i; } }
@@ -3413,74 +3313,34 @@ function readTabularFile(file, onSheet, onDone){
     reader.readAsArrayBuffer(file);
   }
 }
-let poLinesVisible=false;
 function renderPurchasing(){
-  const alerts = PURCHASE_ITEMS.filter(it=>!it.poOnly && it.qtyToBuy>0 && !it.poNumber);
   document.getElementById('viewRoot').innerHTML=`
     <div class="view-head"><div><h2>${t('purchasing_title')}</h2><p>${t('purchasing_sub')}</p></div>
       <button class="btn btn-primary" onclick="openPurchaseItemForm()">${icon('plus',15)} ${t('btn_add_item_manual')}</button>
     </div>
 
-    ${alerts.length?`<div class="card" style="border-color:var(--danger)">
-      <h3 style="margin-top:0;font-size:14px;color:var(--danger)">${t('purchasing_alert_title_prefix')} (${alerts.length})</h3>
-      <table><thead><tr><th>${t('th_job')}</th><th>${t('purchasing_th_item')}</th><th>${t('purchasing_th_qty_needed')}</th><th>${t('purchasing_th_unit')}</th></tr></thead>
-      <tbody>${alerts.map(it=>`<tr><td class="mono">${it.jobCode||'—'}</td><td>${it.itemName}</td><td class="mono">${it.qtyToBuy}</td><td>${it.unit||'—'}</td></tr>`).join('')}</tbody></table>
-    </div>`:''}
-
     <div class="grid-cols g3">
       ${prUploadCardHtml()}
-      <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">${t('step2_title')}</h3>
-        <label class="upload-drop">${t('step2_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" onchange="handleXcodeUpload(this)"></label>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <p style="font-size:11px;color:var(--text-mute);margin:0">${XCODES.length} ${t('step2_ref_count_suffix')}</p>
-          <button class="btn btn-sm btn-ghost" onclick="matchAllXcodes()">${t('btn_rematch')}</button>
-        </div>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">${t('step3_title')}</h3>
-        <label class="upload-drop">${t('step3_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" multiple onchange="handlePOUpload(this)"></label>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:6px">
-          <p style="font-size:11px;color:var(--text-mute);margin:0">${POLINES.length} ${t('step3_lines_read_suffix')}</p>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-sm btn-ghost" onclick="togglePOLinesView()">${t('btn_view_raw')}</button>
-            <button class="btn btn-sm btn-primary" onclick="matchAllPOs()">${t('btn_match_po')}</button>
-          </div>
-        </div>
-      </div>
     </div>
-    <div id="poLinesWrap" class="card ${poLinesVisible?'':'hidden'}"></div>
     ${prPanelsHtml()}
 
     <div class="card scroll-x">
       <h3 style="margin-top:0;font-size:14px">${t('purchasing_list_title')}</h3>
-      <table><thead><tr><th>${t('th_job')}</th><th>${t('purchasing_th_item')}</th><th>${t('purchasing_th_model_maker')}</th><th>${t('purchasing_th_qty_needed')}</th><th>${t('purchasing_th_unit')}</th><th>${t('purchasing_th_xcode')}</th><th>${t('purchasing_th_po')}</th><th>${t('purchasing_th_buyer')}</th><th>${t('purchasing_th_received_needed')}</th><th>${t('col_status')}</th></tr></thead>
-      <tbody>${PURCHASE_ITEMS.map(it=>purchaseRow(it)).join('') || `<tr><td colspan="10" style="color:var(--text-mute)">${t('purchasing_empty')}</td></tr>`}</tbody></table>
+      <table><thead><tr><th>${t('th_job')}</th><th>${t('pr_f_name')}</th><th>${t('pr_f_model')} / ${t('pr_f_maker')}</th><th>${t('pr_f_needed')}</th><th>${t('pr_f_stock')}</th><th>${t('field_qty_to_buy')}</th><th>${t('pr_f_unit')}</th><th>${t('pr_f_date')}</th></tr></thead>
+      <tbody>${PURCHASE_ITEMS.map(it=>purchaseRow(it)).join('') || `<tr><td colspan="8" style="color:var(--text-mute)">${t('purchasing_empty')}</td></tr>`}</tbody></table>
     </div>`;
-  if(poLinesVisible) renderPOLinesRaw();
 }
 function purchaseRow(it){
-  const buyer=USERS.find(u=>u.id===it.buyer);
-  const total=batchTotal(it);
   return `<tr class="row-click" onclick="openPurchaseItemForm('${it.id}')">
     <td class="mono">${it.jobCode||'—'}${it.jobCode?`<div style="font-size:11px;color:var(--text-mute)">${getJobNameByCode(it.jobCode)}</div>`:''}</td>
-    <td>${it.itemName}${it.poOnly?` <span class="badge badge-info" style="margin-left:4px">${t('badge_po_only')}</span>`:''}${it.note?`<div style="font-size:11px;color:var(--amber);max-width:200px">${it.note}</div>`:''}</td>
+    <td>${it.itemName}</td>
     <td style="font-size:12px;color:var(--text-dim)">${it.model||'—'} / ${it.maker||'—'}</td>
+    <td class="mono">${it.qtyNeeded}</td>
+    <td class="mono">${it.qtyStock}</td>
     <td class="mono">${it.qtyToBuy}</td>
     <td>${it.unit||'—'}</td>
-    <td class="mono" style="font-size:11.5px;max-width:150px">${it.xcode||'—'}</td>
-    <td class="mono" style="font-size:11.5px">${it.poNumber||'—'}</td>
-    <td style="font-size:12px">${buyer?buyer.name:'—'}</td>
-    <td class="mono">${total} / ${it.qtyToBuy}</td>
-    <td>${purchaseStatusBadge(it)}</td>
+    <td class="mono" style="font-size:12px">${it.requestDate||'—'}</td>
   </tr>`;
-}
-function togglePOLinesView(){ poLinesVisible=!poLinesVisible; renderPurchasing(); }
-function renderPOLinesRaw(){
-  const wrap=document.getElementById('poLinesWrap'); if(!wrap) return;
-  wrap.innerHTML = `<h3 style="margin-top:0;font-size:13.5px">${t('purchasing_raw_po_title')}</h3>` + (POLINES.length? `<div class="scroll-x"><table><thead><tr><th>${t('purchasing_th_file')}</th><th>${t('purchasing_th_sheet')}</th><th>${t('purchasing_th_po_desc')}</th><th>${t('purchasing_th_po_number')}</th><th>${t('purchasing_th_po_date')}</th><th>${t('purchasing_th_po_name')}</th><th>${t('purchasing_th_supplier')}</th><th>${t('purchasing_th_qty')}</th><th>${t('purchasing_th_matched')}</th></tr></thead>
-    <tbody>${POLINES.map(l=>`<tr><td style="font-size:11px">${l.file}</td><td style="font-size:11px">${l.sheet}</td><td>${l.desc}</td><td class="mono">${l.poNumber||'—'}</td><td class="mono">${l.poDate||'—'}</td><td>${l.poName||'—'}</td><td>${l.supplier||'—'}</td><td class="mono">${l.qty||'—'}</td><td>${l.matched?'✅':'—'}</td></tr>`).join('')}</tbody></table></div>`
-    : `<p style="color:var(--text-mute);font-size:12.5px">${t('purchasing_no_po_lines')}</p>`);
 }
 /* ---------------- PR (yêu cầu mua hàng) — nạp, so sánh, duyệt ----------------
    Mỗi lần nạp được so với các mục PR đã có: trùng → bỏ qua; khác số lượng/
@@ -3525,12 +3385,10 @@ function prNum(v){
 }
 function prDbToItem(r){
   return {id:r.id, prKey:r.key, jobCode:r.job_code||'', itemName:r.item_name, model:r.model||'', maker:r.maker||'',
-    qtyNeeded:Number(r.qty_needed), qtyStock:Number(r.qty_stock), qtyToBuy:Number(r.qty_to_buy), unit:r.unit||'', requestDate:r.request_date||'',
-    xcode:'', xcodeName:'', buyer:'', poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'', poOnly:false};
+    qtyNeeded:Number(r.qty_needed), qtyStock:Number(r.qty_stock), qtyToBuy:Number(r.qty_to_buy), unit:r.unit||'', requestDate:r.request_date||''};
 }
-const PR_KEEP_LOCAL=['xcode','xcodeName','buyer','poNumber','poDate','poName','supplier','expectedDate','batches','note'];
 
-/** Nạp PR đã lưu (mục, lần nạp, thay đổi). Giữ lại phần Xcode/PO đang có trong bộ nhớ. */
+/** Nạp PR đã lưu (mục, lần nạp, thay đổi). */
 async function loadPurchasing(){
   const [it,up,ch]=await Promise.all([
     supabase.from('pr_items').select('*').order('created_at'),
@@ -3539,13 +3397,7 @@ async function loadPurchasing(){
   ]);
   if(it.error||up.error||ch.error){ PR_READY=false; return; }
   PR_READY=true;
-  const old=new Map(PURCHASE_ITEMS.map(x=>[x.id,x]));
-  const extra=PURCHASE_ITEMS.filter(x=>x.poOnly);
-  PURCHASE_ITEMS=[...it.data.map(r=>{
-    const n=prDbToItem(r), o=old.get(r.id);
-    if(o) PR_KEEP_LOCAL.forEach(k=>{ n[k]=o[k]; });
-    return n;
-  }), ...extra];
+  PURCHASE_ITEMS=it.data.map(prDbToItem);
   PR_UPLOADS=up.data; PR_CHANGES=ch.data;
 }
 
@@ -3841,7 +3693,6 @@ async function prImport(ctx){
   PR_LAST_RESULT={uploadId, fileName:ctx.file.name, newCount:newRows.length, dupCount:dup, changedCount:changedChanges.length};
   renderPurchasing();
   toast(`${ctx.file.name}: thêm mới ${newRows.length}, trùng bỏ qua ${dup}, thay đổi chờ duyệt ${changedChanges.length}.`, changedChanges.length?'err':'ok');
-  if(XCODES.length) matchAllXcodes();
 }
 
 /* ---- duyệt thay đổi ---- */
@@ -3945,125 +3796,10 @@ function prPanelsHtml(){
     <tbody>${PR_UPLOADS.map(u=>`<tr><td style="font-size:12px">${u.file_name}${u.parsed?'':` <span class="badge badge-idle">${t('pr_unparsed')}</span>`}</td><td style="font-size:12px">${new Date(u.uploaded_at).toLocaleString('vi-VN')}</td><td style="font-size:12px">${getUserName(u.uploaded_by)}</td><td class="mono">${u.new_count}</td><td class="mono">${u.dup_count}</td><td class="mono">${u.changed_count}</td><td><button class="btn btn-sm btn-ghost" onclick="openPrUploadDetail('${u.id}')">${t('pr_btn_detail')}</button></td></tr>`).join('')}</tbody></table></div>`:'';
   return result+pend+hist;
 }
-function handleXcodeUpload(input){
-  const file=input.files[0]; if(!file) return;
-  const newList=[]; let added=0;
-  readTabularFile(file, (header, rows)=>{
-    const idx={
-      code:findColIndex(header,['maxcode','xcode','macode']),
-      name:findColIndex(header,['tenmathang','tenhang','name']),
-      model:findColIndex(header,['model']),
-      maker:findColIndex(header,['maker','nsx','hangsx']),
-    };
-    rows.forEach(r=>{
-      const code = idx.code>-1? String(r[idx.code]||'').trim() : '';
-      if(!code) return;
-      newList.push({code, name: idx.name>-1?String(r[idx.name]||'').trim():'', model: idx.model>-1?String(r[idx.model]||'').trim():'', maker: idx.maker>-1?String(r[idx.maker]||'').trim():''});
-      added++;
-    });
-  }, ()=>{
-    if(newList.length) XCODES=newList;
-    renderPurchasing();
-    toast(`Đã nạp ${added} mã Xcode. Đang chạy khớp…`,'ok');
-    matchAllXcodes();
-  });
-}
-function matchAllXcodes(){
-  if(!XCODES.length){ toast('Chưa có dữ liệu Xcode để khớp.','err'); return; }
-  PURCHASE_ITEMS.forEach(it=>{
-    if(it.poOnly) return;
-    const itemStr=[it.itemName,it.model,it.maker].join(' ');
-    const matches=XCODES.filter(xc=>{
-      const modelMatch = it.model && xc.model && stripDiacritics(it.model)===stripDiacritics(xc.model);
-      const makerMatch = it.maker && xc.maker && stripDiacritics(it.maker)===stripDiacritics(xc.maker);
-      if(modelMatch && (makerMatch || !xc.maker)) return true;
-      return tokenOverlapRatio(itemStr, [xc.name,xc.model,xc.maker].join(' ')) >= 0.5;
-    });
-    if(matches.length){ it.xcode=matches.map(m=>m.code).join(', '); it.xcodeName=matches.map(m=>m.name).join(', '); }
-    else { it.xcode='Không tìm được'; it.xcodeName=''; }
-  });
-  renderPurchasing();
-  toast('Đã chạy khớp Xcode cho toàn bộ danh sách.','ok');
-}
-function handlePOUpload(input){
-  const files=Array.from(input.files||[]); if(!files.length) return;
-  let totalLines=0, remaining=files.length;
-  files.forEach(file=>{
-    readTabularFile(file, (header, rows, sheetName)=>{
-      const idx={
-        desc:findColIndex(header,['tenmathang','mota','description','noidungpo','tenhang']),
-        poNumber:findColIndex(header,['sopo','ponumber','mapo']),
-        poDate:findColIndex(header,['ngaypo','podate','ngayphathanh']),
-        poName:findColIndex(header,['tentrenpo','ponametitle']),
-        supplier:findColIndex(header,['nhacungcap','supplier','ncc']),
-        qty:findColIndex(header,['soluong','qty','sl']),
-      };
-      rows.forEach(r=>{
-        const desc = idx.desc>-1? String(r[idx.desc]||'').trim() : '';
-        if(!desc) return;
-        POLINES.push({
-          file:file.name, sheet:sheetName, desc,
-          poNumber: idx.poNumber>-1?String(r[idx.poNumber]||'').trim():'',
-          poDate: idx.poDate>-1?String(r[idx.poDate]||'').trim():'',
-          poName: idx.poName>-1?String(r[idx.poName]||'').trim():'',
-          supplier: idx.supplier>-1?String(r[idx.supplier]||'').trim():'',
-          qty: idx.qty>-1?Number(r[idx.qty])||0:0,
-          matched:false
-        });
-        totalLines++;
-      });
-    }, ()=>{
-      remaining--;
-      if(remaining===0){
-        renderPurchasing();
-        toast(`Đã đọc ${totalLines} dòng PO từ ${files.length} file. Đang chạy khớp…`,'ok');
-        matchAllPOs();
-      }
-    });
-  });
-}
-function matchAllPOs(){
-  if(!POLINES.length){ toast('Chưa có dữ liệu PO để khớp.','err'); return; }
-  POLINES.forEach(l=>l.matched=false);
-  const baseItems = PURCHASE_ITEMS.filter(it=>!it.poOnly);
-  baseItems.forEach(it=>{ it.poNumber=''; it.poDate=''; it.poName=''; it.supplier=''; });
-  const firstAssignDone={};
-  const newRows=[];
-  POLINES.forEach(line=>{
-    let bestItem=null, bestScore=0;
-    baseItems.forEach(it=>{
-      const score=tokenOverlapRatio(line.desc, [it.itemName,it.model,it.maker].join(' '));
-      if(score>bestScore){ bestScore=score; bestItem=it; }
-    });
-    if(bestItem && bestScore>=0.5){
-      line.matched=true;
-      if(!firstAssignDone[bestItem.id]){
-        bestItem.poNumber=line.poNumber; bestItem.poDate=line.poDate; bestItem.poName=line.poName; bestItem.supplier=line.supplier;
-        firstAssignDone[bestItem.id]=true;
-      } else {
-        newRows.push({...bestItem, id:uid('pi'), poNumber:line.poNumber, poDate:line.poDate, poName:line.poName, supplier:line.supplier, batches:[], note:'Tách dòng do mặt hàng này được đặt ở nhiều PO khác nhau.'});
-      }
-    } else {
-      newRows.push({
-        id:uid('pi'), jobCode:'', itemName:line.desc, model:'', maker:'',
-        qtyNeeded:0, qtyStock:0, qtyToBuy:line.qty||0, unit:'',
-        xcode:'', xcodeName:'', requestDate:'', buyer:'',
-        poNumber:line.poNumber, poDate:line.poDate, poName:line.poName, supplier:line.supplier, expectedDate:'',
-        batches:[], note:'Có trên PO nhưng không có trong PR.', poOnly:true
-      });
-    }
-  });
-  PURCHASE_ITEMS=[...baseItems, ...newRows];
-  renderPurchasing();
-  const unmatchedCount=newRows.filter(r=>r.poOnly).length;
-  toast(`Đã khớp PO xong. ${unmatchedCount} dòng PO không tìm được trong PR (đã ghi chú riêng).`,'ok');
-}
 let purchaseFormBatches=[];
 function openPurchaseItemForm(id){
   const existing = id? PURCHASE_ITEMS.find(x=>x.id===id) : null;
   const jobOpts = ORDERS.map(o=>`<option value="${o.code}" ${existing&&existing.jobCode===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('');
-  const buyerOpts = USERS.filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${existing&&existing.buyer===u.id?'selected':''}>${u.name} (${u.dept})</option>`).join('');
-  purchaseFormBatches = existing? (existing.batches||[]).map(b=>({...b})) : [];
   openModal(existing?t('pi_form_title_edit'):t('pi_form_title_add'), `
     <div class="grid-cols g2">
       <div class="field"><label>Job</label><select id="pf-job"><option value="">${t('opt_no_job')}</option>${jobOpts}</select></div>
@@ -4079,54 +3815,14 @@ function openPurchaseItemForm(id){
       <div class="field"><label>${t('field_qty_stock')}</label><input id="pf-stock" type="number" value="${existing?existing.qtyStock:0}" onchange="recalcQtyToBuyPreview()"></div>
       <div class="field"><label>${t('field_qty_to_buy')}</label><input id="pf-tobuy" type="number" value="${existing?existing.qtyToBuy:0}"></div>
     </div>
-    <div class="grid-cols g2">
-      <div class="field"><label>${t('field_request_date')}</label><input id="pf-reqdate" type="date" value="${existing?existing.requestDate:''}"></div>
-      <div class="field"><label>${t('field_buyer')}</label><select id="pf-buyer"><option value="">${t('opt_no_buyer')}</option>${buyerOpts}</select></div>
-    </div>
-    <div class="card" style="background:var(--surface-2);margin:14px 0">
-      <p style="font-size:11.5px;color:var(--text-mute);margin:0 0 6px">${t('xcode_match_title')}</p>
-      <p style="font-size:12.5px;margin:0"><b class="mono">${existing?(existing.xcode||'—'):'—'}</b> ${existing&&existing.xcodeName?'— '+existing.xcodeName:''}</p>
-    </div>
-    <div class="grid-cols g2">
-      <div class="field"><label>${t('field_po_number')}</label><input id="pf-po" value="${existing?(existing.poNumber||''):''}"></div>
-      <div class="field"><label>${t('field_po_issue_date')}</label><input id="pf-podate" type="date" value="${existing?(existing.poDate||''):''}"></div>
-    </div>
-    <div class="grid-cols g2">
-      <div class="field"><label>${t('field_po_name')}</label><input id="pf-poname" value="${existing?(existing.poName||''):''}"></div>
-      <div class="field"><label>${t('field_supplier')}</label><input id="pf-supplier" value="${existing?(existing.supplier||''):''}"></div>
-    </div>
-    <div class="field"><label>${t('field_expected_date')}</label><input id="pf-expected" type="date" value="${existing?(existing.expectedDate||''):''}"></div>
-    <div class="field">
-      <label>${t('field_actual_batches')}</label>
-      <div id="batchRows"></div>
-      <button class="btn btn-sm btn-ghost" onclick="addBatchRow()">${icon('plus',13)} ${t('btn_add_batch')}</button>
-      <p style="font-size:12px;color:var(--text-dim);margin-top:8px">${t('batch_total_prefix')} <b class="mono" id="batchTotalTxt">0</b></p>
-    </div>
-    <div class="field"><label>${t('field_note')}</label><textarea id="pf-note" rows="2">${existing?(existing.note||''):''}</textarea></div>
+    <div class="field"><label>${t('field_request_date')}</label><input id="pf-reqdate" type="date" value="${existing?existing.requestDate:''}"></div>
   `, [{label:existing?t('save'):t('add'), primary:true, onClick:()=>savePurchaseItemForm(id)}]);
-  renderBatchRows();
 }
 function recalcQtyToBuyPreview(){
   const needed=Number(document.getElementById('pf-needed').value)||0;
   const stock=Number(document.getElementById('pf-stock').value)||0;
   document.getElementById('pf-tobuy').value = calcQtyToBuy(needed,stock);
 }
-function renderBatchRows(){
-  const wrap=document.getElementById('batchRows'); if(!wrap) return;
-  wrap.innerHTML = purchaseFormBatches.map((b,i)=>`
-    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap">
-      <span style="font-size:11.5px;color:var(--text-mute);width:50px">${t('batch_label')} ${i+1}</span>
-      <input type="number" placeholder="${t('ph_qty')}" value="${b.qty||''}" style="width:80px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'qty',this.value)">
-      <input type="date" value="${b.date||''}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'date',this.value)">
-      <input placeholder="${t('ph_note')}" value="${b.note||''}" style="flex:1;min-width:120px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:7px 8px" onchange="updateBatchRow(${i},'note',this.value)">
-      <button class="btn btn-ghost btn-sm" onclick="removeBatchRow(${i})">✕</button>
-    </div>`).join('');
-  const total=purchaseFormBatches.reduce((s,b)=>s+(Number(b.qty)||0),0);
-  const totalEl=document.getElementById('batchTotalTxt'); if(totalEl) totalEl.textContent=total;
-}
-function addBatchRow(){ purchaseFormBatches.push({qty:0,date:'',note:''}); renderBatchRows(); }
-function removeBatchRow(i){ purchaseFormBatches.splice(i,1); renderBatchRows(); }
-function updateBatchRow(i,key,val){ purchaseFormBatches[i][key]= key==='qty'?Number(val)||0:val; renderBatchRows(); }
 async function prPersistItem(it){
   const key=prKey(it.jobCode,it.itemName,it.model,it.maker);
   const row={id:it.id, key, job_code:it.jobCode||null, item_name:it.itemName, model:it.model||'', maker:it.maker||'',
@@ -4146,24 +3842,15 @@ async function savePurchaseItemForm(id){
     qtyStock:Number(document.getElementById('pf-stock').value)||0,
     qtyToBuy:Number(document.getElementById('pf-tobuy').value)||0,
     requestDate:document.getElementById('pf-reqdate').value,
-    buyer:document.getElementById('pf-buyer').value,
-    poNumber:document.getElementById('pf-po').value.trim(),
-    poDate:document.getElementById('pf-podate').value,
-    poName:document.getElementById('pf-poname').value.trim(),
-    supplier:document.getElementById('pf-supplier').value.trim(),
-    expectedDate:document.getElementById('pf-expected').value,
-    batches:purchaseFormBatches.slice(),
-    note:document.getElementById('pf-note').value,
   };
   if(!data.itemName){ toast('Nhập tên mặt hàng.','err'); return; }
-  const target = id ? {...PURCHASE_ITEMS.find(x=>x.id===id), ...data}
-                    : {id:newUuid(), xcode:'', xcodeName:'', poOnly:false, ...data};
-  if(PR_READY && !target.poOnly && !(await prPersistItem(target))) return;
+  if(!PR_READY){ toast('Chưa có dữ liệu PR trên server — cần chạy migration 0013.','err'); return; }
+  const target = id ? {...PURCHASE_ITEMS.find(x=>x.id===id), ...data} : {id:newUuid(), ...data};
+  if(!(await prPersistItem(target))) return;
   if(id){ const idx=PURCHASE_ITEMS.findIndex(x=>x.id===id); PURCHASE_ITEMS[idx]=target; }
   else PURCHASE_ITEMS.push(target);
   closeModal(); renderPurchasing();
   toast(id?'Đã cập nhật mặt hàng.':'Đã thêm mặt hàng mới.','ok');
-  if(XCODES.length) matchAllXcodes();
 }
 
 /* ---------------- MASTER ---------------- */
