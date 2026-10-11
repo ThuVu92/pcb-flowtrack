@@ -1360,6 +1360,7 @@ function getJobNameByCode(code){ return getJobName(ORDERS.find(o=>o.code===code)
 let ASSIGNS = [];
 
 let TIMELOGS = [];
+let SEGMENTS_ENABLED = false; // true khi bảng timelog_segments đã có (đã chạy migration 0012)
 let JOB_PROGRESS_PUBLIC = null; // {job_code: {pct, status}} tính sẵn trên server, không bị RLS chặn — xem computeOrderProgress()
 
 /* ---------------- Supabase data layer ---------------- */
@@ -1399,8 +1400,79 @@ function normalizePriority(v){
   const s=String(v||'').trim().toLowerCase();
   return ['high','medium','low'].includes(s) ? s : 'medium';
 }
-function mapTimelog(l, drawCodes, stages, jobCodes){
-  return {id:l.id, user:l.user_id, jobCodes:(jobCodes&&jobCodes.length)?jobCodes:[l.job_code].filter(Boolean), drawingCodes:drawCodes||[], drawingName:l.drawing_name,
+function mapSegment(r){ return {id:r.id, s:new Date(r.start_at).getTime(), e:r.end_at?new Date(r.end_at).getTime():null}; }
+
+/* ---------------- Đoạn làm việc (timelog_segments) ----------------
+   Mỗi lần Bắt đầu/Tiếp tục mở 1 đoạn, Tạm dừng/Hoàn thành đóng đoạn đó.
+   Thời gian của 1 tác vụ = tổng các đoạn; thời gian của 1 ngày = phần các
+   đoạn nằm trong ngày đó. Nếu chưa có dữ liệu đoạn (chưa chạy migration)
+   thì dùng 1 đoạn giả đúng bằng cách tính cũ: start → start + thời gian làm. */
+function logSegments(l){
+  if(l.segments && l.segments.length) return l.segments;
+  const worked=Math.max(0,(l.end||Date.now())-l.start-l.pausedMs);
+  return [{s:l.start, e:null, pseudo:true, w:worked}];
+}
+function segEnd(sg){ return sg.e==null?Date.now():sg.e; }
+function segLen(sg){ return sg.pseudo?sg.w:Math.max(0,segEnd(sg)-sg.s); }
+/** Tổng thời gian làm của tác vụ, tuỳ chọn cắt theo khoảng [from,to] (null = không giới hạn). */
+function logWorkedMs(l, from, to){
+  let sum=0;
+  logSegments(l).forEach(sg=>{
+    if(sg.pseudo){
+      // đoạn giả: coi như làm liền từ start → tính phần giao theo độ dài thực
+      const a=Math.max(sg.s, from==null?-Infinity:from), b=Math.min(sg.s+sg.w, to==null?Infinity:to);
+      sum+=Math.max(0,b-a);
+    } else {
+      const a=Math.max(sg.s, from==null?-Infinity:from), b=Math.min(segEnd(sg), to==null?Infinity:to);
+      sum+=Math.max(0,b-a);
+    }
+  });
+  return sum;
+}
+/** Tác vụ có làm việc trong khoảng [from,to] không (dùng cho bộ lọc kỳ). */
+function logOverlaps(l, from, to){
+  return logSegments(l).some(sg=>{
+    const s=sg.s, e=sg.pseudo?sg.s+sg.w:segEnd(sg);
+    return (to==null||s<=to) && (from==null||e>=from);
+  });
+}
+/** Tách thời gian làm theo từng ngày (giờ địa phương): {'YYYY-MM-DD': ms}, cắt theo [from,to]. */
+function logDayParts(l, from, to){
+  const out={};
+  const dk=(ms)=>{ const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  logSegments(l).forEach(sg=>{
+    let a=Math.max(sg.s, from==null?-Infinity:from);
+    const b=Math.min(sg.pseudo?sg.s+sg.w:segEnd(sg), to==null?Infinity:to);
+    while(a<b){
+      const d=new Date(a); d.setHours(24,0,0,0);
+      const cut=Math.min(b, d.getTime());
+      out[dk(a)]=(out[dk(a)]||0)+(cut-a);
+      a=cut;
+    }
+  });
+  return out;
+}
+/** Ghi 1 thao tác đoạn lên Supabase: 'open' = mở đoạn mới, 'close' = đóng đoạn đang mở.
+    Bảng chưa có (chưa chạy migration) thì bỏ qua êm để app vẫn chạy như cũ. */
+async function writeSegment(logId, op, at){
+  const iso=new Date(at).toISOString();
+  const {error}=op==='open'
+    ? await supabase.from('timelog_segments').insert({timelog_id:logId, start_at:iso})
+    : await supabase.from('timelog_segments').update({end_at:iso}).eq('timelog_id',logId).is('end_at',null);
+  if(error){
+    if(error.code==='PGRST205' || /timelog_segments/.test(error.message||'')) { console.warn('timelog_segments chưa sẵn sàng:', error.message); return; }
+    throw error;
+  }
+}
+/** Cập nhật đoạn làm việc ở bộ nhớ cục bộ cho khớp thao tác vừa bấm. */
+function segLocal(l, op, at){
+  if(!SEGMENTS_ENABLED) return;
+  l.segments=l.segments||[];
+  if(op==='open') l.segments.push({s:at, e:null});
+  else { const o=l.segments.find(x=>x.e==null); if(o) o.e=at; }
+}
+function mapTimelog(l, drawCodes, stages, jobCodes, segments){
+  return {id:l.id, segments:segments||null, user:l.user_id, jobCodes:(jobCodes&&jobCodes.length)?jobCodes:[l.job_code].filter(Boolean), drawingCodes:drawCodes||[], drawingName:l.drawing_name,
     dept:DEPT_NAME_BY_ID[l.dept_id]||'', stages:(stages&&stages.length)?stages:[l.stage].filter(Boolean), start:new Date(l.start_at).getTime(),
     pausedMs:l.paused_ms||0, pausedAt:l.paused_at?new Date(l.paused_at).getTime():null,
     end:l.end_at?new Date(l.end_at).getTime():null, status:l.status};
@@ -1414,7 +1486,7 @@ function mapNotif(n){
 async function loadCoreData(){
   const [{data:depts}, {data:stages}, {data:profiles}, {data:jobs}, {data:drawings}, {data:versions},
          {data:assigns}, {data:comments}, {data:lastSeen}, {data:timelogs}, {data:tlDrawings}, {data:tlStages}, {data:tlJobs}, {data:notifs},
-         {data:editReqs}, {data:jobProgress, error:jobProgressErr}]
+         {data:editReqs}, {data:jobProgress, error:jobProgressErr}, {data:tlSegments, error:tlSegmentsErr}]
     = await Promise.all([
       supabase.from('depts').select('*'),
       supabase.from('stages').select('*').order('sort_order'),
@@ -1432,6 +1504,7 @@ async function loadCoreData(){
       supabase.from('notifs').select('*').order('created_at'),
       supabase.from('edit_requests').select('*').order('created_at'),
       supabase.rpc('job_progress_summary'),
+      supabase.from('timelog_segments').select('*').order('start_at'),
     ]);
   // Nhân viên chỉ đọc được bản ghi chấm công của chính mình (RLS), nên
   // JOB_PROGRESS_PUBLIC (tính sẵn trên server, vượt qua RLS an toàn qua
@@ -1467,7 +1540,10 @@ async function loadCoreData(){
   (tlStages||[]).forEach(r=>{ (tlStagesByLog[r.timelog_id]=tlStagesByLog[r.timelog_id]||[]).push(r.stage); });
   const tlJobsByLog={};
   (tlJobs||[]).forEach(r=>{ (tlJobsByLog[r.timelog_id]=tlJobsByLog[r.timelog_id]||[]).push(r.job_code); });
-  TIMELOGS=(timelogs||[]).map(l=>mapTimelog(l, tlDrawsByLog[l.id], tlStagesByLog[l.id], tlJobsByLog[l.id]));
+  SEGMENTS_ENABLED=!tlSegmentsErr && Array.isArray(tlSegments);
+  const tlSegsByLog={};
+  (tlSegments||[]).forEach(r=>{ (tlSegsByLog[r.timelog_id]=tlSegsByLog[r.timelog_id]||[]).push(mapSegment(r)); });
+  TIMELOGS=(timelogs||[]).map(l=>mapTimelog(l, tlDrawsByLog[l.id], tlStagesByLog[l.id], tlJobsByLog[l.id], tlSegsByLog[l.id]));
 
   const commentsByAssign={};
   (comments||[]).forEach(c=>{ (commentsByAssign[c.assign_id]=commentsByAssign[c.assign_id]||[]).push(c); });
@@ -1601,7 +1677,7 @@ function setupRealtime(){
       if(eventType==='DELETE'){ removeById(TIMELOGS, oldRow.id); }
       else{
         const existing=TIMELOGS.find(x=>x.id===row.id);
-        upsertById(TIMELOGS, mapTimelog(row, existing?existing.drawingCodes:[], existing?existing.stages:null, existing?existing.jobCodes:null));
+        upsertById(TIMELOGS, mapTimelog(row, existing?existing.drawingCodes:[], existing?existing.stages:null, existing?existing.jobCodes:null, existing?existing.segments:null));
       }
       refreshAffectedView(['home','shift','dashboard']);
     })
@@ -1618,6 +1694,15 @@ function setupRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'timelog_jobs'},({new:row})=>{
       const l=TIMELOGS.find(x=>x.id===row.timelog_id); if(!l) return;
       if(!l.jobCodes.includes(row.job_code)) l.jobCodes.push(row.job_code);
+      refreshAffectedView(['home','shift','dashboard']);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'timelog_segments'},({eventType,new:row})=>{
+      if(eventType==='DELETE') return;
+      const l=TIMELOGS.find(x=>x.id===row.timelog_id); if(!l) return;
+      l.segments=l.segments||[];
+      const seg=mapSegment(row);
+      const idx=l.segments.findIndex(x=>x.id===seg.id || (!x.id && x.s===seg.s));
+      if(idx>-1) l.segments[idx]={...l.segments[idx], ...seg}; else l.segments.push(seg);
       refreshAffectedView(['home','shift','dashboard']);
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'notifs'},({eventType,new:row,old:oldRow})=>{
@@ -1925,7 +2010,7 @@ function openOrderDetail(code){
     const done=logs.some(l=>l.status==='done');
     const started=logs.length>0;
     const st= done?`<span class="badge badge-done">${t('status_done')}</span>` : started?`<span class="badge badge-progress">${t('status_progress')}</span>` : `<span class="badge badge-idle">${t('status_idle')}</span>`;
-    const totalMs=logs.reduce((s,l)=>s+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length)/(l.jobCodes.length||1),0);
+    const totalMs=logs.reduce((s,l)=>s+logWorkedMs(l)/(l.drawingCodes.length)/(l.jobCodes.length||1),0);
     return `<tr><td class="mono">${d.code}</td><td>${d.name}</td><td>${st}</td><td class="mono">${fmtDur(totalMs)}</td></tr>`;
   }).join('');
   const genericTasks=TIMELOGS.filter(l=>l.jobCodes.includes(code) && (!l.drawingCodes||l.drawingCodes.length===0));
@@ -2256,7 +2341,7 @@ function renderShift(){
   const doneToday=myLogs.filter(l=>l.status==='done');
 
   const rowHtml=(l)=>{
-    const elapsed=(l.end||Date.now())-l.start-l.pausedMs;
+    const elapsed=logWorkedMs(l);
     return `<tr>
       <td class="mono">${l.jobCodes.join(', ')||'—'}${l.offline?` <span class="badge badge-progress" title="${t('offline_not_synced_title')}">⏳ ${t('offline_not_synced')}</span>`:''}</td>
       <td class="mono">${l.drawingCodes.join(', ')}</td>
@@ -2361,6 +2446,7 @@ async function flushOfflineQueue(){
         if(entry.drawingCodes.length) await supabase.from('timelog_drawings').insert(entry.drawingCodes.map(code=>({timelog_id:lRow.id, drawing_code:code})));
         if(entry.stages.length) await supabase.from('timelog_stages').insert(entry.stages.map(stg=>({timelog_id:lRow.id, stage:stg})));
         if(entry.jobCodes&&entry.jobCodes.length) await supabase.from('timelog_jobs').insert(entry.jobCodes.map(j=>({timelog_id:lRow.id, job_code:j})));
+        if(entry.segAt) await writeSegment(lRow.id,'open',entry.segAt);
         const l=TIMELOGS.find(x=>x.id===entry.tempId);
         if(l){ l.id=lRow.id; delete l.offline; }
       } else if(entry.type==='update'){
@@ -2368,6 +2454,7 @@ async function flushOfflineQueue(){
         if(String(realId).startsWith('temp-')) continue; // "start" tương ứng bị huỷ ở trên (trùng) — bỏ qua luôn bước này
         const {error}=await supabase.from('timelogs').update(entry.update).eq('id', realId);
         if(error) throw error;
+        if(entry.seg) await writeSegment(realId, entry.seg.op, entry.seg.at);
       }
     }catch(err){
       if(isNetworkError(err)){ stoppedAt=i; break; }
@@ -2387,14 +2474,16 @@ async function pauseLog(id){
   const l=TIMELOGS.find(x=>x.id===id);
   const pausedAt=Date.now();
   const update={status:'paused', paused_at:new Date(pausedAt).toISOString()};
-  l.status='paused'; l.pausedAt=pausedAt; renderShift();
-  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  const seg={op:'close', at:pausedAt};
+  l.status='paused'; l.pausedAt=pausedAt; segLocal(l,'close',pausedAt); renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
   try{
     const {error}=await supabase.from('timelogs').update(update).eq('id',id);
     if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    await writeSegment(id, seg.op, seg.at);
     toast('Đã tạm dừng.','ok');
   }catch(err){
-    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
     else toast('Lỗi: '+err.message,'err');
   }
 }
@@ -2403,14 +2492,16 @@ async function resumeLog(id){
   const addedMs = l.pausedAt? (Date.now()-l.pausedAt) : 0;
   const newPausedMs = l.pausedMs+addedMs;
   const update={status:'running', paused_ms:newPausedMs, paused_at:null};
-  l.status='running'; l.pausedMs=newPausedMs; l.pausedAt=null; renderShift();
-  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  const seg={op:'open', at:Date.now()};
+  l.status='running'; l.pausedMs=newPausedMs; l.pausedAt=null; segLocal(l,'open',seg.at); renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
   try{
     const {error}=await supabase.from('timelogs').update(update).eq('id',id);
     if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    await writeSegment(id, seg.op, seg.at);
     toast('Tiếp tục thực hiện.','ok');
   }catch(err){
-    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
     else toast('Lỗi: '+err.message,'err');
   }
 }
@@ -2418,14 +2509,16 @@ async function finishLog(id){
   const l=TIMELOGS.find(x=>x.id===id);
   const end=Date.now();
   const update={status:'done', end_at:new Date(end).toISOString()};
-  l.status='done'; l.end=end; renderShift();
-  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
+  const seg={op:'close', at:end};
+  l.status='done'; l.end=end; segLocal(l,'close',end); renderShift();
+  if(String(id).startsWith('temp-')){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Chưa có mạng — đã lưu tạm.','err'); return; }
   try{
     const {error}=await supabase.from('timelogs').update(update).eq('id',id);
     if(error){ toast('Lỗi: '+error.message,'err'); return; }
+    await writeSegment(id, seg.op, seg.at);
     toast('Đã hoàn thành tác vụ — thời gian được ghi nhận.','ok');
   }catch(err){
-    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
+    if(isNetworkError(err)){ queueOfflineAction({type:'update', logId:id, update, seg}); toast('⏳ Mất mạng — đã lưu tạm, sẽ tự đồng bộ khi có mạng lại.','err'); }
     else toast('Lỗi: '+err.message,'err');
   }
 }
@@ -2685,8 +2778,9 @@ async function createTimelogNow(codes, jobs, stages, name){
   }catch(err){
     if(isNetworkError(err)){
       const tempId='temp-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
-      queueOfflineAction({type:'start', tempId, insertRow, drawingCodes:codes, stages, jobCodes:jobs});
+      queueOfflineAction({type:'start', tempId, insertRow, drawingCodes:codes, stages, jobCodes:jobs, segAt:start});
       const log={id:tempId, user:SESSION.id, jobCodes:jobs, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stages, start, pausedMs:0, end:null, status:'running', offline:true};
+      segLocal(log,'open',start);
       TIMELOGS.push(log);
       closeModal(); renderShift();
       toast('⏳ Mất mạng — đã lưu tạm tác vụ trên máy, sẽ tự gửi khi có mạng lại.','err');
@@ -2705,7 +2799,9 @@ async function createTimelogNow(codes, jobs, stages, name){
     const {error:tjErr}=await supabase.from('timelog_jobs').insert(jobs.map(j=>({timelog_id:lRow.id, job_code:j})));
     if(tjErr) console.error(tjErr);
   }
+  try{ await writeSegment(lRow.id,'open',start); }catch(e){ console.error(e); }
   const log={id:lRow.id, user:SESSION.id, jobCodes:jobs, drawingCodes:codes, drawingName:name, dept:SESSION.dept, stages, start, pausedMs:0, end:null, status:'running'};
+  segLocal(log,'open',start);
   upsertById(TIMELOGS, log); // Realtime có thể đã tự thêm dòng này trước khi đến đây (do 2 lượt insert phụ ở trên) — dùng upsert để tránh hiện trùng 2 dòng
   closeModal(); renderShift();
   toast(codes.length>1?`Đã bắt đầu tác vụ gộp ${codes.length} bản vẽ.`:'Đã bắt đầu tác vụ.','ok');
@@ -2735,7 +2831,7 @@ function filterDashLogs(f){
     (!f.fJobs.length||l.jobCodes.some(j=>f.fJobs.includes(j))) && (!f.fUsers.length||f.fUsers.includes(l.user)) && (!f.fDepts.length||f.fDepts.includes(l.dept)) &&
     (!f.fStatus||l.status===f.fStatus) && (!f.fDrawings.length||l.drawingCodes.some(c=>f.fDrawings.includes(c))) &&
     (!f.fStages.length||l.stages.some(s=>f.fStages.includes(s))) &&
-    (f.rangeStart===null||l.start>=f.rangeStart) && (f.rangeEnd===null||l.start<=f.rangeEnd)
+    logOverlaps(l, f.rangeStart, f.rangeEnd)
   );
 }
 /** Phần thời gian của 1 bản ghi thực sự thuộc về bộ lọc Dashboard hiện tại.
@@ -2743,16 +2839,18 @@ function filterDashLogs(f){
     (Job × bản vẽ × công đoạn); khi lọc, chỉ tính các ô khớp bộ lọc — vd bản
     ghi 85h gắn 2 Job, lọc riêng 1 Job thì chỉ còn 42.5h. `exclude` bỏ qua 1
     chiều (job/drawing/stage) khi chính chiều đó đang được tách riêng. */
-function logShareUnderFilter(l, f, exclude){
-  const dur=(l.end||Date.now())-l.start-l.pausedMs;
+function logShareFraction(l, f, exclude){
   const frac=(vals, sel)=>{
     if(!vals||!vals.length||!sel||!sel.length) return 1;
     return vals.filter(v=>sel.includes(v)).length/vals.length;
   };
-  return dur
-    * (exclude==='job'?1:frac(l.jobCodes, f.fJobs))
+  return (exclude==='job'?1:frac(l.jobCodes, f.fJobs))
     * (exclude==='drawing'?1:frac(l.drawingCodes, f.fDrawings))
     * (exclude==='stage'?1:frac(l.stages, f.fStages));
+}
+/** Thời gian làm của bản ghi nằm trong kỳ lọc, nhân tỉ lệ thuộc bộ lọc. */
+function logShareUnderFilter(l, f, exclude){
+  return logWorkedMs(l, f.rangeStart, f.rangeEnd) * logShareFraction(l, f, exclude);
 }
 function allStageOptions(){
   return Object.values(STAGE_MASTER).flat().filter((v,i,a)=>a.indexOf(v)===i);
@@ -2763,31 +2861,34 @@ function allStageOptions(){
     thì mỗi Job 1 đường). Bản ghi gộp nhiều bản vẽ/công đoạn được chia đều
     thời gian, giống cách tính "Thời gian trung bình mỗi công đoạn" ở trên. */
 function buildDailySeries(logs, dim, f){
-  const dayKey=(ms)=>{ const d=new Date(ms); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
   const seriesMap={}, dayset=new Set();
   const bump=(name, day, ms)=>{ seriesMap[name]=seriesMap[name]||{}; seriesMap[name][day]=(seriesMap[name][day]||0)+ms; };
-  const rawDur=(l)=>(l.end||Date.now())-l.start-l.pausedMs;
-  // Có bộ lọc (f) thì chỉ tính phần thuộc bộ lọc; `exclude` bỏ qua chiều đang được tách riêng.
-  const share=(l, exclude)=> f ? logShareUnderFilter(l, f, exclude) : rawDur(l);
   logs.forEach(l=>{
-    const day=dayKey(l.start); dayset.add(day);
-    if(!dim){ bump('Tổng', day, share(l)); return; }
-    if(dim.key==='job'){
-      const jobsArr=l.jobCodes&&l.jobCodes.length?l.jobCodes:['—'];
-      const perJob=share(l,'job')/jobsArr.length;
-      jobsArr.filter(j=>dim.values.includes(j)).forEach(j=>bump(j, day, perJob));
-    } else if(dim.key==='dept'){
-      const v=l.dept||'—'; if(dim.values.includes(v)) bump(v, day, share(l));
-    } else if(dim.key==='user'){
-      if(dim.values.includes(l.user)) bump(getUserName(l.user), day, share(l));
-    } else if(dim.key==='drawing'){
-      const per=share(l,'drawing')/(l.drawingCodes.length||1);
-      l.drawingCodes.filter(c=>dim.values.includes(c)).forEach(c=>bump(c, day, per));
-    } else if(dim.key==='stage'){
-      const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
-      const per=share(l,'stage')/stagesArr.length;
-      stagesArr.filter(s=>dim.values.includes(s)).forEach(s=>bump(s, day, per));
-    }
+    // Thời gian tách theo từng ngày làm thực tế (đoạn làm việc), cắt theo kỳ lọc.
+    const parts=logDayParts(l, f?f.rangeStart:null, f?f.rangeEnd:null);
+    // `exclude` bỏ qua chiều đang được tách riêng, tránh chia 2 lần.
+    const fr=(exclude)=> f ? logShareFraction(l, f, exclude) : 1;
+    Object.keys(parts).forEach(day=>{
+      dayset.add(day);
+      const ms=parts[day];
+      if(!dim){ bump('Tổng', day, ms*fr()); return; }
+      if(dim.key==='job'){
+        const jobsArr=l.jobCodes&&l.jobCodes.length?l.jobCodes:['—'];
+        const perJob=ms*fr('job')/jobsArr.length;
+        jobsArr.filter(j=>dim.values.includes(j)).forEach(j=>bump(j, day, perJob));
+      } else if(dim.key==='dept'){
+        const v=l.dept||'—'; if(dim.values.includes(v)) bump(v, day, ms*fr());
+      } else if(dim.key==='user'){
+        if(dim.values.includes(l.user)) bump(getUserName(l.user), day, ms*fr());
+      } else if(dim.key==='drawing'){
+        const per=ms*fr('drawing')/(l.drawingCodes.length||1);
+        l.drawingCodes.filter(c=>dim.values.includes(c)).forEach(c=>bump(c, day, per));
+      } else if(dim.key==='stage'){
+        const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
+        const per=ms*fr('stage')/stagesArr.length;
+        stagesArr.filter(s=>dim.values.includes(s)).forEach(s=>bump(s, day, per));
+      }
+    });
   });
   const days=Array.from(dayset).sort();
   const series=Object.keys(seriesMap).map(name=>({name, data:days.map(d=>seriesMap[name][d]||0)}));
@@ -2989,7 +3090,7 @@ function renderDashBody(){
   const stageAgg={};
   logs.forEach(l=>{
     const stagesArr=l.stages&&l.stages.length?l.stages:['—'];
-    const per=((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/stagesArr.length/(l.jobCodes.length||1);
+    const per=logWorkedMs(l, rangeStart, rangeEnd)/(l.drawingCodes.length||1)/stagesArr.length/(l.jobCodes.length||1);
     stagesArr.forEach(st=>{
       stageAgg[st]=(stageAgg[st]||0)+per;
     });
@@ -3021,7 +3122,7 @@ function renderDashBody(){
   const logsForDrawings = TIMELOGS.filter(l=>
     (!fUsers.length||fUsers.includes(l.user)) && (!fDepts.length||fDepts.includes(l.dept)) &&
     (!fStages.length||l.stages.some(s=>fStages.includes(s))) &&
-    (rangeStart===null||l.start>=rangeStart) && (rangeEnd===null||l.start<=rangeEnd)
+    logOverlaps(l, rangeStart, rangeEnd)
   );
   const scopedDrawings = DRAWINGS.filter(d=>(!fJobs.length||fJobs.includes(d.job)) && (!fDrawings.length||fDrawings.includes(d.code)));
   const allDrawStats = scopedDrawings.map(d=>{
@@ -3030,7 +3131,7 @@ function renderDashBody(){
     const hasUnfinished=matching.some(l=>l.status!=='done');
     const state = !started?'idle':hasUnfinished?'progress':'done';
     const doneLogs=matching.filter(l=>l.status==='done');
-    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
+    const dMs=matching.reduce((ss,l)=>ss+logWorkedMs(l, rangeStart, rangeEnd)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
     const startedAt = started? Math.min(...matching.map(l=>l.start)) : null;
     const finishedAt = (state==='done' && doneLogs.length)? Math.max(...doneLogs.map(l=>l.end)) : null;
     return {d, state, dMs, startedAt, finishedAt};
@@ -3099,7 +3200,7 @@ function renderDashBody(){
   const logStartIdx=(dashLogState.page-1)*logPageSize;
   const rows=logsReversed.slice(logStartIdx, logStartIdx+logPageSize).map(l=>{
     const u=USERS.find(x=>x.id===l.user);
-    const dur=((l.end||Date.now())-l.start-l.pausedMs);
+    const dur=logWorkedMs(l, rangeStart, rangeEnd);
     return `<tr><td class="mono">${l.jobCodes.join(', ')||'—'}</td><td>${u?u.name:'—'}</td><td>${l.dept}</td><td class="mono">${l.drawingCodes.join(', ')||'—'}</td><td>${l.stages.join(', ')}</td><td>${statusPill(l.status)}</td><td class="mono">${fmtDur(dur)}</td></tr>`;
   }).join('');
 
@@ -3156,7 +3257,7 @@ function exportDashboardReport(){
   const {fJobs,fUsers,fDepts,fDrawings,fStages,fStatus,fPeriod,rangeStart,rangeEnd}=f;
   const logs=filterDashLogs(f);
   const totalTimeMs=logs.reduce((s,l)=>s+logShareUnderFilter(l,f),0);
-  const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(!fStages.length||l.stages.some(s=>fStages.includes(s)))&&(rangeStart===null||l.start>=rangeStart)&&(rangeEnd===null||l.start<=rangeEnd));
+  const logsForDrawings = TIMELOGS.filter(l=>(!fUsers.length||fUsers.includes(l.user))&&(!fDepts.length||fDepts.includes(l.dept))&&(!fStages.length||l.stages.some(s=>fStages.includes(s)))&&logOverlaps(l, rangeStart, rangeEnd));
   const scopedDrawings=DRAWINGS.filter(d=>(!fJobs.length||fJobs.includes(d.job)) && (!fDrawings.length||fDrawings.includes(d.code)));
   const drawStats=scopedDrawings.map(d=>{
     const matching=logsForDrawings.filter(l=>l.drawingCodes.includes(d.code));
@@ -3164,7 +3265,7 @@ function exportDashboardReport(){
     const hasUnfinished=matching.some(l=>l.status!=='done');
     const state=!started?'Chưa làm':hasUnfinished?'Đang làm':'Hoàn thành';
     const doneLogs=matching.filter(l=>l.status==='done');
-    const dMs=matching.reduce((ss,l)=>ss+((l.end||Date.now())-l.start-l.pausedMs)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
+    const dMs=matching.reduce((ss,l)=>ss+logWorkedMs(l, rangeStart, rangeEnd)/(l.drawingCodes.length||1)/(l.jobCodes.length||1)*(fStages.length&&l.stages.length?l.stages.filter(x=>fStages.includes(x)).length/l.stages.length:1),0);
     const startedAt=started?new Date(Math.min(...matching.map(l=>l.start))).toLocaleString('vi-VN'):'';
     const finishedAt=(state==='Hoàn thành' && doneLogs.length)?new Date(Math.max(...doneLogs.map(l=>l.end))).toLocaleString('vi-VN'):'';
     return [d.code, d.name, d.job, state, fmtDur(dMs), startedAt, finishedAt];
@@ -3195,7 +3296,7 @@ function exportDashboardReport(){
   const detailRows=[['Job','Nhân viên','Bộ phận','Bản vẽ','Công đoạn','Trạng thái','Bắt đầu','Kết thúc','Thời gian'],
     ...logs.slice().reverse().map(l=>{
       const u=USERS.find(x=>x.id===l.user);
-      const dur=((l.end||Date.now())-l.start-l.pausedMs);
+      const dur=logWorkedMs(l, rangeStart, rangeEnd);
       const stMap={running:'Đang làm',paused:'Tạm dừng',done:'Hoàn thành'};
       return [l.jobCodes.join(', ')||'—', u?u.name:'—', l.dept, l.drawingCodes.join(', ')||'—', l.stages.join(', '), stMap[l.status]||l.status, new Date(l.start).toLocaleString('vi-VN'), l.end?new Date(l.end).toLocaleString('vi-VN'):'—', fmtDur(dur)];
     })];
