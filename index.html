@@ -880,8 +880,20 @@ const I18N = {
     btn_add_item_manual:'Thêm mặt hàng thủ công',
     purchasing_alert_title_prefix:'⚠ Cảnh báo hàng chưa lên PO',
     purchasing_th_item:'Mặt hàng', purchasing_th_qty_needed:'SL cần mua', purchasing_th_unit:'Đơn vị',
-    step1_title:'1. Tải file PR', step1_upload_label:'📄 Chọn file PR (.xlsx/.csv)',
-    step1_hint:'Tự nhận diện cột: Job, Tên hàng, Model, Maker, SL cần/tồn, ĐVT, ngày yêu cầu.',
+    pr_card_title:'1. Nạp PR (yêu cầu mua hàng)', pr_drop_label:'📄 Chọn file PR (Excel, PDF, Word, ảnh… mọi loại)',
+    pr_hint:'Excel/CSV, PDF, Word, ảnh được tự đọc thành các dòng; loại khác chỉ lưu bản gốc. Mục trùng thì bỏ qua, mục thay đổi thì chờ duyệt, mục mới được thêm.',
+    pr_default_job:'Job mặc định (cho dòng không ghi Job)', pr_opt_no_job:'— không —', pr_review_before:'Soát lại các dòng trước khi nạp (Excel)',
+    pr_reading:'Đang đọc file', pr_ocr_progress:'Đang nhận dạng chữ (OCR)',
+    pr_review_title:'Soát lại các dòng đọc được', pr_review_warn:'PDF/ảnh/Word có thể đọc sai — hãy kiểm tra và sửa từng ô, chọn lại cột nếu lệch, bỏ dòng thừa rồi mới nạp.',
+    pr_map_title:'Cột nguồn của từng trường', pr_col_none:'— không có —', pr_btn_import:'Nạp vào hệ thống', pr_rows_count:'dòng', pr_no_rows:'Không có dòng nào.',
+    pr_f_job:'Job', pr_f_name:'Tên hàng', pr_f_model:'Model', pr_f_maker:'Maker', pr_f_needed:'SL cần', pr_f_stock:'SL tồn', pr_f_unit:'ĐVT', pr_f_date:'Ngày yêu cầu',
+    pr_unreadable_msg:'File đã được lưu nhưng chưa tự đọc được thành các mục — hãy nhập các mục thủ công.',
+    pr_result_title:'Kết quả lần nạp gần nhất', pr_result_new:'Thêm mới', pr_result_items:'mục', pr_result_click:'bấm để xem', pr_result_dup:'trùng, bỏ qua', pr_result_changed:'thay đổi, cần duyệt',
+    pr_pending_title:'Thay đổi chờ duyệt', pr_btn_approve:'Duyệt', pr_btn_reject:'Từ chối', pr_btn_approve_all:'Duyệt tất cả', pr_th_change:'Thay đổi',
+    pr_history_title:'Lịch sử các lần nạp PR', pr_th_file:'File', pr_th_time:'Thời gian', pr_th_by:'Người nạp', pr_btn_detail:'Chi tiết', pr_unparsed:'chưa đọc tự động',
+    pr_detail_title:'Chi tiết lần nạp', pr_tab_new:'Mục mới', pr_tab_changed:'Thay đổi', pr_btn_open_file:'Xem file gốc',
+    pr_status_pending:'Chờ duyệt', pr_status_approved:'Đã duyệt', pr_status_rejected:'Đã từ chối',
+    pr_need_migration:'Chưa có dữ liệu PR trên server — cần chạy migration 0013_purchase_requests.sql trong Supabase SQL Editor.',
     step2_title:'2. Tải file Xcode', step2_upload_label:'📄 Chọn file Xcode (.xlsx/.csv)',
     step2_ref_count_suffix:'mã tham chiếu', btn_rematch:'↻ Khớp lại',
     step3_title:'3. Tải file PO (nhiều file)', step3_upload_label:'📄 Chọn 1+ file PO (.xlsx/.csv)',
@@ -1081,8 +1093,20 @@ const I18N = {
     btn_add_item_manual:'Add item manually',
     purchasing_alert_title_prefix:'⚠ Items not yet on a PO',
     purchasing_th_item:'Item', purchasing_th_qty_needed:'Qty to buy', purchasing_th_unit:'Unit',
-    step1_title:'1. Upload PR file', step1_upload_label:'📄 Choose PR file (.xlsx/.csv)',
-    step1_hint:'Auto-detects columns: Job, Item name, Model, Maker, Qty needed/stock, Unit, request date.',
+    pr_card_title:'1. Upload PR (purchase request)', pr_drop_label:'📄 Choose PR file (Excel, PDF, Word, image… any type)',
+    pr_hint:'Excel/CSV, PDF, Word and images are read into rows automatically; other types are stored as-is. Duplicates are skipped, changed items wait for approval, new items are added.',
+    pr_default_job:'Default Job (for rows without a Job)', pr_opt_no_job:'— none —', pr_review_before:'Review rows before importing (Excel)',
+    pr_reading:'Reading file', pr_ocr_progress:'Recognising text (OCR)',
+    pr_review_title:'Review the rows read', pr_review_warn:'PDF/image/Word may be read wrongly — check and edit each cell, re-pick columns if misaligned, remove extra rows, then import.',
+    pr_map_title:'Source column for each field', pr_col_none:'— none —', pr_btn_import:'Import', pr_rows_count:'rows', pr_no_rows:'No rows.',
+    pr_f_job:'Job', pr_f_name:'Item name', pr_f_model:'Model', pr_f_maker:'Maker', pr_f_needed:'Qty needed', pr_f_stock:'Qty in stock', pr_f_unit:'Unit', pr_f_date:'Request date',
+    pr_unreadable_msg:'The file was saved but could not be read into items automatically — please enter the items manually.',
+    pr_result_title:'Latest upload result', pr_result_new:'Added', pr_result_items:'items', pr_result_click:'click to view', pr_result_dup:'duplicates skipped', pr_result_changed:'changed, need approval',
+    pr_pending_title:'Changes awaiting approval', pr_btn_approve:'Approve', pr_btn_reject:'Reject', pr_btn_approve_all:'Approve all', pr_th_change:'Change',
+    pr_history_title:'PR upload history', pr_th_file:'File', pr_th_time:'Time', pr_th_by:'Uploaded by', pr_btn_detail:'Details', pr_unparsed:'not auto-read',
+    pr_detail_title:'Upload details', pr_tab_new:'New items', pr_tab_changed:'Changes', pr_btn_open_file:'Open original file',
+    pr_status_pending:'Pending', pr_status_approved:'Approved', pr_status_rejected:'Rejected',
+    pr_need_migration:'PR data is not set up on the server yet — run migration 0013_purchase_requests.sql in the Supabase SQL Editor.',
     step2_title:'2. Upload Xcode file', step2_upload_label:'📄 Choose Xcode file (.xlsx/.csv)',
     step2_ref_count_suffix:'reference codes', btn_rematch:'↻ Re-match',
     step3_title:'3. Upload PO file(s)', step3_upload_label:'📄 Choose 1+ PO file(s) (.xlsx/.csv)',
@@ -1282,8 +1306,20 @@ const I18N = {
     btn_add_item_manual:'手動で品目追加',
     purchasing_alert_title_prefix:'⚠ 未発注の品目',
     purchasing_th_item:'品目', purchasing_th_qty_needed:'必要数量', purchasing_th_unit:'単位',
-    step1_title:'1. PRファイルをアップロード', step1_upload_label:'📄 PRファイルを選択（.xlsx/.csv）',
-    step1_hint:'列を自動認識：受注、品名、Model、Maker、必要/在庫数量、単位、依頼日。',
+    pr_card_title:'1. PR（購買依頼）をアップロード', pr_drop_label:'📄 PRファイルを選択（Excel・PDF・Word・画像など全形式）',
+    pr_hint:'Excel/CSV・PDF・Word・画像は自動で行に読み取ります。その他の形式は原本のみ保存。重複はスキップ、変更は承認待ち、新規は追加されます。',
+    pr_default_job:'既定の受注（受注の記載がない行用）', pr_opt_no_job:'— なし —', pr_review_before:'取り込み前に行を確認（Excel）',
+    pr_reading:'ファイルを読み込み中', pr_ocr_progress:'文字認識中（OCR）',
+    pr_review_title:'読み取った行を確認', pr_review_warn:'PDF/画像/Wordは誤読の可能性があります。各セルを確認・修正し、列がずれていれば選び直し、不要な行を削除してから取り込んでください。',
+    pr_map_title:'各項目の元の列', pr_col_none:'— なし —', pr_btn_import:'取り込む', pr_rows_count:'行', pr_no_rows:'行がありません。',
+    pr_f_job:'受注', pr_f_name:'品名', pr_f_model:'Model', pr_f_maker:'Maker', pr_f_needed:'必要数量', pr_f_stock:'在庫数量', pr_f_unit:'単位', pr_f_date:'依頼日',
+    pr_unreadable_msg:'ファイルは保存されましたが、自動では項目に読み取れませんでした。項目を手動で入力してください。',
+    pr_result_title:'直近のアップロード結果', pr_result_new:'新規追加', pr_result_items:'件', pr_result_click:'クリックで表示', pr_result_dup:'重複（スキップ）', pr_result_changed:'変更（要承認）',
+    pr_pending_title:'承認待ちの変更', pr_btn_approve:'承認', pr_btn_reject:'却下', pr_btn_approve_all:'すべて承認', pr_th_change:'変更内容',
+    pr_history_title:'PRアップロード履歴', pr_th_file:'ファイル', pr_th_time:'日時', pr_th_by:'登録者', pr_btn_detail:'詳細', pr_unparsed:'自動読取なし',
+    pr_detail_title:'アップロード詳細', pr_tab_new:'新規項目', pr_tab_changed:'変更', pr_btn_open_file:'原本を開く',
+    pr_status_pending:'承認待ち', pr_status_approved:'承認済み', pr_status_rejected:'却下',
+    pr_need_migration:'サーバーにPRデータがまだありません — Supabase SQL Editorで 0013_purchase_requests.sql を実行してください。',
     step2_title:'2. Xcodeファイルをアップロード', step2_upload_label:'📄 Xcodeファイルを選択（.xlsx/.csv）',
     step2_ref_count_suffix:'件の参照コード', btn_rematch:'↻ 再照合',
     step3_title:'3. POファイルをアップロード（複数可）', step3_upload_label:'📄 POファイルを1件以上選択（.xlsx/.csv）',
@@ -1743,19 +1779,7 @@ let XCODES = [
   {code:'X-8805', name:'Điện trở dán 10K 0603', model:'RES-10K-0603', maker:'Yageo'},
 ];
 let POLINES = []; // các dòng PO đã đọc từ file, dùng để đối chiếu minh bạch
-let PURCHASE_ITEMS = [
-  {id:uid('pi'), jobCode:'JOB-2026-016', itemName:'Tụ điện 100uF', model:'CAP-100UF-25V', maker:'Nichicon', qtyNeeded:500, qtyStock:50, qtyToBuy:450, unit:'Cái',
-   xcode:'X-8801', xcodeName:'Tụ điện 100uF 25V', requestDate:'2026-09-01', buyer:'u4',
-   poNumber:'PO-2026-0091', poDate:'2026-09-03', poName:'Tụ điện lọc nguồn', supplier:'Cty Linh Kiện Phương Nam', expectedDate:'2026-09-22',
-   batches:[{qty:200, date:'2026-09-15', note:'Về đợt đầu, đủ chứng từ'}], note:'', poOnly:false},
-  {id:uid('pi'), jobCode:'JOB-2026-016', itemName:'Đầu nối RS485', model:'RS485-CONN-2P', maker:'Molex', qtyNeeded:120, qtyStock:0, qtyToBuy:120, unit:'Cái',
-   xcode:'X-8803', xcodeName:'Đầu nối RS485 2 chân', requestDate:'2026-09-02', buyer:'u4',
-   poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'',
-   batches:[], note:'Chưa lên PO.', poOnly:false},
-  {id:uid('pi'), jobCode:'JOB-2026-015', itemName:'Điện trở 10K SMD', model:'', maker:'', qtyNeeded:1000, qtyStock:1000, qtyToBuy:0, unit:'Cái',
-   xcode:'Không tìm được', xcodeName:'', requestDate:'2026-09-02', buyer:'',
-   poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'Đủ tồn kho, chưa cần mua.', poOnly:false},
-];
+let PURCHASE_ITEMS = []; // nạp từ pr_items khi mở trang Mua hàng (loadPurchasing)
 
 let NOTIFS = [];
 let EDIT_REQUESTS = [];
@@ -1915,7 +1939,7 @@ function goto(view){
   document.getElementById('topPath').textContent='FlowTrack / '+(titles[view]||view);
   const root=document.getElementById('viewRoot');
   root.innerHTML='<div style="padding:60px;text-align:center;color:var(--text-mute)">…</div>';
-  const renderers={home:renderHome, assign:renderAssign, shift:renderShift, dashboard:renderDashboard, purchasing:renderPurchasing, master:renderMaster};
+  const renderers={home:renderHome, assign:renderAssign, shift:renderShift, dashboard:renderDashboard, purchasing:()=>{ renderPurchasing(); loadPurchasing().then(()=>{ if(ACTIVE_VIEW==='purchasing') renderPurchasing(); }); }, master:renderMaster};
   (renderers[view]||renderHome)();
 }
 
@@ -3404,11 +3428,7 @@ function renderPurchasing(){
     </div>`:''}
 
     <div class="grid-cols g3">
-      <div class="card">
-        <h3 style="margin-top:0;font-size:13.5px">${t('step1_title')}</h3>
-        <label class="upload-drop">${t('step1_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" onchange="handlePRUpload(this)"></label>
-        <p style="font-size:11px;color:var(--text-mute);margin:8px 0 0">${t('step1_hint')}</p>
-      </div>
+      ${prUploadCardHtml()}
       <div class="card">
         <h3 style="margin-top:0;font-size:13.5px">${t('step2_title')}</h3>
         <label class="upload-drop">${t('step2_upload_label')}<input type="file" accept=".xlsx,.xls,.csv" onchange="handleXcodeUpload(this)"></label>
@@ -3430,6 +3450,7 @@ function renderPurchasing(){
       </div>
     </div>
     <div id="poLinesWrap" class="card ${poLinesVisible?'':'hidden'}"></div>
+    ${prPanelsHtml()}
 
     <div class="card scroll-x">
       <h3 style="margin-top:0;font-size:14px">${t('purchasing_list_title')}</h3>
@@ -3461,40 +3482,453 @@ function renderPOLinesRaw(){
     <tbody>${POLINES.map(l=>`<tr><td style="font-size:11px">${l.file}</td><td style="font-size:11px">${l.sheet}</td><td>${l.desc}</td><td class="mono">${l.poNumber||'—'}</td><td class="mono">${l.poDate||'—'}</td><td>${l.poName||'—'}</td><td>${l.supplier||'—'}</td><td class="mono">${l.qty||'—'}</td><td>${l.matched?'✅':'—'}</td></tr>`).join('')}</tbody></table></div>`
     : `<p style="color:var(--text-mute);font-size:12.5px">${t('purchasing_no_po_lines')}</p>`);
 }
-function handlePRUpload(input){
-  const file=input.files[0]; if(!file) return;
-  let added=0;
-  readTabularFile(file, (header, rows)=>{
-    const idx={
-      job:findColIndex(header,['majob','jobcode','job','sojob']),
-      itemName:findColIndex(header,['tenmathang','tenhang','itemname','tenvattu']),
-      model:findColIndex(header,['model']),
-      maker:findColIndex(header,['maker','nsx','hangsx','manufacturer']),
-      qtyNeeded:findColIndex(header,['slcan','soluongcan','qtyneeded','soluongyeucau']),
-      qtyStock:findColIndex(header,['sltonkho','tonkho','stock','qtystock']),
-      unit:findColIndex(header,['dvt','donvitinh','unit']),
-      requestDate:findColIndex(header,['ngayyeucau','requestdate','ngayyc','ngaydenghi']),
-    };
-    rows.forEach(r=>{
-      const itemName = idx.itemName>-1? String(r[idx.itemName]||'').trim() : '';
-      if(!itemName) return;
-      const qtyNeeded = idx.qtyNeeded>-1? Number(r[idx.qtyNeeded])||0 : 0;
-      const qtyStock = idx.qtyStock>-1? Number(r[idx.qtyStock])||0 : 0;
-      PURCHASE_ITEMS.push({
-        id:uid('pi'), jobCode: idx.job>-1? String(r[idx.job]||'').trim() : '',
-        itemName, model: idx.model>-1?String(r[idx.model]||'').trim():'', maker: idx.maker>-1?String(r[idx.maker]||'').trim():'',
-        qtyNeeded, qtyStock, qtyToBuy: calcQtyToBuy(qtyNeeded,qtyStock),
-        unit: idx.unit>-1?String(r[idx.unit]||'').trim():'',
-        xcode:'', xcodeName:'', requestDate: idx.requestDate>-1?String(r[idx.requestDate]||'').trim():'',
-        buyer:'', poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'', poOnly:false
-      });
-      added++;
-    });
-  }, ()=>{
-    renderPurchasing();
-    toast(`Đã nhập ${added} dòng từ file PR. Đang chạy khớp Xcode…`,'ok');
-    if(XCODES.length) matchAllXcodes();
+/* ---------------- PR (yêu cầu mua hàng) — nạp, so sánh, duyệt ----------------
+   Mỗi lần nạp được so với các mục PR đã có: trùng → bỏ qua; khác số lượng/
+   tồn/ĐVT/ngày → chờ duyệt (không ghi đè ngay); chưa có → thêm mới. Mọi file
+   (ảnh, PDF, Word, Excel…) đều được lưu bản gốc; Excel/CSV/PDF chữ/Word/ảnh
+   được tự đọc thành bảng rồi cho soát lại trước khi nạp. */
+let PR_READY=false, PR_UPLOADS=[], PR_CHANGES=[], PR_LAST_RESULT=null, PR_REVIEW=null;
+const PR_FIELDS=[
+  {k:'job',       lbl:'pr_f_job',    syn:['majob','jobcode','job','sojob']},
+  {k:'itemName',  lbl:'pr_f_name',   syn:['tenmathang','tenhang','itemname','tenvattu','mota','description']},
+  {k:'model',     lbl:'pr_f_model',  syn:['model']},
+  {k:'maker',     lbl:'pr_f_maker',  syn:['maker','nsx','hangsx','manufacturer']},
+  {k:'qtyNeeded', lbl:'pr_f_needed', syn:['slcan','soluongcan','qtyneeded','soluongyeucau']},
+  {k:'qtyStock',  lbl:'pr_f_stock',  syn:['sltonkho','slton','tonkho','stock','qtystock']},
+  {k:'unit',      lbl:'pr_f_unit',   syn:['dvt','donvitinh','unit']},
+  {k:'requestDate', lbl:'pr_f_date', syn:['ngayyeucau','requestdate','ngayyc','ngaydenghi']},
+];
+const PR_COMPARE=[ // cột so sánh khi phát hiện thay đổi: field JS → cột DB
+  {k:'qtyNeeded', col:'qty_needed', num:true},
+  {k:'qtyStock',  col:'qty_stock',  num:true},
+  {k:'unit',      col:'unit'},
+  {k:'requestDate', col:'request_date'},
+];
+const PR_COL_LABEL={qty_needed:'pr_f_needed', qty_stock:'pr_f_stock', unit:'pr_f_unit', request_date:'pr_f_date'};
+
+function prKey(job,name,model,maker){
+  return [job,name,model,maker].map(x=>stripDiacritics(String(x||'')).replace(/[^a-z0-9]+/g,' ').trim()).join('|');
+}
+function prNum(v){
+  if(typeof v==='number') return v;
+  let s=String(v==null?'':v).replace(/[^\d.,\-]/g,'');
+  if(s.includes(',') && !s.includes('.')) s=s.replace(',','.'); else s=s.replace(/,/g,'');
+  const n=parseFloat(s); return isNaN(n)?0:n;
+}
+function prDbToItem(r){
+  return {id:r.id, prKey:r.key, jobCode:r.job_code||'', itemName:r.item_name, model:r.model||'', maker:r.maker||'',
+    qtyNeeded:Number(r.qty_needed), qtyStock:Number(r.qty_stock), qtyToBuy:Number(r.qty_to_buy), unit:r.unit||'', requestDate:r.request_date||'',
+    xcode:'', xcodeName:'', buyer:'', poNumber:'', poDate:'', poName:'', supplier:'', expectedDate:'', batches:[], note:'', poOnly:false};
+}
+const PR_KEEP_LOCAL=['xcode','xcodeName','buyer','poNumber','poDate','poName','supplier','expectedDate','batches','note'];
+
+/** Nạp PR đã lưu (mục, lần nạp, thay đổi). Giữ lại phần Xcode/PO đang có trong bộ nhớ. */
+async function loadPurchasing(){
+  const [it,up,ch]=await Promise.all([
+    supabase.from('pr_items').select('*').order('created_at'),
+    supabase.from('pr_uploads').select('*').order('uploaded_at',{ascending:false}).limit(100),
+    supabase.from('pr_changes').select('*').order('created_at',{ascending:false}),
+  ]);
+  if(it.error||up.error||ch.error){ PR_READY=false; return; }
+  PR_READY=true;
+  const old=new Map(PURCHASE_ITEMS.map(x=>[x.id,x]));
+  const extra=PURCHASE_ITEMS.filter(x=>x.poOnly);
+  PURCHASE_ITEMS=[...it.data.map(r=>{
+    const n=prDbToItem(r), o=old.get(r.id);
+    if(o) PR_KEEP_LOCAL.forEach(k=>{ n[k]=o[k]; });
+    return n;
+  }), ...extra];
+  PR_UPLOADS=up.data; PR_CHANGES=ch.data;
+}
+
+/* ---- đọc file ---- */
+const PR_LIBS={
+  pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  pdfWorker:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  docx:'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
+  ocr:'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js',
+};
+const PR_LIB_PROMISES={};
+function loadScriptOnce(url){
+  if(!PR_LIB_PROMISES[url]) PR_LIB_PROMISES[url]=new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=url; s.onload=()=>res(); s.onerror=()=>{ delete PR_LIB_PROMISES[url]; rej(new Error('Không tải được thư viện: '+url)); };
+    document.head.appendChild(s);
   });
+  return PR_LIB_PROMISES[url];
+}
+function prAutoMap(header){
+  const map={}, used=new Set();
+  PR_FIELDS.forEach(f=>{
+    const norm=(header||[]).map(h=>stripDiacritics(String(h||'')).replace(/[^a-z0-9]/g,''));
+    let idx=-1;
+    for(let i=0;i<norm.length&&idx<0;i++){ if(used.has(i)||!norm[i]) continue; if(f.syn.some(s=>norm[i]===s||norm[i].includes(s))) idx=i; }
+    map[f.k]=idx; if(idx>-1) used.add(idx);
+  });
+  return map;
+}
+function prMapScore(map){ return Object.values(map).filter(v=>v>-1).length; }
+function prRowsToItems(rows, map){
+  const get=(r,k)=>map[k]>-1? r[map[k]] : '';
+  return rows.map(r=>({
+    job:String(get(r,'job')||'').trim(), itemName:String(get(r,'itemName')||'').trim(),
+    model:String(get(r,'model')||'').trim(), maker:String(get(r,'maker')||'').trim(),
+    qtyNeeded:prNum(get(r,'qtyNeeded')), qtyStock:prNum(get(r,'qtyStock')),
+    unit:String(get(r,'unit')||'').trim(), requestDate:excelDateToISO(get(r,'requestDate')),
+  })).filter(x=>x.itemName);
+}
+/** Gom các chữ có toạ độ (PDF/OCR) thành bảng: dòng theo trục y, cột theo vị trí tiêu đề. */
+function prItemsToTable(items){
+  if(!items.length) return null;
+  const hs=items.map(i=>i.h).filter(h=>h>0).sort((a,b)=>a-b);
+  const med=hs.length?hs[Math.floor(hs.length/2)]:10;
+  items.sort((a,b)=>a.y-b.y||a.x-b.x);
+  const lines=[];
+  items.forEach(it=>{
+    const L=lines[lines.length-1];
+    if(L && Math.abs(it.y-L.y)<=med*0.6){ L.items.push(it); L.y=(L.y*(L.items.length-1)+it.y)/L.items.length; }
+    else lines.push({y:it.y, items:[it]});
+  });
+  lines.forEach(L=>{
+    L.items.sort((a,b)=>a.x-b.x);
+    const ph=[];
+    L.items.forEach(it=>{
+      const p=ph[ph.length-1];
+      if(p && it.x-(p.x+p.w)<=med*0.9){ p.str+=' '+it.str; p.w=it.x+it.w-p.x; }
+      else ph.push({x:it.x, w:it.w, str:it.str});
+    });
+    L.phrases=ph;
+  });
+  const isHeader=(L)=>{ const m=prAutoMap(L.phrases.map(p=>p.str)); return m.itemName>-1 && prMapScore(m)>=3; };
+  const hi=lines.findIndex(isHeader);
+  if(hi<0) return null;
+  const anchors=lines[hi].phrases.map(p=>p.x);
+  const header=lines[hi].phrases.map(p=>p.str);
+  const rows=[];
+  for(let i=hi+1;i<lines.length;i++){
+    const L=lines[i];
+    if(isHeader(L)) continue;
+    const cells=header.map(()=>'');
+    L.phrases.forEach(p=>{
+      let col=0; anchors.forEach((ax,ci)=>{ if(ax<=p.x+med) col=ci; });
+      cells[col]=(cells[col]?cells[col]+' ':'')+p.str;
+    });
+    const filled=cells.filter(Boolean).length;
+    if(!filled) continue;
+    const nameCol=prAutoMap(header).itemName;
+    const prev=rows[rows.length-1];
+    if(filled===1 && cells[nameCol] && prev && prev.filter(Boolean).length>=2) prev[nameCol]+=' '+cells[nameCol];
+    else rows.push(cells);
+  }
+  return rows.length?{header, rows}:null;
+}
+function prExtractSheet(file){
+  return new Promise(resolve=>{
+    const sheets=[];
+    readTabularFile(file, (header, rows)=>{ sheets.push({header, rows}); }, ()=>{
+      let best=null, bestScore=-1;
+      sheets.forEach(s=>{ const m=prAutoMap(s.header); const sc=(m.itemName>-1?10:0)+prMapScore(m); if(sc>bestScore){ best=s; bestScore=sc; } });
+      if(!best) return resolve(null);
+      const m=prAutoMap(best.header);
+      resolve({header:best.header, rows:best.rows, confident:m.itemName>-1 && prMapScore(m)>=3});
+    });
+  });
+}
+async function prOcr(source, setStatus){
+  await loadScriptOnce(PR_LIBS.ocr);
+  const worker=await Tesseract.createWorker({logger:m=>{ if(m.status==='recognizing text') setStatus(t('pr_ocr_progress')+' '+Math.round((m.progress||0)*100)+'%'); }});
+  await worker.loadLanguage('vie+eng'); await worker.initialize('vie+eng');
+  const {data}=await worker.recognize(source);
+  await worker.terminate();
+  return (data.words||[]).filter(w=>w.text&&w.text.trim()).map(w=>({x:w.bbox.x0, y:w.bbox.y0, h:w.bbox.y1-w.bbox.y0, w:w.bbox.x1-w.bbox.x0, str:w.text}));
+}
+async function prExtractPdf(file, setStatus){
+  await loadScriptOnce(PR_LIBS.pdf);
+  pdfjsLib.GlobalWorkerOptions.workerSrc=PR_LIBS.pdfWorker;
+  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  let items=[], chars=0;
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p), tc=await page.getTextContent();
+    tc.items.forEach(i=>{
+      if(!i.str||!i.str.trim()) return;
+      chars+=i.str.length;
+      items.push({x:i.transform[4], y:-i.transform[5]+(p-1)*100000, h:i.height||Math.abs(i.transform[3])||10, w:i.width||i.str.length*5, str:i.str.trim()});
+    });
+  }
+  if(chars<20){ // PDF scan: không có lớp chữ → OCR từng trang
+    items=[];
+    for(let p=1;p<=pdf.numPages;p++){
+      setStatus(t('pr_ocr_progress')+' ('+p+'/'+pdf.numPages+')');
+      const page=await pdf.getPage(p), vp=page.getViewport({scale:2});
+      const cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+      await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+      (await prOcr(cv,setStatus)).forEach(w=>{ w.y+=(p-1)*100000; items.push(w); });
+    }
+  }
+  const tb=prItemsToTable(items);
+  return tb?{...tb, confident:false}:null;
+}
+async function prExtractDocx(file){
+  await loadScriptOnce(PR_LIBS.docx);
+  const {value}=await mammoth.convertToHtml({arrayBuffer:await file.arrayBuffer()});
+  const doc=new DOMParser().parseFromString(value,'text/html');
+  for(const tbl of doc.querySelectorAll('table')){
+    const rows=[...tbl.querySelectorAll('tr')].map(tr=>[...tr.children].map(c=>c.textContent.trim()));
+    for(let i=0;i<Math.min(5,rows.length);i++){
+      const m=prAutoMap(rows[i]);
+      if(m.itemName>-1 && prMapScore(m)>=2) return {header:rows[i], rows:rows.slice(i+1), confident:false};
+    }
+  }
+  return null;
+}
+async function prExtractImage(file, setStatus){
+  const tb=prItemsToTable(await prOcr(file,setStatus));
+  return tb?{...tb, confident:false}:null;
+}
+async function prExtract(file, setStatus){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(['xlsx','xls','csv'].includes(ext)) return prExtractSheet(file);
+  if(ext==='pdf') return prExtractPdf(file,setStatus);
+  if(ext==='docx') return prExtractDocx(file);
+  if((file.type||'').startsWith('image/') || ['jpg','jpeg','png','webp','bmp','gif','tif','tiff'].includes(ext)) return prExtractImage(file,setStatus);
+  return null;
+}
+
+/* ---- điểm vào: chọn file ---- */
+async function handlePRFiles(input){
+  const files=[...input.files]; input.value='';
+  if(!files.length) return;
+  if(!PR_READY){ toast('Chưa có dữ liệu PR trên server — cần chạy migration 0013_purchase_requests.sql trong Supabase.','err'); return; }
+  const defJob=(document.getElementById('prDefaultJob')||{}).value||'';
+  const reviewFirst=!!(document.getElementById('prReviewFirst')||{}).checked;
+  for(const f of files) await prHandleFile(f, defJob, reviewFirst);
+}
+function prSetStatus(msg){ const el=document.getElementById('prStatus'); if(el) el.textContent=msg; }
+async function prHandleFile(file, defJob, reviewFirst){
+  prSetStatus(t('pr_reading')+' '+file.name);
+  let ex=null;
+  try{ ex=await prExtract(file, prSetStatus); }catch(err){ console.error(err); toast('Không đọc được '+file.name+': '+err.message,'err'); }
+  prSetStatus('');
+  if(!ex){ await prStoreOnly(file, defJob); return; }
+  const map=prAutoMap(ex.header);
+  const ctx={file, defJob, header:ex.header, rows:ex.rows, map, items:prRowsToItems(ex.rows,map)};
+  if(ex.confident && !reviewFirst && ctx.items.length) await prImport(ctx);
+  else openPrReview(ctx);
+}
+
+/* ---- soát lại trước khi nạp ---- */
+function openPrReview(ctx){
+  PR_REVIEW=ctx;
+  openModal(t('pr_review_title')+' — '+ctx.file.name, `<div id="prReviewBody"></div>`,
+    [{label:t('pr_btn_import'), primary:true, onClick:prReviewConfirm}]);
+  renderPrReview();
+}
+function renderPrReview(){
+  const c=PR_REVIEW, el=document.getElementById('prReviewBody'); if(!c||!el) return;
+  const opts=(sel)=>`<option value="-1" ${sel===-1?'selected':''}>${t('pr_col_none')}</option>`+c.header.map((h,i)=>`<option value="${i}" ${sel===i?'selected':''}>${String(h||'#'+(i+1)).replace(/</g,'&lt;')}</option>`).join('');
+  const inp=(i,k,v,w,type)=>`<input value="${String(v).replace(/"/g,'&quot;')}" ${type?`type="${type}"`:''} style="width:${w}px;background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px" onchange="prReviewEdit(${i},'${k}',this.value)">`;
+  el.innerHTML=`
+    <p style="font-size:12px;color:var(--amber);margin-top:0">⚠ ${t('pr_review_warn')}</p>
+    <div class="field"><label>${t('pr_default_job')}</label>
+      <select onchange="PR_REVIEW.defJob=this.value"><option value="">${t('pr_opt_no_job')}</option>${ORDERS.map(o=>`<option value="${o.code}" ${c.defJob===o.code?'selected':''}>${o.code} — ${getJobName(o)}</option>`).join('')}</select></div>
+    <div style="font-size:12px;color:var(--text-mute);margin:8px 0 4px">${t('pr_map_title')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:10px">
+      ${PR_FIELDS.map(f=>`<label style="font-size:11.5px;color:var(--text-dim)">${t(f.lbl)}<select style="width:100%" onchange="prReviewRemap('${f.k}',Number(this.value))">${opts(c.map[f.k])}</select></label>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text-mute);margin-bottom:4px">${c.items.length} ${t('pr_rows_count')}</div>
+    <div class="scroll-x" style="max-height:45vh;overflow:auto"><table><thead><tr><th></th>${PR_FIELDS.map(f=>`<th>${t(f.lbl)}</th>`).join('')}</tr></thead>
+    <tbody>${c.items.map((r,i)=>`<tr><td><button class="btn btn-ghost btn-sm" onclick="prReviewRemove(${i})">✕</button></td>
+      <td>${inp(i,'job',r.job,90)}</td><td>${inp(i,'itemName',r.itemName,200)}</td><td>${inp(i,'model',r.model,110)}</td><td>${inp(i,'maker',r.maker,90)}</td>
+      <td>${inp(i,'qtyNeeded',r.qtyNeeded,60)}</td><td>${inp(i,'qtyStock',r.qtyStock,60)}</td><td>${inp(i,'unit',r.unit,55)}</td><td>${inp(i,'requestDate',r.requestDate,95)}</td></tr>`).join('')
+      || `<tr><td colspan="9" style="color:var(--text-mute)">${t('pr_no_rows')}</td></tr>`}</tbody></table></div>`;
+}
+function prReviewEdit(i,k,v){
+  const r=PR_REVIEW.items[i]; if(!r) return;
+  r[k]=(k==='qtyNeeded'||k==='qtyStock')?prNum(v):v.trim();
+}
+function prReviewRemove(i){ PR_REVIEW.items.splice(i,1); renderPrReview(); }
+function prReviewRemap(k,idx){
+  const c=PR_REVIEW; c.map[k]=idx; c.items=prRowsToItems(c.rows,c.map); renderPrReview();
+}
+async function prReviewConfirm(){
+  const c=PR_REVIEW; if(!c) return;
+  if(!c.items.length){ toast('Không có dòng nào để nạp.','err'); return; }
+  closeModal(); PR_REVIEW=null;
+  await prImport(c);
+}
+
+/* ---- so sánh + ghi ---- */
+function prSafeName(n){ return stripDiacritics(n).replace(/[^a-z0-9._-]+/g,'_').slice(0,120)||'file'; }
+async function prUploadOriginal(file, uploadId){
+  const path=uploadId+'/'+prSafeName(file.name);
+  const {error}=await supabase.storage.from('pr-files').upload(path, file, {contentType:file.type||'application/octet-stream', upsert:false});
+  if(error) throw error;
+  return path;
+}
+async function prStoreOnly(file, defJob){
+  const uploadId=crypto.randomUUID();
+  try{
+    const path=await prUploadOriginal(file, uploadId);
+    const {error}=await supabase.from('pr_uploads').insert({id:uploadId, job_code:defJob||null, file_name:file.name, file_path:path, file_type:file.type||'', file_size:file.size, parsed:false, uploaded_by:SESSION.id});
+    if(error) throw error;
+  }catch(err){ console.error(err); toast('Lỗi lưu file: '+err.message,'err'); return; }
+  await loadPurchasing();
+  PR_LAST_RESULT={uploadId, fileName:file.name, unreadable:true, newCount:0, dupCount:0, changedCount:0};
+  renderPurchasing();
+  toast('Đã lưu file '+file.name+' nhưng chưa tự đọc được — hãy nhập các mục thủ công.','err');
+}
+async function prImport(ctx){
+  await loadPurchasing();
+  if(!PR_READY){ toast('Chưa có dữ liệu PR trên server — cần chạy migration 0013.','err'); return; }
+  const byKey=new Map(PURCHASE_ITEMS.filter(x=>x.prKey).map(x=>[x.prKey,x]));
+  const pendingNew=new Map(); // item_id -> JSON các thay đổi đang chờ, tránh báo lặp
+  PR_CHANGES.filter(c=>c.status==='pending').forEach(c=>{ pendingNew.set(c.item_id+'|'+JSON.stringify(c.new),true); });
+  const compareKeys=PR_COMPARE.filter(cmp=>{
+    const fieldOfMap={qtyNeeded:'qtyNeeded',qtyStock:'qtyStock',unit:'unit',requestDate:'requestDate'}[cmp.k];
+    return ctx.map[fieldOfMap]>-1;
+  });
+  const uploadId=crypto.randomUUID();
+  const seen=new Set(), newRows=[], newChanges=[], changedChanges=[];
+  let dup=0;
+  ctx.items.forEach(r=>{
+    const job=r.job||ctx.defJob||'';
+    const key=prKey(job,r.itemName,r.model,r.maker);
+    if(seen.has(key)){ dup++; return; }
+    seen.add(key);
+    const ex=byKey.get(key);
+    if(!ex){
+      const id=crypto.randomUUID();
+      const row={id, key, job_code:job||null, item_name:r.itemName, model:r.model, maker:r.maker,
+        qty_needed:r.qtyNeeded, qty_stock:r.qtyStock, qty_to_buy:calcQtyToBuy(r.qtyNeeded,r.qtyStock), unit:r.unit, request_date:r.requestDate, first_upload_id:uploadId};
+      newRows.push(row);
+      newChanges.push({upload_id:uploadId, item_id:id, kind:'new', old:null, new:{job_code:row.job_code,item_name:row.item_name,model:row.model,maker:row.maker,qty_needed:row.qty_needed,qty_stock:row.qty_stock,unit:row.unit,request_date:row.request_date}, status:'applied'});
+      return;
+    }
+    const oldV={}, newV={};
+    compareKeys.forEach(cmp=>{
+      const a=ex[cmp.k], b=r[cmp.k];
+      const same=cmp.num? Number(a)===Number(b) : stripDiacritics(String(a||'')).trim()===stripDiacritics(String(b||'')).trim();
+      if(!same){ oldV[cmp.col]=cmp.num?Number(a):(a||''); newV[cmp.col]=cmp.num?Number(b):(b||''); }
+    });
+    if(!Object.keys(newV).length || pendingNew.has(ex.id+'|'+JSON.stringify(newV))){ dup++; return; }
+    changedChanges.push({upload_id:uploadId, item_id:ex.id, kind:'changed', old:oldV, new:newV, status:'pending'});
+  });
+  try{
+    let path=null;
+    path=await prUploadOriginal(ctx.file, uploadId);
+    let r=await supabase.from('pr_uploads').insert({id:uploadId, job_code:ctx.defJob||null, file_name:ctx.file.name, file_path:path, file_type:ctx.file.type||'', file_size:ctx.file.size, parsed:true, uploaded_by:SESSION.id,
+      new_count:newRows.length, dup_count:dup, changed_count:changedChanges.length});
+    if(r.error) throw r.error;
+    if(newRows.length){ r=await supabase.from('pr_items').insert(newRows); if(r.error) throw r.error; }
+    const allCh=[...newChanges,...changedChanges];
+    if(allCh.length){ r=await supabase.from('pr_changes').insert(allCh); if(r.error) throw r.error; }
+  }catch(err){ console.error(err); toast('Lỗi nạp PR: '+err.message,'err'); await loadPurchasing(); renderPurchasing(); return; }
+  await loadPurchasing();
+  PR_LAST_RESULT={uploadId, fileName:ctx.file.name, newCount:newRows.length, dupCount:dup, changedCount:changedChanges.length};
+  renderPurchasing();
+  toast(`${ctx.file.name}: thêm mới ${newRows.length}, trùng bỏ qua ${dup}, thay đổi chờ duyệt ${changedChanges.length}.`, changedChanges.length?'err':'ok');
+  if(XCODES.length) matchAllXcodes();
+}
+
+/* ---- duyệt thay đổi ---- */
+async function prDecide(changeId, approve, silent){
+  const c=PR_CHANGES.find(x=>x.id===changeId); if(!c||c.status!=='pending') return;
+  const now=new Date().toISOString();
+  if(approve){
+    const it=PURCHASE_ITEMS.find(x=>x.id===c.item_id);
+    const needed=c.new.qty_needed!==undefined?c.new.qty_needed:(it?it.qtyNeeded:0);
+    const stock=c.new.qty_stock!==undefined?c.new.qty_stock:(it?it.qtyStock:0);
+    const {error}=await supabase.from('pr_items').update({...c.new, qty_to_buy:calcQtyToBuy(needed,stock), updated_at:now}).eq('id',c.item_id);
+    if(error){ toast('Lỗi duyệt: '+error.message,'err'); return false; }
+  }
+  const {error}=await supabase.from('pr_changes').update({status:approve?'approved':'rejected', decided_by:SESSION.id, decided_at:now}).eq('id',changeId);
+  if(error){ toast('Lỗi: '+error.message,'err'); return false; }
+  if(!silent){ await loadPurchasing(); renderPurchasing(); toast(approve?'Đã duyệt thay đổi.':'Đã từ chối thay đổi.','ok'); }
+  return true;
+}
+async function prApproveAll(){
+  const list=PR_CHANGES.filter(c=>c.status==='pending');
+  for(const c of list) await prDecide(c.id,true,true);
+  await loadPurchasing(); renderPurchasing();
+  toast(`Đã duyệt ${list.length} thay đổi.`,'ok');
+}
+
+/* ---- xem chi tiết 1 lần nạp ---- */
+const prFmtVal=(col,v)=>v===undefined||v===null||v===''?'—':String(v);
+function prChangeTable(list){
+  if(!list.length) return `<p style="color:var(--text-mute);font-size:12.5px">—</p>`;
+  return `<div class="scroll-x"><table><thead><tr><th>${t('th_job')}</th><th>${t('pr_f_name')}</th><th>${t('pr_th_change')}</th><th>${t('col_status')}</th></tr></thead><tbody>${list.map(c=>{
+    const it=PURCHASE_ITEMS.find(x=>x.id===c.item_id);
+    const diff=Object.keys(c.new||{}).map(col=>`<div style="font-size:12px"><b>${t(PR_COL_LABEL[col])}</b>: <span style="color:var(--danger)">${prFmtVal(col,c.old&&c.old[col])}</span> → <span style="color:var(--solder)">${prFmtVal(col,c.new[col])}</span></div>`).join('');
+    const st={pending:['pr_status_pending','badge-progress'],approved:['pr_status_approved','badge-done'],rejected:['pr_status_rejected','badge-danger']}[c.status];
+    return `<tr><td class="mono">${it?it.jobCode||'—':'—'}</td><td>${it?it.itemName:'—'}</td><td>${diff}</td><td>${st?`<span class="badge ${st[1]}">${t(st[0])}</span>`:''}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+function prNewTable(list){
+  if(!list.length) return `<p style="color:var(--text-mute);font-size:12.5px">—</p>`;
+  return `<div class="scroll-x"><table><thead><tr><th>${t('th_job')}</th><th>${t('pr_f_name')}</th><th>${t('pr_f_model')} / ${t('pr_f_maker')}</th><th>${t('pr_f_needed')}</th><th>${t('pr_f_stock')}</th><th>${t('pr_f_unit')}</th></tr></thead><tbody>${list.map(c=>{
+    const n=c.new||{};
+    return `<tr><td class="mono">${n.job_code||'—'}</td><td>${n.item_name||'—'}</td><td style="font-size:12px">${n.model||'—'} / ${n.maker||'—'}</td><td class="mono">${n.qty_needed}</td><td class="mono">${n.qty_stock}</td><td>${n.unit||'—'}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+async function openPrUploadDetail(uploadId, tab){
+  const up=PR_UPLOADS.find(x=>x.id===uploadId); if(!up) return;
+  const ch=PR_CHANGES.filter(c=>c.upload_id===uploadId);
+  const newList=ch.filter(c=>c.kind==='new'), chgList=ch.filter(c=>c.kind==='changed');
+  let fileHtml='';
+  if(up.file_path){
+    const {data}=await supabase.storage.from('pr-files').createSignedUrl(up.file_path,3600);
+    if(data&&data.signedUrl){
+      const isImg=(up.file_type||'').startsWith('image/');
+      fileHtml=`<div style="margin:8px 0">${isImg?`<a href="${data.signedUrl}" target="_blank"><img src="${data.signedUrl}" style="max-width:100%;max-height:200px;border-radius:6px;border:1px solid var(--border)"></a><br>`:''}<a href="${data.signedUrl}" target="_blank">📎 ${t('pr_btn_open_file')}: ${up.file_name}</a></div>`;
+    }
+  }
+  const sec=(id,title,count,body)=>`<h4 style="margin:14px 0 6px;font-size:13px" id="prsec-${id}">${title} (${count})</h4>${body}`;
+  openModal(t('pr_detail_title')+' — '+up.file_name, `
+    <p style="font-size:12px;color:var(--text-mute);margin:0">${new Date(up.uploaded_at).toLocaleString('vi-VN')} · ${getUserName(up.uploaded_by)} · ${t('pr_result_dup')}: ${up.dup_count}</p>
+    ${fileHtml}
+    ${up.parsed?'':`<p style="color:var(--amber);font-size:12.5px">${t('pr_unreadable_msg')}</p>`}
+    ${sec('new',t('pr_tab_new'),newList.length,prNewTable(newList))}
+    ${sec('chg',t('pr_tab_changed'),chgList.length,prChangeTable(chgList))}`);
+  if(tab){ const el=document.getElementById('prsec-'+tab); if(el) el.scrollIntoView(); }
+}
+/* ---- phần giao diện trong trang Mua hàng ---- */
+function prUploadCardHtml(){
+  return `<div class="card">
+    <h3 style="margin-top:0;font-size:13.5px">${t('pr_card_title')}</h3>
+    <label class="upload-drop">${t('pr_drop_label')}<input type="file" multiple onchange="handlePRFiles(this)"></label>
+    <div class="field" style="margin:8px 0 0"><label style="font-size:11.5px">${t('pr_default_job')}</label>
+      <select id="prDefaultJob"><option value="">${t('pr_opt_no_job')}</option>${ORDERS.map(o=>`<option value="${o.code}">${o.code} — ${getJobName(o)}</option>`).join('')}</select></div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:11.5px;margin-top:6px;color:var(--text-dim)"><input type="checkbox" id="prReviewFirst"> ${t('pr_review_before')}</label>
+    <p style="font-size:11px;color:var(--text-mute);margin:8px 0 0">${t('pr_hint')}</p>
+    <p id="prStatus" style="font-size:11.5px;color:var(--copper-hi);margin:6px 0 0"></p>
+  </div>`;
+}
+function prPanelsHtml(){
+  if(!PR_READY) return `<div class="card" style="border-color:var(--amber)"><p style="margin:0;font-size:12.5px;color:var(--amber)">${t('pr_need_migration')}</p></div>`;
+  const r=PR_LAST_RESULT, pending=PR_CHANGES.filter(c=>c.status==='pending');
+  const result=r?`<div class="card" style="border-color:var(--solder)">
+    <h3 style="margin-top:0;font-size:14px">${t('pr_result_title')} — ${r.fileName}</h3>
+    ${r.unreadable?`<p style="color:var(--amber);font-size:12.5px;margin:0">${t('pr_unreadable_msg')}</p>`:`
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px">
+      <a style="cursor:pointer" onclick="openPrUploadDetail('${r.uploadId}','new')">✅ ${t('pr_result_new')} <b>${r.newCount}</b> ${t('pr_result_items')} <u>(${t('pr_result_click')})</u></a>
+      <span>⏭ <b>${r.dupCount}</b> ${t('pr_result_dup')}</span>
+      <a style="cursor:pointer;color:var(--amber)" onclick="openPrUploadDetail('${r.uploadId}','chg')">⚠ <b>${r.changedCount}</b> ${t('pr_result_changed')}</a>
+    </div>`}
+    <div style="margin-top:8px"><button class="btn btn-sm btn-ghost" onclick="openPrUploadDetail('${r.uploadId}')">${t('pr_btn_detail')}</button>
+    ${r.unreadable?`<button class="btn btn-sm btn-primary" onclick="openPurchaseItemForm()">${icon('plus',13)} ${t('btn_add_item_manual')}</button>`:''}</div>
+  </div>`:'';
+  const pend=pending.length?`<div class="card" style="border-color:var(--amber)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0;font-size:14px;color:var(--amber)">⚠ ${t('pr_pending_title')} (${pending.length})</h3>
+    <button class="btn btn-sm btn-primary" onclick="prApproveAll()">${t('pr_btn_approve_all')}</button></div>
+    <div class="scroll-x"><table style="margin-top:8px"><thead><tr><th>${t('th_job')}</th><th>${t('pr_f_name')}</th><th>${t('pr_th_change')}</th><th></th></tr></thead><tbody>${pending.map(c=>{
+      const it=PURCHASE_ITEMS.find(x=>x.id===c.item_id);
+      const diff=Object.keys(c.new||{}).map(col=>`<div style="font-size:12px"><b>${t(PR_COL_LABEL[col])}</b>: <span style="color:var(--danger)">${prFmtVal(col,c.old&&c.old[col])}</span> → <span style="color:var(--solder)">${prFmtVal(col,c.new[col])}</span></div>`).join('');
+      return `<tr><td class="mono">${it?it.jobCode||'—':'—'}</td><td>${it?it.itemName:'—'}</td><td>${diff}</td><td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="prDecide('${c.id}',true)">${t('pr_btn_approve')}</button> <button class="btn btn-sm btn-ghost" onclick="prDecide('${c.id}',false)">${t('pr_btn_reject')}</button></td></tr>`;
+    }).join('')}</tbody></table></div></div>`:'';
+  const hist=PR_UPLOADS.length?`<div class="card scroll-x"><h3 style="margin-top:0;font-size:14px">${t('pr_history_title')}</h3>
+    <table><thead><tr><th>${t('pr_th_file')}</th><th>${t('pr_th_time')}</th><th>${t('pr_th_by')}</th><th>${t('pr_result_new')}</th><th>${t('pr_result_dup')}</th><th>${t('pr_result_changed')}</th><th></th></tr></thead>
+    <tbody>${PR_UPLOADS.map(u=>`<tr><td style="font-size:12px">${u.file_name}${u.parsed?'':` <span class="badge badge-idle">${t('pr_unparsed')}</span>`}</td><td style="font-size:12px">${new Date(u.uploaded_at).toLocaleString('vi-VN')}</td><td style="font-size:12px">${getUserName(u.uploaded_by)}</td><td class="mono">${u.new_count}</td><td class="mono">${u.dup_count}</td><td class="mono">${u.changed_count}</td><td><button class="btn btn-sm btn-ghost" onclick="openPrUploadDetail('${u.id}')">${t('pr_btn_detail')}</button></td></tr>`).join('')}</tbody></table></div>`:'';
+  return result+pend+hist;
 }
 function handleXcodeUpload(input){
   const file=input.files[0]; if(!file) return;
@@ -3678,7 +4112,15 @@ function renderBatchRows(){
 function addBatchRow(){ purchaseFormBatches.push({qty:0,date:'',note:''}); renderBatchRows(); }
 function removeBatchRow(i){ purchaseFormBatches.splice(i,1); renderBatchRows(); }
 function updateBatchRow(i,key,val){ purchaseFormBatches[i][key]= key==='qty'?Number(val)||0:val; renderBatchRows(); }
-function savePurchaseItemForm(id){
+async function prPersistItem(it){
+  const key=prKey(it.jobCode,it.itemName,it.model,it.maker);
+  const row={id:it.id, key, job_code:it.jobCode||null, item_name:it.itemName, model:it.model||'', maker:it.maker||'',
+    qty_needed:it.qtyNeeded, qty_stock:it.qtyStock, qty_to_buy:it.qtyToBuy, unit:it.unit||'', request_date:it.requestDate||'', updated_at:new Date().toISOString()};
+  const {error}=await supabase.from('pr_items').upsert(row);
+  if(error){ toast(/duplicate|unique/i.test(error.message)?'Mục này (cùng Job, tên hàng, model, hãng) đã có trong danh sách PR.':'Lỗi lưu mục: '+error.message,'err'); return false; }
+  it.prKey=key; return true;
+}
+async function savePurchaseItemForm(id){
   const data={
     jobCode:document.getElementById('pf-job').value,
     itemName:document.getElementById('pf-name').value.trim(),
@@ -3699,12 +4141,11 @@ function savePurchaseItemForm(id){
     note:document.getElementById('pf-note').value,
   };
   if(!data.itemName){ toast('Nhập tên mặt hàng.','err'); return; }
-  if(id){
-    const idx=PURCHASE_ITEMS.findIndex(x=>x.id===id);
-    PURCHASE_ITEMS[idx]={...PURCHASE_ITEMS[idx], ...data};
-  } else {
-    PURCHASE_ITEMS.push({id:uid('pi'), xcode:'', xcodeName:'', poOnly:false, ...data});
-  }
+  const target = id ? {...PURCHASE_ITEMS.find(x=>x.id===id), ...data}
+                    : {id:crypto.randomUUID(), xcode:'', xcodeName:'', poOnly:false, ...data};
+  if(PR_READY && !target.poOnly && !(await prPersistItem(target))) return;
+  if(id){ const idx=PURCHASE_ITEMS.findIndex(x=>x.id===id); PURCHASE_ITEMS[idx]=target; }
+  else PURCHASE_ITEMS.push(target);
   closeModal(); renderPurchasing();
   toast(id?'Đã cập nhật mặt hàng.':'Đã thêm mặt hàng mới.','ok');
   if(XCODES.length) matchAllXcodes();
